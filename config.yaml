@@ -1,0 +1,26 @@
+resource_paths:
+  - pseudo1: XX:\XX\path1
+  - pseudo2: YY:\YY\path2
+
+suggestion_limit:
+  name: 10
+  author: 10
+  tag: 20
+
+# 视频文件扩展名
+video_extensions:
+  - .mp4
+  - .avi
+  - .mkv
+  - .mov
+  - .wmv
+  - .flv
+  - .webm
+  - .m4v
+  - .mpg
+  - .mpeg
+
+# MongoDB 配置
+mongodb:
+  uri: mongodb://localhost:27017
+  database: video_tag_db
