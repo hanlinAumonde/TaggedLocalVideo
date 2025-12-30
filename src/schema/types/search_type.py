@@ -11,6 +11,11 @@ class VideoSortOption(Enum):
     LOVED = "loved"
 
 @strawberry.enum
+class SearchFrom(Enum):
+    FrontalPage = "frontal_page"
+    SearchPage = "search_page"
+
+@strawberry.enum
 class SearchField(Enum):
     TITLE = "title"
     AUTHOR = "author"
@@ -41,7 +46,7 @@ class VideoSearchInput:
     author: SerachKeyword
     tags: list[str]
     sortBy: VideoSortOption = VideoSortOption.LATEST
-    limit: Optional[int] = 5
+    fromPage: SearchFrom
     currentPageNumber: Optional[int] = 1
 
 @strawberry.type

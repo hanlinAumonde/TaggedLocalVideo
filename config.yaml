@@ -1,6 +1,11 @@
 resource_paths:
-  - pseudo1: XX:\XX\path1
-  - pseudo2: YY:\YY\path2
+  pseudo1: path1
+  pseudo2: path2
+
+page_size_default:
+  homepage_videos: 5
+  homepage_tags: 20
+  searchpage: 15
 
 suggestion_limit:
   name: 10

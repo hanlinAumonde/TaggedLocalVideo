@@ -1,6 +1,7 @@
 from typing import Optional
 import strawberry
 
+from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.video_type import Video
 
 
@@ -8,9 +9,11 @@ from src.schema.types.video_type import Video
 class FileBrowseNode:
     node: Video
 
-@strawberry.input
+@strawberry.experimental.pydantic.input(model=RelativePathInputModel)
 class RelativePathInput:
-    relativePath: Optional[str] = None  # If None, browse the root directory that contains all resources paths with their pesudo names
+    # refreshFlag: bool = False  # If True, bypass any caching and get the latest info from disk
+    # relativePath: strawberry.auto
+    parsedPath: strawberry.auto
 
 @strawberry.input
 class TagsOperationBatchInput:

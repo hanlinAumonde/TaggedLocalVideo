@@ -15,17 +15,17 @@ class Query:
     @strawberry.field
     async def SearchVideos(self, input: VideoSearchInput, info: strawberry.Info) -> VideoSearchResult:
         """Search for videos based on various criteria."""
-        return await resolve_search_videos(input, info.context)
+        return await resolve_search_videos(input, info)
 
     @strawberry.field
-    async def getTopTags(self,limit: int,info: strawberry.Info) -> list[VideoTag]:
+    async def getTopTags(self, info: strawberry.Info) -> list[VideoTag]:
         """Retrieve the top video tags."""
-        return await resolve_get_top_tags(limit, info.context)
+        return await resolve_get_top_tags(info)
 
     @strawberry.field
     async def getSuggestions(self, input: SuggestionInput, info: strawberry.Info) -> SuggestionResults:
         """Get suggestions (titles, authors, tags) based on a keyword and suggestion type."""
-        return await resolve_get_suggestions(input, info.context)
+        return await resolve_get_suggestions(input, info)
 
     @strawberry.field
     async def getVideoById(self, videoId: strawberry.ID) -> Video:
@@ -35,4 +35,4 @@ class Query:
     @strawberry.field
     async def browseDirectory(self, path: RelativePathInput, info: strawberry.Info) -> list[FileBrowseNode]:
         """Browse videos in a directory specified by a relative path."""
-        return await resolve_browse_directory(path, info.context)
+        return await resolve_browse_directory(path, info)

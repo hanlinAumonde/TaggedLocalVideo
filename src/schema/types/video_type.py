@@ -11,7 +11,6 @@ class VideoTag:
 @strawberry.type
 class Video:
     id: strawberry.ID
-    #path: str
     isDir: bool
     viewCount: int
     lastViewTime: float
@@ -20,7 +19,7 @@ class Video:
     introduction: str
     author: str
     loved: bool
-    size: int
+    size: float
     tags: list[VideoTag]
 
     # if None use default thumbnail in public/static/default_thumbnail.jpg
@@ -28,13 +27,13 @@ class Video:
     thumbnail: Optional[str] = None 
 
     @classmethod
-    async def from_mongoDB(cls, videoModel: VideoModel) -> "Video":
+    async def from_mongoDB(cls, videoModel: VideoModel, getTagsCount: bool = False) -> "Video":
         """
         Convert a VideoModel instance from MongoDB to a Video GraphQL type.
         """
         tag_names = videoModel.tags or []
 
-        if tag_names:
+        if tag_names and getTagsCount:
             tag_models = await VideoTagModel.find({"name": {"$in": tag_names}}).to_list()
             tag_dict = {tag.name: tag.tag_count for tag in tag_models}
         else:
@@ -54,7 +53,28 @@ class Video:
             tags=[
                 VideoTag(name=tag_name, count=tag_dict.get(tag_name, 0))
                 for tag_name in tag_names
-            ]
+            ],
+            thumbnail=videoModel.thumbnail
+        )
+    
+    @classmethod
+    def create_new(cls, id: strawberry.ID, name: str, isDir: bool, lastModifyTime: float, size: float) -> "Video":
+        """
+        Create a new Video instance with default values.
+        """
+        return cls(
+            id=id,
+            isDir=isDir,
+            viewCount=0,
+            lastViewTime=0.0,
+            lastModifyTime=lastModifyTime,
+            name=name,
+            introduction="",
+            author="Unknown",
+            loved=False,
+            size=size,
+            tags=[],
+            thumbnail=None
         )
     
 @strawberry.input

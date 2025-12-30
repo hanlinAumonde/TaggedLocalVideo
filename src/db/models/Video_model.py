@@ -16,23 +16,24 @@ class VideoModel(Document):
     loved: Optional[bool] = False
     viewCount: Optional[int] = 0
     lastViewTime: Optional[float] = 0.0
+    thumbnail: Optional[str] = None
 
     class Settings:
         name = "videos"
         indexes = [
-            # 标签多键索引
+            # tag index
             [("tags", pymongo.ASCENDING)],
-            # 观看次数降序索引
+            # video name index (for title keyword search)
             [("viewCount", pymongo.DESCENDING)],
-            # 最后观看时间降序索引
+            # last modified time index
             [("lastViewTime", pymongo.DESCENDING)],
-            # 收藏状态索引
+            # loved index
             [("loved", pymongo.DESCENDING)],
-            # 作者索引(用于作者搜索)
+            # author index
             [("author", pymongo.ASCENDING)],
-            # 复合索引: loved + lastViewTime (用于收藏视频按观看时间排序)
+            # compound index: loved + lastViewTime (used for loved videos)
             [("loved", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
-            # 复合索引: viewCount + lastModifyTime (用于热门视频)
+            # compound index: viewCount + lastModifyTime (used for popular videos)
             [("viewCount", pymongo.DESCENDING), ("lastModifyTime", pymongo.DESCENDING)],
         ]
 
