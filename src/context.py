@@ -1,6 +1,15 @@
-from fastapi import Depends
+from fastapi import Depends, FastAPI
+from fastapi.concurrency import asynccontextmanager
 import yaml
 from strawberry.fastapi import BaseContext
+
+from src.db import setup_mongo
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await setup_mongo()
+    yield
+    print("Application shutdown")
 
 class AppContext(BaseContext):
     def __init__(
@@ -24,5 +33,5 @@ def custom_context_dependency() -> AppContext:
         video_extensions=config["video_extensions"]
     )
 
-async def get_context(custom_context=Depends(custom_context_dependency)) -> AppContext:
+def get_context(custom_context=Depends(custom_context_dependency)) -> AppContext:
     return custom_context

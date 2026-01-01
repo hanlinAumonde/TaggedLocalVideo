@@ -1,19 +1,12 @@
 from fastapi import FastAPI
 import strawberry
 from strawberry.fastapi import GraphQLRouter
-from contextlib import asynccontextmanager
 
-from src.context import get_context
+from src.context import get_context, lifespan
+from src.resolvers.video_stream_resolver import video_stream_resolver
 from src.schema.mutation_schema import Mutation
-from .db.setup_mongo import setup_mongo
 from .schema.query_schema import Query
 from fastapi.middleware.cors import CORSMiddleware
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await setup_mongo()
-    yield
-    print("Application shutdown")
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
 
@@ -30,6 +23,11 @@ def create_app():
 
     graphql_app = GraphQLRouter(schema=schema, context_getter=get_context)
     app.include_router(graphql_app, prefix="/graphql")
+
+    @app.route("/video/stream/{video_id}")
+    async def stream_video(video_id: str):
+        # Placeholder for video streaming logic
+        return await video_stream_resolver(video_id)
 
     print("Application startup complete")
 

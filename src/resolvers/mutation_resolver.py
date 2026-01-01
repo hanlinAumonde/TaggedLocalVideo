@@ -90,10 +90,13 @@ async def resolve_batch_update_video_tags(input: TagsOperationBatchInput) -> Tag
     :return: Result of the batch update operation.
     :rtype: TagsOperationBatchResult
     """
-    successful_updates = {}
+    successful_updates = []
 
-    for video_id_str, tags_to_update in input.mapping.items():
+    for video_tags_mapping in input.mappings:
         try:
+            video_id_str = video_tags_mapping.videoId
+            tags_to_update = video_tags_mapping.tags
+
             video_model = await VideoModel.get(ObjectId(str(video_id_str)))
             if not video_model:
                 continue
@@ -109,14 +112,14 @@ async def resolve_batch_update_video_tags(input: TagsOperationBatchInput) -> Tag
             await video_model.save()
 
             await _update_tag_counts(old_tags, new_tags)
-            successful_updates[video_id_str] = tags_to_update
+            successful_updates.append(video_id_str)
 
         except Exception:
             continue # skip failures for individual videos
 
     return TagsOperationBatchResult(
-        success=len(successful_updates) > 0,
-        successfulUpdatesMapping=successful_updates
+        success = len(successful_updates) > 0,
+        successfulUpdatesMappings = successful_updates
     )
 
 async def resolve_record_video_view(videoId: strawberry.ID) -> VideoMutationResult:

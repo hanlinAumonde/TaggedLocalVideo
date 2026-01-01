@@ -16,14 +16,19 @@ class RelativePathInput:
     parsedPath: strawberry.auto
 
 @strawberry.input
+class VideoTagsMappingInput:
+    videoId: strawberry.ID
+    tags: list[str]
+
+@strawberry.input
 class TagsOperationBatchInput:
     append: bool # True for append, False for remove
-    mapping: dict[strawberry.ID, list[str]] # videoId to list of tags
+    mappings: list[VideoTagsMappingInput] # videoId to list of tags
 
 @strawberry.type
 class TagsOperationBatchResult:
     success: bool
-    successfulUpdatesMapping: dict[strawberry.ID, list[str]]  # videoId to list of successfully updated tags
+    successfulUpdatesMappings: list[strawberry.ID] 
 
 @strawberry.type
 class VideoMutationResult:

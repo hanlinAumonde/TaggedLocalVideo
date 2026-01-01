@@ -33,8 +33,8 @@ class VideoModel(Document):
             [("author", pymongo.ASCENDING)],
             # compound index: loved + lastViewTime (used for loved videos)
             [("loved", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
-            # compound index: viewCount + lastModifyTime (used for popular videos)
-            [("viewCount", pymongo.DESCENDING), ("lastModifyTime", pymongo.DESCENDING)],
+            # compound index: viewCount + lastViewTime (used for popular videos)
+            [("viewCount", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
         ]
 
 class VideoTagModel(Document):

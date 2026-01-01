@@ -17,9 +17,9 @@ class SearchFrom(Enum):
 
 @strawberry.enum
 class SearchField(Enum):
-    TITLE = "title"
+    NAME = "name"
     AUTHOR = "author"
-    TAGS = "tags"
+    TAG = "tag"
 
 @strawberry.type
 class Pagination:
@@ -36,10 +36,6 @@ class SuggestionInput:
     keyword: SerachKeyword
     suggestionType: SearchField
 
-@strawberry.type
-class SuggestionResults:
-    results: list[str] | list[VideoTag]
-
 @strawberry.input
 class VideoSearchInput:
     titleKeyword: SerachKeyword
@@ -53,3 +49,4 @@ class VideoSearchInput:
 class VideoSearchResult:
     pagination: Pagination
     videos: list[Video]
+

@@ -5,7 +5,7 @@ class RelativePathInputModel(BaseModel):
     # refreshFlag: bool = False  # If True, bypass any caching
     relativePath: str | None = None  # If None, browse the root directory that contains all resources paths with their pesudo names
 
-    parsed_path: tuple[str, str | None] | None = None  # (pesudo_root_dir_name, sub_path), not provided by user
+    parsedPath: tuple[str, str | None] | None = None  # (pesudo_root_dir_name, sub_path), not provided by user
 
     @field_validator("relativePath", mode="after")
     @classmethod
@@ -21,4 +21,4 @@ class RelativePathInputModel(BaseModel):
         # parse the relative path
         parts = v.split("/", 1)
         return (parts[0], "/"+parts[1] if len(parts) > 1 else None)
-        
+            
