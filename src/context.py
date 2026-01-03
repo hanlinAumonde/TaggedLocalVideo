@@ -3,7 +3,7 @@ from fastapi.concurrency import asynccontextmanager
 import yaml
 from strawberry.fastapi import BaseContext
 
-from src.db import setup_mongo
+from src.db.setup_mongo import setup_mongo
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

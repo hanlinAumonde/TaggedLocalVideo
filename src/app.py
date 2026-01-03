@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 
@@ -24,10 +24,10 @@ def create_app():
     graphql_app = GraphQLRouter(schema=schema, context_getter=get_context)
     app.include_router(graphql_app, prefix="/graphql")
 
-    @app.route("/video/stream/{video_id}")
-    async def stream_video(video_id: str):
-        # Placeholder for video streaming logic
-        return await video_stream_resolver(video_id)
+    @app.get("/video/stream/{video_id}")
+    async def stream_video(video_id: str, request: Request):
+        """video stream endpoint"""
+        return await video_stream_resolver(video_id, request)
 
     print("Application startup complete")
 
