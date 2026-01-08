@@ -1,0 +1,53 @@
+import { gql } from 'apollo-angular';
+
+export const UPDATE_VIDEO_METADATA = gql`
+  mutation UpdateVideoMetadata($input: UpdateVideoMetadataInput!) {
+    updateVideoMetadata(input: $input) {
+      success
+      video {
+        id
+        name
+        tags {
+          name
+          count
+        }
+        author
+        loved
+        introduction
+      }
+    }
+  }
+`;
+
+export const BATCH_UPDATE_VIDEO_TAGS = gql`
+  mutation BatchUpdateVideoTags($input: TagsOperationBatchInput!) {
+    batchUpdateVideoTags(input: $input) {
+      success
+      successfulUpdatesMappings
+    }
+  }
+`;
+
+export const RECORD_VIDEO_VIEW = gql`
+  mutation RecordVideoView($videoId: ID!) {
+    recordVideoView(videoId: $videoId) {
+      success
+      video {
+        id
+        viewCount
+        lastViewTime
+      }
+    }
+  }
+`;
+
+export const DELETE_VIDEO = gql`
+  mutation DeleteVideo($videoId: ID!) {
+    deleteVideo(videoId: $videoId) {
+      success
+      video {
+        id
+      }
+    }
+  }
+`;
