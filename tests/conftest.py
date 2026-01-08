@@ -1,5 +1,5 @@
 from typing import AsyncGenerator, Callable
-
+from src import config
 from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 import pytest
@@ -10,7 +10,7 @@ from mongomock_motor import AsyncMongoMockClient
 from strawberry.fastapi import GraphQLRouter
 
 from src.app import schema
-from src.context import AppContext
+from src.config import Settings
 from src.db.models.Video_model import VideoModel, VideoTagModel
 
 # ============================================================================
@@ -38,21 +38,27 @@ def test_config() -> dict:
             ".mp4", ".avi", ".mkv", ".mov",
             ".wmv", ".flv", ".webm", ".m4v"
         ],
-        "mongodb": {
-            "uri": "mongodb://localhost:27017",
+        "mongo": {
+            "host":"localhost",
+            "port":"27017",
             "database": "test_video_tag_db"
         }
     }
 
 
 @pytest.fixture
-def app_context(test_config: dict) -> AppContext:
-    return AppContext(
-        resource_paths=test_config["resource_paths"],
-        pagination_sizes=test_config["page_size_default"],
-        suggestion_limits=test_config["suggestion_limit"],
-        video_extensions=test_config["video_extensions"]
-    )
+def test_settings(test_config: dict) -> Settings:
+    """Create Settings instance from test config"""
+    return Settings.model_validate(test_config)
+
+
+@pytest.fixture(autouse=True)
+def mock_get_settings(test_settings: Settings, monkeypatch):
+    original = config.get_settings
+    original.cache_clear()
+    monkeypatch.setattr(config,"get_settings", lambda: test_settings)
+    yield
+    original.cache_clear()
 
 
 # ============================================================================
@@ -89,14 +95,13 @@ async def init_test_db(mock_db: AsyncMongoMockClient):
 # @pytest_asyncio.fixture
 # async def async_client(
 #     init_test_db,
-#     app_context: AppContext
 # ):
 #     @asynccontextmanager
 #     async def lifespan(app: FastAPI):
 #         yield
 
 #     app = FastAPI(lifespan=lifespan)
-#     graphql_app = GraphQLRouter(schema=schema, context_getter=lambda _: app_context)
+#     graphql_app = GraphQLRouter(schema=schema)
 #     app.include_router(graphql_app, prefix="/graphql")
     
 #     transport = ASGITransport(app=app)

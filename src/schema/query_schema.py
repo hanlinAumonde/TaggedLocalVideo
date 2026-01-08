@@ -13,19 +13,19 @@ from src.resolvers.query_resolver import (
 @strawberry.type
 class Query:
     @strawberry.field
-    async def SearchVideos(self, input: VideoSearchInput, info: strawberry.Info) -> VideoSearchResult:
+    async def SearchVideos(self, input: VideoSearchInput) -> VideoSearchResult:
         """Search for videos based on various criteria."""
-        return await resolve_search_videos(input, info)
+        return await resolve_search_videos(input)
 
     @strawberry.field
-    async def getTopTags(self, info: strawberry.Info) -> list[VideoTag]:
+    async def getTopTags(self) -> list[VideoTag]:
         """Retrieve the top video tags."""
-        return await resolve_get_top_tags(info)
+        return await resolve_get_top_tags()
 
     @strawberry.field
-    async def getSuggestions(self, input: SuggestionInput, info: strawberry.Info) -> list[str]:
+    async def getSuggestions(self, input: SuggestionInput) -> list[str]:
         """Get suggestions (titles, authors, tags) based on a keyword and suggestion type."""
-        return await resolve_get_suggestions(input, info)
+        return await resolve_get_suggestions(input)
 
     @strawberry.field
     async def getVideoById(self, videoId: strawberry.ID) -> Video:
@@ -33,6 +33,6 @@ class Query:
         return await resolve_get_video_by_id(videoId)
 
     @strawberry.field
-    async def browseDirectory(self, path: RelativePathInput, info: strawberry.Info) -> list[FileBrowseNode]:
+    async def browseDirectory(self, path: RelativePathInput) -> list[FileBrowseNode]:
         """Browse videos in a directory specified by a relative path."""
-        return await resolve_browse_directory(path, info)
+        return await resolve_browse_directory(path)

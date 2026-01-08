@@ -12,7 +12,6 @@ suggestion_limit:
   author: 10
   tag: 20
 
-# 视频文件扩展名
 video_extensions:
   - .mp4
   - .avi
@@ -25,7 +24,10 @@ video_extensions:
   - .mpg
   - .mpeg
 
-# MongoDB 配置
-mongodb:
-  uri: mongodb://localhost:27017
+# MongoDB config
+mongo:
+  host: localhost
+  port: 27017
   database: video_tag_db
+  username: exampleUser001
+  password: examplePassword

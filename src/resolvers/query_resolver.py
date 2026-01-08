@@ -2,12 +2,11 @@ import os
 from fastapi.concurrency import run_in_threadpool
 import strawberry
 from bson import ObjectId
-
-from src.context import AppContext
+from src.config import get_settings
 from src.resolvers.util import (
-    get_path_standard_format, 
-    get_top_tag_docs, 
-    get_total_size_and_last_modified_time, 
+    get_path_standard_format,
+    get_top_tag_docs,
+    get_total_size_and_last_modified_time,
     is_video_file
 )
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
@@ -25,17 +24,16 @@ from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import FileBrowseError, InvalidPathError, VideoNotFoundError
 
 
-async def resolve_search_videos(input: VideoSearchInput, info: strawberry.Info[AppContext,None]) -> VideoSearchResult:
+async def resolve_search_videos(input: VideoSearchInput) -> VideoSearchResult:
     """
     Resolve function to search for videos based on various criteria.
 
     :param input: Filter criteria for searching videos.
     :type input: VideoSearchInput
-    :param context: GraphQL context information.
-    :type context: strawberry.Info
     :return: Search results for videos.
     :rtype: VideoSearchResult
     """
+    settings = get_settings()
     query_filters = {}
 
     # build query
@@ -54,9 +52,9 @@ async def resolve_search_videos(input: VideoSearchInput, info: strawberry.Info[A
     sort_criteria = sort_mapping.get(input.sortBy, [("lastModifyTime", -1)])
 
     if input.fromPage == SearchFrom.FrontalPage:
-        page_size = info.context.pagination_sizes.get("homepage_videos", 5)
+        page_size = settings.page_size_default.homepage_videos
     else:
-        page_size = info.context.pagination_sizes.get("searchpage", 15)
+        page_size = settings.page_size_default.searchpage
     page_number = input.currentPageNumber or 1
     skip = (page_number - 1) * page_size
 
@@ -77,46 +75,44 @@ async def resolve_search_videos(input: VideoSearchInput, info: strawberry.Info[A
 
     return VideoSearchResult(pagination=pagination, videos=videos)
 
-async def resolve_get_top_tags(info: strawberry.Info[AppContext,None]) -> list[VideoTag]:
+async def resolve_get_top_tags() -> list[VideoTag]:
     """
     Resolve function to retrieve the top video tags.
 
-    :param context: GraphQL context information.
-    :type context: strawberry.Info
     :return: List of top video tags.
     :rtype: list[VideoTag]
     """
-    limit = info.context.pagination_sizes.get("homepage_tags", 20)
+    settings = get_settings()
+    limit = settings.page_size_default.homepage_tags
     tag_docs = await get_top_tag_docs(limit)
     return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
 
-async def resolve_get_suggestions(input: SuggestionInput, info: strawberry.Info[AppContext,None]) -> list[str]:
+async def resolve_get_suggestions(input: SuggestionInput) -> list[str]:
     """
     Resolve function to get suggestions based on a keyword and suggestion type.
 
     :param input: Input containing the keyword and suggestion type.
     :type input: SuggestionInput
-    :param context: GraphQL context information.
-    :type context: strawberry.Info
     :return: Suggestion results.
     :rtype: SuggestionResults
     """
+    settings = get_settings()
     if input.keyword.keyWord:
         keyword = input.keyword.keyWord
     else:
         return []
     suggestion_type = input.suggestionType
 
-    limits = info.context.suggestion_limits
+    limits = settings.suggestion_limit
 
     match suggestion_type:
-        
+
         case SearchField.TAG:
-            limit = limits.get(SearchField.TAG.value, 20)
+            limit = limits.tag
             if not keyword:
                 tag_docs = await get_top_tag_docs(limit)
                 return [tag.name for tag in tag_docs]
-            
+
             prefix_query = VideoTagModel.find(
                 {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
             )
@@ -129,18 +125,17 @@ async def resolve_get_suggestions(input: SuggestionInput, info: strawberry.Info[
                 )
                 contains_matches = await get_top_tag_docs(limit, contains_query)
                 prefix_matches_names.extend([tag.name for tag in contains_matches])
-            
+
             return prefix_matches_names
-        
+
         case _:
-            limit = limits.get(suggestion_type.value, 10)
+            limit = limits.name if suggestion_type == SearchField.NAME else limits.author
             pipeline = [
                 {"$match": {suggestion_type.value: {"$regex": keyword, "$options": "i"}}},
                 {"$group": {"_id": "$" + suggestion_type.value}},
                 {"$limit": limit}
             ]
             collection = VideoModel.get_pymongo_collection()
-            # mongomock_motor don't support the expression "await collection.aggregate(pipeline)" for now
             cursor = collection.aggregate(pipeline)
             result = []
             async for doc in cursor:
@@ -165,24 +160,23 @@ async def resolve_get_video_by_id(videoId: strawberry.ID) -> Video:
     return await Video.from_mongoDB(video_model)
 
 
-async def resolve_browse_directory(path: RelativePathInput, info: strawberry.Info[AppContext, None]) -> list[FileBrowseNode]:
+async def resolve_browse_directory(path: RelativePathInput) -> list[FileBrowseNode]:
     """
     Resolve function to browse videos in a directory specified by a relative path.
-    
+
     :param path: The relative path to browse.
     :type path: RelativePathInput
-    :param context: GraphQL context information.
-    :type context: strawberry.Info
     :return: List of file browse nodes in the specified directory.
     :rtype: list[FileBrowseNode]
     """
+    settings = get_settings()
     # Resolve the absolute path from the relative path
     relativePathInoutModel = path.to_pydantic()
     if relativePathInoutModel.parsedPath is None:
         abs_path = None  # Browse root directories
     else:
         pseudo_root_dir_name, sub_path = relativePathInoutModel.parsedPath
-        resource_paths_mapping = info.context.resource_paths
+        resource_paths_mapping = settings.resource_paths
         if pseudo_root_dir_name not in resource_paths_mapping:
             raise InvalidPathError(f"Invalid pseudo root directory name: {pseudo_root_dir_name}")
         abs_root_path = resource_paths_mapping[pseudo_root_dir_name]
@@ -190,8 +184,8 @@ async def resolve_browse_directory(path: RelativePathInput, info: strawberry.Inf
             abs_path = abs_root_path
         else:
             abs_path = abs_root_path + sub_path
-    
-    return await get_node_list_in_directory(abs_path, info.context.video_extensions, resource_paths_mapping)
+
+    return await get_node_list_in_directory(abs_path, settings.video_extensions, resource_paths_mapping)
 
 
 async def get_node_list_in_directory(abs_path: str | None, video_extensions: list[str], resource_paths: dict[str,str]) -> list[FileBrowseNode]:
