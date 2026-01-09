@@ -1,1 +1,39 @@
-<p>sidebar works!</p>
+<aside
+  class="h-full bg-gray-200 flex flex-col py-4 transition-all duration-300"
+  [class.w-16]="!isExpanded()"
+  [class.w-48]="isExpanded()"
+>
+  <!-- Toggle Button -->
+  <div class="flex items-center justify-center mb-4">
+    <button
+      mat-icon-button
+      (click)="toggleSidebar()"
+      class="hover:bg-gray-300 rounded-lg"
+      [matTooltip]="isExpanded() ? 'Collapse' : 'Expand'"
+      matTooltipPosition="right"
+    >
+      <mat-icon class="text-gray-700">apps</mat-icon>
+    </button>
+  </div>
+
+  <!-- Navigation Items -->
+  <nav class="flex flex-col space-y-2">
+    @for (item of navItems; track item.path) {
+      <a
+        [routerLink]="item.path"
+        routerLinkActive="bg-gray-400"
+        class="flex items-center hover:bg-gray-300 transition-colors cursor-pointer"
+        [class.justify-center]="!isExpanded()"
+        [class.px-4]="isExpanded()"
+        [class.py-3]="true"
+        [matTooltip]="!isExpanded() ? item.label : ''"
+        matTooltipPosition="right"
+      >
+        <mat-icon class="text-gray-700">{{ item.icon }}</mat-icon>
+        @if (isExpanded()) {
+          <span class="ml-3 text-gray-700 font-medium">{{ item.label }}</span>
+        }
+      </a>
+    }
+  </nav>
+</aside>
