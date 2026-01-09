@@ -65,6 +65,8 @@ def mock_get_settings(test_settings: Settings, monkeypatch):
 # DB Fixtures (mongomock)
 # ============================================================================
 
+# Mongomock has no support for AsyncMongoClient of pymongo right now
+
 @pytest_asyncio.fixture
 async def mock_db() -> AsyncGenerator[AsyncMongoMockClient, None]:
     client = AsyncMongoMockClient()

@@ -1,33 +1,15 @@
 import strawberry
 
-from src.schema.types.fileBrowse_type import TagsOperationBatchInput, TagsOperationBatchResult, VideoMutationResult
-from src.schema.types.video_type import UpdateVideoMetadataInput, Video
-from src.resolvers.mutation_resolver import (
-    resolve_update_video_metadata,
-    resolve_batch_update_video_tags,
-    resolve_record_video_view,
-    resolve_delete_video
-)
+from src.schema.types.fileBrowse_type import TagsOperationBatchResult, VideoMutationResult
+from src.resolvers.mutation_resolver import MutationResolver
 
 
 @strawberry.type
 class Mutation:
-    @strawberry.mutation
-    async def updateVideoMetadata(self, input: UpdateVideoMetadataInput) -> VideoMutationResult:
-        """Update the metadata of a video."""
-        return await resolve_update_video_metadata(input)
+    updateVideoMetadata: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_update_video_metadata)
 
-    @strawberry.mutation
-    async def batchUpdateVideoTags(self, input: TagsOperationBatchInput) -> TagsOperationBatchResult:
-        """Batch update tags for multiple videos."""
-        return await resolve_batch_update_video_tags(input)
+    batchUpdateVideoTags: TagsOperationBatchResult = strawberry.mutation(MutationResolver.resolve_batch_update_video_tags)
 
-    @strawberry.mutation
-    async def recordVideoView(self, videoId: strawberry.ID) -> VideoMutationResult:
-        """Record a view for a video."""
-        return await resolve_record_video_view(videoId)
+    recordVideoView: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_record_video_view)
 
-    @strawberry.mutation
-    async def deleteVideo(self, videoId: strawberry.ID) -> VideoMutationResult:
-        """Delete a video by its ID."""
-        return await resolve_delete_video(videoId)
+    deleteVideo: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_delete_video)
