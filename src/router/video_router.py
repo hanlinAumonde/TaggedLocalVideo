@@ -1,6 +1,5 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, Request
-#from pydantic import BaseModel
 
 from src.resolvers.video_stream_resolver import VideoResolver
 
@@ -9,16 +8,13 @@ def get_video_resolver():
 
 VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]
 
-router = APIRouter()
+router = APIRouter(prefix="/video")
 
-@router.get("/video/stream/{video_id}")
+@router.get("/stream/{video_id}")
 async def stream_video(video_id: str, request: Request, videoResolverDep: VideoResolverDep):
     """video stream endpoint"""
     return await videoResolverDep.video_stream_resolver(video_id, request)
 
-# class ThumbnailsInput(BaseModel):
-#     ids: list[str]
-
-# @router.get("/thumbnails")
-# async def get_thumbnails_batch(input:ThumbnailsInput):
-#     return [] #[{"id":"thumbnailID","bytes":thumbnails_bytes}]
+@router.get("/thumbnail")
+async def get_thumbnails_batch(video_id: str, thumbnail_id: str, videoResolverDep: VideoResolverDep):
+     return await videoResolverDep.get_thumbnail(video_id,thumbnail_id)

@@ -1,7 +1,7 @@
 import os
 import aiofiles
 from fastapi import HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from src.db.models.Video_model import VideoModel
 
 
@@ -116,3 +116,15 @@ class VideoResolver:
             ".mpeg": "video/mpeg",
         }
         return mime_types.get(ext, "video/mp4")
+    
+    async def get_thumbnail(self,video_id:str,thumbnail_id:str) -> FileResponse | None:
+        if thumbnail_id:
+            pass # TODO: find jpeg thumbnail from file system using thumbnail-id
+        elif not video_id:
+            raise HTTPException(status_code=404, detail="Cannot find thumbnail without video-id")
+        else:
+            return None
+            # TODO:
+            # video-id is not null and thumbnail-id is null
+            # using for example ffmpeg to generate a thumbnail and store it in the file system, and update db
+            # return the jpeg file

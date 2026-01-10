@@ -13,8 +13,7 @@ interface NavItem {
 @Component({
   selector: 'app-sidebar',
   imports: [RouterLink, RouterLinkActive, MatIconModule, MatButtonModule, MatTooltipModule],
-  templateUrl: './sidebar.html',
-  styleUrl: './sidebar.css',
+  templateUrl: './sidebar.html'
 })
 export class Sidebar {
   isExpanded = signal(false);
