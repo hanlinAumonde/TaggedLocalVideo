@@ -1,0 +1,139 @@
+<div class="w-full max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
+  <form [formGroup]="editForm" class="space-y-6">
+
+    <!-- 完整模式下的字段 -->
+    @if (isFullMode()) {
+      <!-- Title -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+          Title:
+        </label>
+        <mat-form-field appearance="outline" class="w-full">
+          <input matInput formControlName="name" placeholder="Title-video" />
+          @if (editForm.get('name')?.hasError('required') && editForm.get('name')?.touched) {
+            <mat-error>Title is required</mat-error>
+          }
+        </mat-form-field>
+      </div>
+
+      <!-- Loved -->
+      <div class="flex items-center gap-4">
+        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
+          Loved:
+        </label>
+        <mat-checkbox formControlName="loved"></mat-checkbox>
+      </div>
+
+      <!-- Creator -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+          Creator:
+        </label>
+        <mat-form-field appearance="outline" class="w-full">
+          <input
+            matInput
+            formControlName="author"
+            placeholder="search"
+            [matAutocomplete]="authorAuto" />
+          <mat-icon matSuffix>expand_more</mat-icon>
+          <mat-autocomplete
+            #authorAuto="matAutocomplete"
+            (optionSelected)="selectAuthorSuggestion($event.option.value)">
+            @for (author of authorSuggestions(); track author) {
+              <mat-option [value]="author">
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </div>
+
+      <!-- Introduction -->
+      <div class="flex flex-col gap-2">
+        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+          Introduction:
+        </label>
+        <mat-form-field appearance="outline" class="w-full">
+          <textarea
+            matInput
+            formControlName="introduction"
+            placeholder="Enter introduction"
+            rows="4"></textarea>
+        </mat-form-field>
+      </div>
+    }
+
+    <!-- Tags Section (完整模式和过滤模式都显示) -->
+    <div class="flex flex-col gap-3">
+      <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        Tags:
+      </label>
+
+      <!-- 已选标签 -->
+      @if (tags().length > 0) {
+        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
+          @for (tag of tags(); track tag) {
+            <mat-chip class="!bg-white !border !border-gray-300">
+              <span class="font-medium">{{ tag }}</span>
+              <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
+                <mat-icon class="!text-base">cancel</mat-icon>
+              </button>
+            </mat-chip>
+          }
+        </div>
+      }
+
+      <!-- 标签输入和建议 -->
+      <mat-form-field appearance="outline" class="w-full">
+        <input
+          matInput
+          formControlName="tagInput"
+          placeholder="search"
+          [matAutocomplete]="tagAuto"
+          (keydown.enter)="onTagInputEnter($event)" />
+        <mat-icon matSuffix>expand_more</mat-icon>
+        <mat-autocomplete
+          #tagAuto="matAutocomplete"
+          (optionSelected)="selectTagSuggestion($event.option.value)">
+          @for (tag of tagSuggestions(); track tag) {
+            <mat-option [value]="tag">
+              <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ tag }}</span>
+            </mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+
+      <!-- Add Tag 按钮 -->
+      <div class="flex justify-end">
+        <button
+          mat-raised-button
+          type="button"
+          (click)="addTag()"
+          class="!bg-gray-600 !text-white hover:!bg-gray-700">
+          Add Tag
+        </button>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="flex justify-center gap-4 pt-4">
+      <button
+        mat-raised-button
+        type="button"
+        (click)="handleSave()"
+        [disabled]="isFullMode() && editForm.invalid"
+        class="!bg-gray-600 !text-white hover:!bg-gray-700 disabled:!bg-gray-300 !px-8">
+        {{ saveButtonText() }}
+      </button>
+
+      <button
+        mat-raised-button
+        type="button"
+        (click)="handleCancel()"
+        class="!bg-gray-600 !text-white hover:!bg-gray-700 !px-8">
+        Cancel
+      </button>
+    </div>
+
+  </form>
+</div>

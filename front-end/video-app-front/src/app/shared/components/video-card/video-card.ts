@@ -23,7 +23,7 @@ export class VideoCard {
   }
 
   get formattedDate(): string {
-    return new Date(this.video.lastModifyTime).toLocaleDateString('zh-CN', {
+    return new Date(this.video.lastModifyTime).toLocaleDateString(undefined,{
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
