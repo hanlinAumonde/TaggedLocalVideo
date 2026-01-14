@@ -10,19 +10,12 @@ export const SEARCH_VIDEOS = gql`
       }
       videos {
         id
-        isDir
         name
-        tags {
-          name
-          count
-        }
         author
         viewCount
         loved
         lastViewTime
         lastModifyTime
-        introduction
-        size
         thumbnail
       }
     }
@@ -36,17 +29,23 @@ export const GET_TOP_TAGS = gql`
       count
     }
   }
+`
+
+export const GET_TOP_TAGS_AS_SUGGESTION = gql`
+  query GetTopTagsAsSuggestion {
+    getTopTags {
+      name
+    }
+  }
 `;
 
 export const GET_VIDEO_BY_ID = gql`
   query GetVideoById($videoId: ID!) {
     getVideoById(videoId: $videoId) {
       id
-      isDir
       name
       tags {
         name
-        count
       }
       author
       viewCount
@@ -54,8 +53,6 @@ export const GET_VIDEO_BY_ID = gql`
       lastViewTime
       lastModifyTime
       introduction
-      size
-      thumbnail
     }
   }
 `;
@@ -75,16 +72,12 @@ export const BROWSE_DIRECTORY = gql`
         name
         tags {
           name
-          count
         }
         author
-        viewCount
         loved
-        lastViewTime
         lastModifyTime
         introduction
         size
-        thumbnail
       }
     }
   }

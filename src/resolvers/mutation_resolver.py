@@ -15,8 +15,8 @@ class MutationResolver:
 
         :param input: Input containing the video ID and new metadata.
         :type input: UpdateVideoMetadataInput
-        :return: Boolean indicating success or failure of the update operation.
-        :rtype: bool
+        :return: VideoMutationResult contains a success flag and an object of updated video metadata
+        :rtype: VideoMutationResult
         """
         try:
             video_model = await VideoModel.get(ObjectId(str(input.videoId)))

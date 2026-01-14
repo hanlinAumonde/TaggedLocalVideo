@@ -1,8 +1,5 @@
 import {
   Component,
-  Input,
-  Output,
-  EventEmitter,
   OnInit,
   signal,
   computed,
@@ -15,6 +12,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
+import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -22,17 +20,16 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { debounceTime, distinctUntilChanged, switchMap, startWith } from 'rxjs/operators';
 
 import {
   Video,
-  UpdateVideoMetadataInput,
   SearchField,
-  GetTopTagsGQL,
 } from '../../../core/graphql/generated/graphql';
 import {
   VideoEditPanelMode,
-  SaveEventData,
+  VideoEditPanelData,
 } from '../../models/video-edit-panel.model';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 
@@ -40,6 +37,7 @@ import { GqlService } from '../../../services/GQL-service/GQL-service';
   selector: 'app-video-edit-panel',
   imports: [
     ReactiveFormsModule,
+    MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
     MatCheckboxModule,
@@ -47,60 +45,61 @@ import { GqlService } from '../../../services/GQL-service/GQL-service';
     MatChipsModule,
     MatAutocompleteModule,
     MatIconModule,
+    MatProgressSpinnerModule
   ],
   templateUrl: './video-edit-panel.html'
 })
 export class VideoEditPanel implements OnInit {
-  @Input({ required: true }) mode!: VideoEditPanelMode;
-  @Input() video?: Video;
-  @Input() selectedTags?: string[];
+  private dialogRef = inject(MatDialogRef<VideoEditPanel>);
+  private data = inject<VideoEditPanelData>(MAT_DIALOG_DATA);
+  private formBuilder = inject(FormBuilder);
+  private gqlService = inject(GqlService);
 
-  @Output() onSave = new EventEmitter<SaveEventData>();
-  @Output() onCancel = new EventEmitter<void>();
-
-  private formBuilder = inject(FormBuilder)
-  private getTopTagsGQL = inject(GetTopTagsGQL)
-  private gqlService = inject(GqlService)
+  mode: VideoEditPanelMode = this.data.mode;
+  video?: Video = this.data.video;
+  selectedTags?: string[] = this.data.selectedTags;
 
   editForm: FormGroup = this.formBuilder.group({
-      name: ['', Validators.required],
-      author: [''],
-      loved: [false],
-      introduction: [''],
+      name: [this.video?.name ?? '', Validators.required],
+      author: [this.video?.author ?? ''],
+      loved: [this.video?.loved ?? false],
+      introduction: [this.video?.introduction ?? ''],
       tagInput: [''],
   });
 
   tags = signal<string[]>([]);
+  isSaving = signal<boolean>(false);
 
   authorSuggestions = this.mode === 'full'?
     toSignal(
       this.editForm.controls['author'].valueChanges.pipe(
         debounceTime(500),
         distinctUntilChanged(),
-        switchMap(authorKeyword => 
-          (!authorKeyword || authorKeyword.length < 1) ? 
+        switchMap(authorKeyword =>
+          (!authorKeyword || authorKeyword.length < 1) ?
             [] : this.gqlService.getSuggestionsQuery(authorKeyword,SearchField.Author)
         )
-      ), { initialValue: [] }
-    ) : signal<string[]>([])
+      ), { initialValue: this.gqlService.initialSignalData<string[]>([]) }
+    ) : signal(this.gqlService.initialSignalData<string[]>([]));
 
   tagSuggestions = toSignal(
     this.editForm.controls['tagInput'].valueChanges.pipe(
       startWith(this.editForm.controls['tagInput'].value),
       debounceTime(500),
       distinctUntilChanged(),
-      switchMap(tagKeyword => 
+      switchMap(tagKeyword =>
         (!tagKeyword || tagKeyword.length < 1)?
-          this.gqlService.getTopTagsQuery() : this.gqlService.getSuggestionsQuery(tagKeyword,SearchField.Tag)
+          this.gqlService.getTopTagsAsSuggestionQuery()
+          : this.gqlService.getSuggestionsQuery(tagKeyword,SearchField.Tag)
       )
     ),
-    { initialValue: [] }
+    { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   )
 
   isFullMode = computed(() => this.mode === 'full');
-  
+
   saveButtonText = computed(() =>
-    this.mode === 'filter' ? 'Apply Filter' : 'Save'
+    this.mode === 'filter' ? 'Apply Filter' : (this.isSaving() ? 'Saving...' : 'Save')
   );
 
   ngOnInit() { this.initializeFormState(); }
@@ -150,9 +149,6 @@ export class VideoEditPanel implements OnInit {
     this.tags.update(tags => tags.filter(t => t !== tag));
   }
 
-  /**
-   * 处理标签输入框回车
-   */
   onTagInputEnter(event: Event) {
     event.preventDefault();
     this.addTag();
@@ -160,24 +156,41 @@ export class VideoEditPanel implements OnInit {
 
   handleSave() {
     if (this.mode === 'filter') {
-      this.onSave.emit(this.tags());
-    } else {
+      this.dialogRef.close(this.tags());
+    } 
+    else {
       if (this.editForm.valid && this.video) {
         const formValue = this.editForm.value;
-        const updateData: UpdateVideoMetadataInput = {
-          videoId: this.video.id,
-          name: formValue.name,
-          author: formValue.author || '',
-          loved: formValue.loved,
-          introduction: formValue.introduction || '',
-          tags: this.tags(),
-        };
-        this.onSave.emit(updateData);
+
+        this.isSaving.set(true);
+
+        this.gqlService.updateVideoMetadataMutation(
+          this.video.id,
+          formValue.name,
+          formValue.introduction || '',
+          this.tags(),
+          formValue.author || '',
+          formValue.loved
+        ).subscribe({
+          next: (result) => {
+            this.isSaving.set(false);
+            if (result.data) {
+              this.dialogRef.close({ success: true, data: result.data });
+            } else {
+              // update failed, keep the dialog open for user to retry
+              console.error('Failed to update video metadata');
+            }
+          },
+          error: (err) => {
+            this.isSaving.set(false);
+            console.error('Error updating video metadata:', err);
+          }
+        });
       }
     }
   }
 
   handleCancel() {
-    this.onCancel.emit();
+    this.dialogRef.close();
   }
 }

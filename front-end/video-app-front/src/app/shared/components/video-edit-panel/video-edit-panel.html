@@ -1,7 +1,8 @@
-<div class="w-full max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-md">
-  <form [formGroup]="editForm" class="space-y-6">
+<h2 mat-dialog-title>{{ isFullMode() ? 'Edit video metadata' : 'Filter tags' }}</h2>
 
-    <!-- 完整模式下的字段 -->
+<mat-dialog-content>
+  <form [formGroup]="editForm" class="space-y-6" id="edit-form">
+
     @if (isFullMode()) {
       <!-- Title -->
       <div class="flex flex-col gap-2">
@@ -39,10 +40,22 @@
           <mat-autocomplete
             #authorAuto="matAutocomplete"
             (optionSelected)="selectAuthorSuggestion($event.option.value)">
-            @for (author of authorSuggestions(); track author) {
-              <mat-option [value]="author">
-                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+            @if(authorSuggestions().loading) {
+              <mat-option disabled>
+                <mat-progress-spinner
+                  diameter="20"
+                  mode="indeterminate">
+                </mat-progress-spinner>
+                <span class="ml-2">Loading...</span>
               </mat-option>
+            }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
+              @for (author of authorSuggestions().data; track author) {
+                <mat-option [value]="author">
+                  <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+                </mat-option>
+              }
+            }@else{
+              <mat-option disabled>No author-suggestions available</mat-option>
             }
           </mat-autocomplete>
         </mat-form-field>
@@ -63,13 +76,13 @@
       </div>
     }
 
-    <!-- Tags Section (完整模式和过滤模式都显示) -->
+    <!-- Tags Section -->
     <div class="flex flex-col gap-3">
       <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
         Tags:
       </label>
 
-      <!-- 已选标签 -->
+      <!-- Selected tag -->
       @if (tags().length > 0) {
         <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
           @for (tag of tags(); track tag) {
@@ -83,7 +96,7 @@
         </div>
       }
 
-      <!-- 标签输入和建议 -->
+      <!-- Tag input and suggestions -->
       <mat-form-field appearance="outline" class="w-full">
         <input
           matInput
@@ -95,15 +108,27 @@
         <mat-autocomplete
           #tagAuto="matAutocomplete"
           (optionSelected)="selectTagSuggestion($event.option.value)">
-          @for (tag of tagSuggestions(); track tag) {
+          @if(tagSuggestions().loading) {
+            <mat-option disabled>
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate">
+              </mat-progress-spinner>
+              <span class="ml-2">Loading...</span>
+            </mat-option>
+          }@else if(tagSuggestions().data && tagSuggestions().data!.length > 0){
+            @for (tag of tagSuggestions().data; track tag) {
             <mat-option [value]="tag">
               <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ tag }}</span>
             </mat-option>
+            }
+          }@else{
+            <mat-option disabled>No tag-suggestions available</mat-option>
           }
         </mat-autocomplete>
       </mat-form-field>
 
-      <!-- Add Tag 按钮 -->
+      <!-- Add Tag button -->
       <div class="flex justify-end">
         <button
           mat-raised-button
@@ -115,25 +140,22 @@
       </div>
     </div>
 
-    <!-- 操作按钮 -->
-    <div class="flex justify-center gap-4 pt-4">
-      <button
-        mat-raised-button
-        type="button"
-        (click)="handleSave()"
-        [disabled]="isFullMode() && editForm.invalid"
-        class="!bg-gray-600 !text-white hover:!bg-gray-700 disabled:!bg-gray-300 !px-8">
-        {{ saveButtonText() }}
-      </button>
-
-      <button
-        mat-raised-button
-        type="button"
-        (click)="handleCancel()"
-        class="!bg-gray-600 !text-white hover:!bg-gray-700 !px-8">
-        Cancel
-      </button>
-    </div>
-
   </form>
-</div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button
+    mat-button
+    type="button"
+    (click)="handleCancel()">
+    Cancel
+  </button>
+  <button
+    mat-raised-button
+    type="button"
+    (click)="handleSave()"
+    [disabled]="isFullMode() && (editForm.invalid || isSaving())"
+    color="primary">
+    {{ saveButtonText() }}
+  </button>
+</mat-dialog-actions>

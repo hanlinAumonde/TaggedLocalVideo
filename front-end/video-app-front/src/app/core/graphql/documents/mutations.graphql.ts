@@ -9,7 +9,6 @@ export const UPDATE_VIDEO_METADATA = gql`
         name
         tags {
           name
-          count
         }
         author
         loved
