@@ -1,4 +1,4 @@
-import { Component, Input, signal } from '@angular/core';
+import { Component, Input, OnChanges, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
@@ -9,32 +9,35 @@ import { Video } from '../../../core/graphql/generated/graphql';
   imports: [RouterLink, MatCardModule, MatChipsModule],
   templateUrl: './video-card.html',
 })
-export class VideoCard {
-  @Input({ required: true }) video!: Video;
+export class VideoCard implements OnChanges{
+  @Input() video?: Video | null;
 
-  imageLoaded = signal(false);
-  imageError = signal(false);
+  readonly defaultThumbnail = '/videoicon.png';
+  thumbnailSrc = this.defaultThumbnail;
 
-  get thumbnailUrl(): string {
-    if (!this.video.thumbnail) {
-      return '/videoicon.png';
+  ngOnChanges() {
+    if (!this.video?.thumbnail) {
+      this.thumbnailSrc = this.defaultThumbnail;
+      return;
     }
-    return `/video/thumbnail/?video_id=${this.video.id}&thumbnail_id=${this.video.thumbnail}`;
+
+    const realUrl =
+      `/video/thumbnail/?video_id=${this.video.id}&thumbnail_id=${this.video.thumbnail}`;
+
+    const img = new Image();
+    img.src = realUrl;
+
+    img.onload = () => {
+      this.thumbnailSrc = realUrl;
+    };
   }
 
   get formattedDate(): string {
-    return new Date(this.video.lastModifyTime).toLocaleDateString(undefined,{
+    if (!this.video) return '';
+    return new Date(this.video.lastModifyTime).toLocaleDateString(undefined, {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
     });
-  }
-
-  onImageLoad() {
-    this.imageLoaded.set(true);
-  }
-
-  onImageError() {
-    this.imageError.set(true);
   }
 }
