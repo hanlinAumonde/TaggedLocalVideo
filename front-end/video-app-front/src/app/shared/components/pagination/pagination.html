@@ -1,0 +1,37 @@
+<div class="flex justify-center items-center gap-2 mt-4">
+
+  <!-- Previous -->
+  <button
+    mat-icon-button
+    aria-label="Previous page"
+    [disabled]="isFirstPage()"
+    (click)="changePage(currentPage() - 1)"
+  >
+    <mat-icon>chevron_left</mat-icon>
+  </button>
+
+  <!-- Page numbers -->
+  @for (page of pages(); track page) {
+    <button
+      mat-button
+      class="min-w-10 transition-colors"
+      [class.bg-blue-600]="currentPage() === page - 1"
+      [class.text-white]="currentPage() === page - 1"
+      [class.font-semibold]="currentPage() === page - 1"
+      (click)="changePage(page - 1)"
+    >
+      {{ page }}
+    </button>
+  }
+
+  <!-- Next -->
+  <button
+    mat-icon-button
+    aria-label="Next page"
+    [disabled]="isLastPage()"
+    (click)="changePage(currentPage() + 1)"
+  >
+    <mat-icon>chevron_right</mat-icon>
+  </button>
+
+</div>
