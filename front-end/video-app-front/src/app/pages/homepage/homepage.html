@@ -6,14 +6,16 @@
       <button matButton="tonal" color="primary" (click)="OnMoreClick('loved')"><strong>More</strong></button>
     </div>
     <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (lovedVideos().loading || lovedVideos().data?.videos?.length === 0) {
+      @if (lovedVideos().loading) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
-      } @else {
-        @for (video of lovedVideos().data?.videos; track video.id) {
+      } @else if(lovedVideos().data && lovedVideos().data!.videos.length > 0){
+        @for (video of lovedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
+      } @else {
+        <p class="text-gray-500 italic">No loved videos yet. Show some love to your favorite videos!</p>
       }
     </div>
   </section>
@@ -25,14 +27,16 @@
       <button matButton="tonal" color="primary" (click)="OnMoreClick('latest')"><strong>More</strong></button>
     </div>
     <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (latestViewedVideos().loading || latestViewedVideos().data?.videos?.length === 0) {
+      @if (latestViewedVideos().loading) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
-      } @else {
-        @for (video of latestViewedVideos().data?.videos; track video.id) {
+      } @else if(latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
+        @for (video of latestViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
+      } @else{
+        <p class="text-gray-500 italic">No viewed videos yet. Start watching some videos!</p>
       }
     </div>
   </section>
@@ -44,14 +48,16 @@
       <button matButton="tonal" color="primary" (click)="OnMoreClick('mostViewed')"><strong>More</strong></button>
     </div>
     <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (mostViewedVideos().loading || mostViewedVideos().data?.videos?.length === 0) {
+      @if (mostViewedVideos().loading) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
-      } @else {
-        @for (video of mostViewedVideos().data?.videos; track video.id) {
+      } @else if(mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
+        @for (video of mostViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
+      } @else{
+        <p class="text-gray-500 italic">No videos available. Check back later!</p>
       }
     </div>
   </section>

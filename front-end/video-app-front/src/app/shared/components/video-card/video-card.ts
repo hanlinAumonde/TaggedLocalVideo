@@ -1,8 +1,8 @@
-import { Component, computed, input, Input, OnChanges, signal } from '@angular/core';
+import { Component, computed, input, OnChanges } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { Video } from '../../../core/graphql/generated/graphql';
+import { SearchedVideo } from '../../models/GQL-result.model';
 
 @Component({
   selector: 'app-video-card',
@@ -10,7 +10,7 @@ import { Video } from '../../../core/graphql/generated/graphql';
   templateUrl: './video-card.html',
 })
 export class VideoCard implements OnChanges{
-  video = input<Video | null>(null);
+  video = input<SearchedVideo | null>(null);
 
   readonly defaultThumbnail = '/videoicon.png';
   thumbnailSrc = this.defaultThumbnail;

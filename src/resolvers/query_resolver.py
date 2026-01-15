@@ -132,7 +132,7 @@ class QueryResolver:
                     {"$limit": limit}
                 ]
                 collection = VideoModel.get_pymongo_collection()
-                cursor = collection.aggregate(pipeline)
+                cursor = await collection.aggregate(pipeline)
                 result = []
                 async for doc in cursor:
                     if doc.get("_id"):

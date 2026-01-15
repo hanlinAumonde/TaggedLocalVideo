@@ -1,4 +1,5 @@
-import { Video, UpdateVideoMetadataInput } from '../../core/graphql/generated/graphql';
+import { UpdateVideoMetadataInput } from '../../core/graphql/generated/graphql';
+import { VideoDetail } from './GQL-result.model';
 
 
 export type VideoEditPanelMode = 'full' | 'filter';
@@ -16,7 +17,7 @@ export type SaveEventData = UpdateVideoMetadataInput | string[];
 
 export interface VideoEditPanelData {
   mode: VideoEditPanelMode;
-  video?: Video;
+  video?: VideoDetail;
   selectedTags?: string[];
 }
 

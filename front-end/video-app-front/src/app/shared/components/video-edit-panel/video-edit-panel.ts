@@ -32,6 +32,7 @@ import {
   VideoEditPanelData,
 } from '../../models/video-edit-panel.model';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
+import { VideoDetail, VideoMutationDetail } from '../../models/GQL-result.model';
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -50,13 +51,13 @@ import { GqlService } from '../../../services/GQL-service/GQL-service';
   templateUrl: './video-edit-panel.html'
 })
 export class VideoEditPanel implements OnInit {
-  private dialogRef = inject(MatDialogRef<VideoEditPanel>);
+  private dialogRef: MatDialogRef<VideoEditPanel, string[]>  = inject(MatDialogRef);
   private data = inject<VideoEditPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
 
   mode: VideoEditPanelMode = this.data.mode;
-  video?: Video = this.data.video;
+  video?: VideoDetail = this.data.video;
   selectedTags?: string[] = this.data.selectedTags;
 
   editForm: FormGroup = this.formBuilder.group({
@@ -166,16 +167,16 @@ export class VideoEditPanel implements OnInit {
 
         this.gqlService.updateVideoMetadataMutation(
           this.video.id,
-          formValue.name,
-          formValue.introduction || '',
+          formValue.loved,
           this.tags(),
-          formValue.author || '',
-          formValue.loved
+          formValue.name,
+          formValue.introduction ?? '',
+          formValue.author ?? ''
         ).subscribe({
           next: (result) => {
             this.isSaving.set(false);
             if (result.data?.success) {
-              this.dialogRef.close({ success: true, data: result.data.video });
+              this.dialogRef.close(/*{ success: true, video: result.data.video }*/);
             } else {
               // update failed, keep the dialog open for user to retry
               console.error('Failed to update video metadata');

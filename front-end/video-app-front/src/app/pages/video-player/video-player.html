@@ -1,1 +1,80 @@
-<p>video-player works!</p>
+<div class="max-w-5xl mx-auto p-6">
+  <!-- Loading State -->
+  @if (video().loading) {
+    <div class="flex justify-center items-center h-96">
+      <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+    </div>
+  } @else if (video().error) {
+    <div class="flex justify-center items-center h-96">
+      <p class="text-red-500">Failed to load video</p>
+    </div>
+  } @else {
+    <!-- Video Player Section -->
+    <div class="w-full mb-6">
+      <video
+        #videoTarget
+        class="video-js vjs-big-play-centered">
+        <p class="vjs-no-js">
+          To view this video please enable JavaScript
+        </p>
+      </video>
+    </div>
+
+    <!-- Video Info Section -->
+    <div class="space-y-4 py-4">
+      <div class="flex justify-between items-start flex-wrap gap-4">
+        <h1 class="flex-1 text-2xl font-bold">{{ video().data?.name }}</h1>
+        <div class="flex gap-4 flex-wrap">
+          <button mat-icon-button (click)="onLovedClick()" [class.text-pink-500]="video().data?.loved">
+            <mat-icon color="accent">{{ video().data?.loved ? 'favorite' : 'favorite_border' }}</mat-icon>
+          </button>
+          <button mat-icon-button (click)="onEditClick()">
+            <mat-icon color="primary">build</mat-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- Creator -->
+      <div class="flex items-center gap-2">
+        <span class="text-pink-600 font-semibold">Creator:</span>
+        <span
+          class="px-3 py-1 bg-pink-100 rounded-full cursor-pointer hover:bg-pink-200 transition-colors"
+          (click)="onAuthorClick(video().data?.author || '')">
+          {{ video().data?.author || 'Unknown' }}
+        </span>
+      </div>
+
+      <!-- Introduction -->
+      @if (video().data?.introduction) {
+        <div class="space-y-2">
+          <span class="text-gray-600 font-semibold">Introduction:</span>
+          <div class="p-4 bg-gray-100 rounded-lg">
+            <p class="text-gray-700">{{ video().data?.introduction }}</p>
+          </div>
+        </div>
+      }
+
+      <!-- Views -->
+      <div class="flex items-center gap-2">
+        <span class="text-orange-600 font-semibold">Views:</span>
+        <span class="px-3 py-1 bg-orange-200 rounded-full">
+          {{ formattedViews() }}
+        </span>
+      </div>
+
+      <!-- Tags -->
+      @if (video().data?.tags && video().data!.tags.length > 0) {
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-purple-600 font-semibold">Tags:</span>
+          @for (tag of video().data?.tags; track tag.name) {
+            <span
+              class="px-3 py-1 bg-purple-200 rounded-full cursor-pointer hover:bg-purple-300 transition-colors"
+              (click)="onTagClick(tag.name)">
+              {{ tag.name }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

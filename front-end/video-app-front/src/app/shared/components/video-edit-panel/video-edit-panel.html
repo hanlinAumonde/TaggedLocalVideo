@@ -86,10 +86,10 @@
       @if (tags().length > 0) {
         <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
           @for (tag of tags(); track tag) {
-            <mat-chip class="!bg-white !border !border-gray-300">
+            <mat-chip class="bg-white! border! border-gray-300!">
               <span class="font-medium">{{ tag }}</span>
               <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
-                <mat-icon class="!text-base">cancel</mat-icon>
+                <mat-icon class="text-base!">cancel</mat-icon>
               </button>
             </mat-chip>
           }
@@ -129,15 +129,15 @@
       </mat-form-field>
 
       <!-- Add Tag button -->
-      <div class="flex justify-end">
+      <!-- <div class="flex justify-end">
         <button
           mat-raised-button
           type="button"
           (click)="addTag()"
-          class="!bg-gray-600 !text-white hover:!bg-gray-700">
+          class="bg-gray-600! text-white! hover:bg-gray-700!">
           Add Tag
         </button>
-      </div>
+      </div> -->
     </div>
 
   </form>
