@@ -1,11 +1,11 @@
 <div class="p-6 space-y-8">
   <!-- Loved Videos Section -->
   <section>
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold text-pink-600">Loved Videos</h2>
-      <button mat-button color="primary" (click)="OnMoreClick('loved')">More</button>
+    <div class="flex justify-between items-center mb-6 mt-10">
+      <h2 class="text-2xl font-bold text-pink-600">Loved Videos</h2>
+      <button matButton="tonal" color="primary" (click)="OnMoreClick('loved')"><strong>More</strong></button>
     </div>
-    <div class="grid grid-cols-5 gap-4">
+    <div class="grid grid-cols-5 gap-4 mb-20">
       @if (lovedVideos().loading || lovedVideos().data?.videos?.length === 0) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
@@ -20,10 +20,11 @@
 
   <!-- Latest Viewed Section -->
   <section>
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold text-purple-600">Latest Viewed</h2>
+    <div class="flex justify-between items-center mb-6 mt-10">
+      <h2 class="text-2xl font-bold text-purple-600">Latest Viewed</h2>
+      <button matButton="tonal" color="primary" (click)="OnMoreClick('latest')"><strong>More</strong></button>
     </div>
-    <div class="grid grid-cols-5 gap-4">
+    <div class="grid grid-cols-5 gap-4 mb-20">
       @if (latestViewedVideos().loading || latestViewedVideos().data?.videos?.length === 0) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
@@ -38,11 +39,11 @@
 
   <!-- Most Viewed Section -->
   <section>
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-bold text-shadow-cyan-600">Most Viewed</h2>
-      <button mat-button color="primary" (click)="OnMoreClick('mostViewed')">More</button>
+    <div class="flex justify-between items-center mb-6 mt-10">
+      <h2 class="text-2xl font-bold text-cyan-600">Most Viewed</h2>
+      <button matButton="tonal" color="primary" (click)="OnMoreClick('mostViewed')"><strong>More</strong></button>
     </div>
-    <div class="grid grid-cols-5 gap-4">
+    <div class="grid grid-cols-5 gap-4 mb-20">
       @if (mostViewedVideos().loading || mostViewedVideos().data?.videos?.length === 0) {
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
