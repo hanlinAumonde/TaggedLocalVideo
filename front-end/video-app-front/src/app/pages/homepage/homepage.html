@@ -1,1 +1,77 @@
-<p>homepage works!</p>
+<div class="p-6 space-y-8">
+  <!-- Loved Videos Section -->
+  <section>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-pink-600">Loved Videos</h2>
+      <button mat-button color="primary" (click)="OnMoreClick('loved')">More</button>
+    </div>
+    <div class="grid grid-cols-5 gap-4">
+      @if (lovedVideos().loading || lovedVideos().data?.videos?.length === 0) {
+        @for (item of [1,2,3,4,5]; track $index) {
+          <app-video-card />
+        }
+      } @else {
+        @for (video of lovedVideos().data?.videos; track video.id) {
+          <app-video-card [video]="video" />
+        }
+      }
+    </div>
+  </section>
+
+  <!-- Latest Viewed Section -->
+  <section>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-purple-600">Latest Viewed</h2>
+    </div>
+    <div class="grid grid-cols-5 gap-4">
+      @if (latestViewedVideos().loading || latestViewedVideos().data?.videos?.length === 0) {
+        @for (item of [1,2,3,4,5]; track $index) {
+          <app-video-card />
+        }
+      } @else {
+        @for (video of latestViewedVideos().data?.videos; track video.id) {
+          <app-video-card [video]="video" />
+        }
+      }
+    </div>
+  </section>
+
+  <!-- Most Viewed Section -->
+  <section>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-xl font-bold text-shadow-cyan-600">Most Viewed</h2>
+      <button mat-button color="primary" (click)="OnMoreClick('mostViewed')">More</button>
+    </div>
+    <div class="grid grid-cols-5 gap-4">
+      @if (mostViewedVideos().loading || mostViewedVideos().data?.videos?.length === 0) {
+        @for (item of [1,2,3,4,5]; track $index) {
+          <app-video-card />
+        }
+      } @else {
+        @for (video of mostViewedVideos().data?.videos; track video.id) {
+          <app-video-card [video]="video" />
+        }
+      }
+    </div>
+  </section>
+
+  <!-- Top Tags Section -->
+  <section>
+    <h2 class="text-xl font-bold mb-4">Top 20 Tags</h2>
+    <div class="flex flex-wrap gap-2">
+      @if (topTags().loading) {
+        @for (item of [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]; track $index) {
+          <div class="h-8 w-20 bg-gray-300 rounded-full animate-pulse"></div>
+        }
+      } @else {
+        @for (tag of topTags().data; track tag.name) {
+          <span
+            (click)="onTagClick(tag.name)"
+            class="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-400 text-white cursor-pointer transition-colors">
+            <span class="font-bold">{{ tag.name }}</span>: <span class="italic">{{ tag.count }}</span>
+          </span>
+        }
+      }
+    </div>
+  </section>
+</div>

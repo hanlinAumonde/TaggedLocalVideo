@@ -1,44 +1,53 @@
-@if (video) {
+@if (video()) {
   <mat-card
-    class="video-card h-full hover:shadow-lg transition-shadow cursor-pointer"
-    [routerLink]="['/video', video.id]"
+    class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer"
+    [routerLink]="['/video', video()!.id]"
   >
-    <div class="relative w-full pt-[56.25%] bg-gray-100 overflow-hidden">
+    <!-- 16:9 -->
+    <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
       <img
         [src]="thumbnailSrc"
-        [alt]="video.name"
-        class="absolute top-0 left-0 w-full h-full object-cover"
+        [alt]="video()!.name"
+        class="absolute top-0 left-0 w-full h-full"
+        [class.object-cover]="!isDefaultThumbnail"
+        [class.object-contain]="isDefaultThumbnail"
+        [class.p-4]="isDefaultThumbnail"
         loading="lazy"
       />
 
-      <mat-chip class="absolute bottom-2 left-2 !bg-black/70 !text-white">
-        {{ video.viewCount }} Views
+      <mat-chip class="absolute bottom-2 left-2 bg-black/70!">
+        <p class="text-white! text-xs!">{{ views() }} Views</p>
       </mat-chip>
     </div>
 
-    <mat-card-content class="!p-3">
-      <mat-card-title class="!text-base !font-semibold line-clamp-2 !mb-2">
-        {{ video.name }}
-      </mat-card-title>
-      <div class="flex justify-between items-center text-sm">
-        <span class="font-medium text-gray-700">{{ video.author }}</span>
-        <span class="text-xs text-gray-400">{{ formattedDate }}</span>
+    <mat-card-content class="p-2! h-18 relative">
+      <div class="h-10 overflow-hidden">
+        <p class="text-sm font-semibold leading-tight line-clamp-2 m-0!">
+          {{ video()!.name }}
+        </p>
+      </div>
+      <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center text-xs">
+        <span class="font-medium text-gray-700 truncate max-w-[60%]">{{ video()!.author }}</span>
+        <span class="text-gray-400">{{ formattedDate }}</span>
       </div>
     </mat-card-content>
   </mat-card>
 } @else {
   <!-- Skeleton Card -->
-  <mat-card class="video-card h-full">
+  <mat-card class="video-card w-full">
+    <!-- 16:9 -->
     <div
-      class="relative w-full pt-[56.25%] bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+      class="relative w-full pt-[56.25%] bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 bg-size-[200%_100%] animate-[shimmer_1.5s_infinite]"
     ></div>
 
-    <mat-card-content class="!p-3 space-y-2">
-      <div class="h-5 bg-gray-200 rounded animate-pulse"></div>
-      <div class="h-5 bg-gray-200 rounded w-4/5 animate-pulse"></div>
-      <div class="flex justify-between items-center mt-2">
-        <div class="h-4 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-        <div class="h-4 bg-gray-200 rounded w-1/4 animate-pulse"></div>
+    <mat-card-content class="p-2! h-18 relative">
+      <div class="h-10 space-y-1">
+        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
+        <div class="h-4 bg-gray-200 rounded w-4/5 animate-pulse"></div>
+      </div>
+      <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+        <div class="h-3 bg-gray-200 rounded w-1/3 animate-pulse"></div>
+        <div class="h-3 bg-gray-200 rounded w-1/4 animate-pulse"></div>
       </div>
     </mat-card-content>
   </mat-card>

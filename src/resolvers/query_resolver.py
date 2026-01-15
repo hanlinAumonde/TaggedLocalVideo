@@ -257,7 +257,7 @@ def get_path_standard_format(path: str) -> str:
 async def get_top_tag_docs(limit: int, findQuery = None) -> list[VideoTagModel] :
     if not findQuery:
         findQuery = VideoTagModel.find()
-    return await findQuery.sort([("tag_count", -1)]).limit(limit).to_list()
+    return await findQuery.sort([("count", -1)]).limit(limit).to_list()
 
 #@cached(TTLCache(maxsize=128, ttl=300))
 def get_total_size_and_last_modified_time(directory_path: str, video_extensions: list[str]) -> tuple[float, float]:

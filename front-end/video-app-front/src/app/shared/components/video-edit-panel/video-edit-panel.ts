@@ -174,8 +174,8 @@ export class VideoEditPanel implements OnInit {
         ).subscribe({
           next: (result) => {
             this.isSaving.set(false);
-            if (result.data) {
-              this.dialogRef.close({ success: true, data: result.data });
+            if (result.data?.success) {
+              this.dialogRef.close({ success: true, data: result.data.video });
             } else {
               // update failed, keep the dialog open for user to retry
               console.error('Failed to update video metadata');
