@@ -24,7 +24,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { debounceTime, distinctUntilChanged, switchMap, startWith } from 'rxjs/operators';
 
 import {
-  Video,
   SearchField,
 } from '../../../core/graphql/generated/graphql';
 import {
@@ -51,20 +50,20 @@ import { VideoDetail, VideoMutationDetail } from '../../models/GQL-result.model'
   templateUrl: './video-edit-panel.html'
 })
 export class VideoEditPanel implements OnInit {
-  private dialogRef: MatDialogRef<VideoEditPanel, string[]>  = inject(MatDialogRef);
+  private dialogRef: MatDialogRef<VideoEditPanel, string[] | VideoMutationDetail> = inject(MatDialogRef);
   private data = inject<VideoEditPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
 
   mode: VideoEditPanelMode = this.data.mode;
-  video?: VideoDetail = this.data.video;
+  video = signal<VideoDetail | undefined>(this.data.video);
   selectedTags?: string[] = this.data.selectedTags;
 
   editForm: FormGroup = this.formBuilder.group({
-      name: [this.video?.name ?? '', Validators.required],
-      author: [this.video?.author ?? ''],
-      loved: [this.video?.loved ?? false],
-      introduction: [this.video?.introduction ?? ''],
+      name: [this.video()?.name ?? '', Validators.required],
+      author: [this.video()?.author ?? ''],
+      loved: [this.video()?.loved ?? false],
+      introduction: [this.video()?.introduction ?? ''],
       tagInput: [''],
   });
 
@@ -108,12 +107,12 @@ export class VideoEditPanel implements OnInit {
   private initializeFormState() {
     if (this.mode === 'full' && this.video) {
       this.editForm.patchValue({
-        name: this.video.name,
-        author: this.video.author,
-        loved: this.video.loved,
-        introduction: this.video.introduction,
+        name: this.video()?.name,
+        author: this.video()?.author,
+        loved: this.video()?.loved,
+        introduction: this.video()?.introduction,
       });
-      this.tags.set(this.video.tags.map(tag => tag.name));
+      this.tags.set(this.video()?.tags.map(tag => tag.name) ?? []);
     } else if (this.mode === 'filter' && this.selectedTags) {
       this.tags.set([...this.selectedTags]);
     }
@@ -160,13 +159,13 @@ export class VideoEditPanel implements OnInit {
       this.dialogRef.close(this.tags());
     } 
     else {
-      if (this.editForm.valid && this.video) {
+      if (this.editForm.valid && this.video()) {
         const formValue = this.editForm.value;
 
         this.isSaving.set(true);
 
         this.gqlService.updateVideoMetadataMutation(
-          this.video.id,
+          this.video()!.id,
           formValue.loved,
           this.tags(),
           formValue.name,
@@ -176,7 +175,7 @@ export class VideoEditPanel implements OnInit {
           next: (result) => {
             this.isSaving.set(false);
             if (result.data?.success) {
-              this.dialogRef.close(/*{ success: true, video: result.data.video }*/);
+              this.dialogRef.close(result.data);
             } else {
               // update failed, keep the dialog open for user to retry
               console.error('Failed to update video metadata');

@@ -16,7 +16,7 @@ import {
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
-import { GetTopTagsDetail, ResultState, SearchVideosDetail, VideoDetail, VideoMutationDetail } from '../../shared/models/GQL-result.model';
+import { GetTopTagsDetail, ResultState, SearchVideosDetail, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 
 @Injectable({
@@ -160,13 +160,13 @@ export class GqlService {
     )
   }
 
-  recordVideoViewMutation(videoId: string): Observable<ResultState<VideoMutationDetail>> {
+  recordVideoViewMutation(videoId: string): Observable<ResultState<VideoRecordViewDetail>> {
     return this.toResultStateObservable(
       this.recordVideoViewGQL.mutate({ variables: { videoId } }),
       (data) => ({
         success: data.recordVideoView?.success ?? false,
         video: data.recordVideoView?.video
-      } as VideoMutationDetail)
+      } as VideoRecordViewDetail)
     )
   }
 }

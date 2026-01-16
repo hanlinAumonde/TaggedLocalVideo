@@ -46,8 +46,8 @@ class MutationResolver:
 
         except VideoNotFoundError:
             raise
-        except Exception as e:
-            raise DatabaseOperationError("update_video_metadata", str(e))
+        except Exception:
+            raise DatabaseOperationError("update_video_metadata", f"videoId-{input.videoId}")
 
     async def resolve_batch_update_video_tags(self,input: TagsOperationBatchInput) -> TagsOperationBatchResult:
         """
@@ -114,8 +114,8 @@ class MutationResolver:
 
         except VideoNotFoundError:
             raise
-        except Exception as e:
-            raise DatabaseOperationError("record_video_view", str(e))
+        except Exception:
+            raise DatabaseOperationError("record_video_view", f"videoId-{videoId}")
 
     async def resolve_delete_video(self,videoId: strawberry.ID) -> VideoMutationResult:
         """
@@ -140,8 +140,8 @@ class MutationResolver:
 
         except VideoNotFoundError:
             raise
-        except Exception as e:
-            raise DatabaseOperationError("delete_video", str(e))
+        except Exception:
+            raise DatabaseOperationError("delete_video", f"videoId-{videoId}")
         
 
 async def _update_tag_counts(old_tags: set[str], new_tags: set[str]) -> None:

@@ -1,17 +1,18 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
 import { GqlService } from '../../services/GQL-service/GQL-service';
 import { Router } from '@angular/router';
 import { SearchFrom, VideoSearchResult, VideoSortOption, VideoTag } from '../../core/graphql/generated/graphql';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { SearchPageParam } from '../../shared/models/search.model';
 
 @Component({
   selector: 'app-homepage',
   imports: [VideoCard, MatButtonModule],
   templateUrl: './homepage.html',
 })
-export class Homepage implements OnInit{
+export class Homepage{
   private gqlService = inject(GqlService);
   private router = inject(Router);
 
@@ -54,17 +55,25 @@ export class Homepage implements OnInit{
     this.gqlService.getTopTagsQuery(), { initialValue: this.gqlService.initialSignalData<VideoTag[]>([])}
   )
 
-  ngOnInit() {}
-
   OnMoreClick(section: 'loved' | 'latest' | 'mostViewed'){
+    const option = () => {
+      switch(section){
+        case 'loved': return VideoSortOption.Loved;
+        case 'latest': return VideoSortOption.Latest;
+        case 'mostViewed': return VideoSortOption.MostViewed;
+        default: { return VideoSortOption.Loved; }
+      }
+    }
     this.router.navigate(['/search'], {
-      queryParams: { sortBy: section }
+      state: { sortBy: option() } as SearchPageParam,
+      queryParams: { currentPageNumber: 1 }
     });
   }
 
   onTagClick(tagName: string) {
     this.router.navigate(['/search'], {
-      queryParams: { tag: tagName }
+      state: { tags: [tagName] } as SearchPageParam,
+      queryParams: { currentPageNumber: 1 }
     });
   }
 }

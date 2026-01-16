@@ -41,8 +41,8 @@ class QueryResolver:
             query_filters["tags"] = {"$all": input.tags}
 
         sort_mapping = {
-            VideoSortOption.LATEST: [("lastModifyTime", -1)],
-            VideoSortOption.MOST_VIEWED: [("viewCount", -1), ("lastModifyTime", -1)],
+            VideoSortOption.LATEST: [("lastViewTime", -1)],
+            VideoSortOption.MOST_VIEWED: [("viewCount", -1), ("lastViewTime", -1)],
             VideoSortOption.LOVED: [("loved", -1), ("lastViewTime", -1)]
         }
         sort_criteria = sort_mapping.get(input.sortBy, [("lastModifyTime", -1)])
@@ -54,22 +54,26 @@ class QueryResolver:
         page_number = input.currentPageNumber or 1
         skip = (page_number - 1) * page_size
 
-        # execute query
-        query = VideoModel.find(query_filters)
-        total_count = await query.count()
-        for field, order in sort_criteria:
-            query = query.sort((field, order))
-        video_models = await query.skip(skip).limit(page_size).to_list()
+        try:
+            # execute query
+            query = VideoModel.find(query_filters)
+            total_count = await query.count()
+            for field, order in sort_criteria:
+                query = query.sort((field, order))
+            video_models = await query.skip(skip).limit(page_size).to_list()
 
-        # build results
-        videos = [await Video.from_mongoDB(vm) for vm in video_models]
-        pagination = Pagination(
-            size=page_size,
-            totalCount=total_count,
-            currentPageNumber=page_number
-        )
+            # build results
+            videos = [await Video.from_mongoDB(vm) for vm in video_models]
+            pagination = Pagination(
+                size=page_size,
+                totalCount=total_count,
+                currentPageNumber=page_number
+            )
 
-        return VideoSearchResult(pagination=pagination, videos=videos)
+            return VideoSearchResult(pagination=pagination, videos=videos)
+        except Exception:
+            raise DatabaseOperationError(operation="video search", 
+                                         details=f"Filters-{query_filters}, Sort-{sort_criteria}, Skip-{skip}, Limit-{page_size}")
 
     async def resolve_get_top_tags(self) -> list[VideoTag]:
         """
@@ -80,8 +84,12 @@ class QueryResolver:
         """
         settings = get_settings()
         limit = settings.page_size_default.homepage_tags
-        tag_docs = await get_top_tag_docs(limit)
-        return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
+        try:
+            tag_docs = await get_top_tag_docs(limit)
+            return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
+        except Exception:
+            raise DatabaseOperationError(operation="get top tags",
+                                         details=f"Limit-{limit}")
 
     async def resolve_get_suggestions(self,input: SuggestionInput) -> list[str]:
         """
@@ -101,43 +109,47 @@ class QueryResolver:
 
         limits = settings.suggestion_limit
 
-        match suggestion_type:
+        try:
+            match suggestion_type:
 
-            case SearchField.TAG:
-                limit = limits.tag
-                if not keyword:
-                    tag_docs = await get_top_tag_docs(limit)
-                    return [tag.name for tag in tag_docs]
+                case SearchField.TAG:
+                    limit = limits.tag
+                    if not keyword:
+                        tag_docs = await get_top_tag_docs(limit)
+                        return [tag.name for tag in tag_docs]
 
-                prefix_query = VideoTagModel.find(
-                    {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
-                )
-                prefix_matches = await get_top_tag_docs(limit,prefix_query)
-                prefix_matches_names = [tag.name for tag in prefix_matches]
-
-                if limit - len(prefix_matches_names) > 0:
-                    contains_query = VideoTagModel.find(
-                        {"name": {"$regex": f".*{keyword}.*", "$options":"i", "$nin": prefix_matches_names}}
+                    prefix_query = VideoTagModel.find(
+                        {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
                     )
-                    contains_matches = await get_top_tag_docs(limit, contains_query)
-                    prefix_matches_names.extend([tag.name for tag in contains_matches])
+                    prefix_matches = await get_top_tag_docs(limit,prefix_query)
+                    prefix_matches_names = [tag.name for tag in prefix_matches]
 
-                return prefix_matches_names
+                    if limit - len(prefix_matches_names) > 0:
+                        contains_query = VideoTagModel.find(
+                            {"name": {"$regex": f".*{keyword}.*", "$options":"i", "$nin": prefix_matches_names}}
+                        )
+                        contains_matches = await get_top_tag_docs(limit, contains_query)
+                        prefix_matches_names.extend([tag.name for tag in contains_matches])
 
-            case _:
-                limit = limits.name if suggestion_type == SearchField.NAME else limits.author
-                pipeline = [
-                    {"$match": {suggestion_type.value: {"$regex": keyword, "$options": "i"}}},
-                    {"$group": {"_id": "$" + suggestion_type.value}},
-                    {"$limit": limit}
-                ]
-                collection = VideoModel.get_pymongo_collection()
-                cursor = await collection.aggregate(pipeline)
-                result = []
-                async for doc in cursor:
-                    if doc.get("_id"):
-                        result.append(doc["_id"])
-                return result
+                    return prefix_matches_names
+
+                case _:
+                    limit = limits.name if suggestion_type == SearchField.NAME else limits.author
+                    pipeline = [
+                        {"$match": {suggestion_type.value: {"$regex": keyword, "$options": "i"}}},
+                        {"$group": {"_id": "$" + suggestion_type.value}},
+                        {"$limit": limit}
+                    ]
+                    collection = VideoModel.get_pymongo_collection()
+                    cursor = await collection.aggregate(pipeline)
+                    result = []
+                    async for doc in cursor:
+                        if doc.get("_id"):
+                            result.append(doc["_id"])
+                    return result
+        except Exception:
+            raise DatabaseOperationError(operation="get suggestions",
+                                         details=f"Keyword-{keyword}, SuggestionType-{suggestion_type}")
 
         return []
 
@@ -150,7 +162,11 @@ class QueryResolver:
         :return: The video corresponding to the given ID.
         :rtype: Video
         """
-        video_model = await VideoModel.get(ObjectId(str(videoId)))
+        try:
+            video_model = await VideoModel.get(ObjectId(str(videoId)))
+        except Exception:
+            raise DatabaseOperationError(operation="get video by id", details=f"videoId-{videoId}")
+        
         if not video_model:
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
@@ -215,12 +231,12 @@ async def get_node_list_in_directory(abs_path: str | None, video_extensions: lis
                                     node = await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
                                 )
                             )
-                        except DuplicateKeyError as dke:
-                            raise DatabaseOperationError(f"Error while inserting new document of file {entry.path}:{str(dke)}")
-                        except OSError as e:
-                            raise FileBrowseError(f"Error accessing file {entry.path}: {str(e)}")
-    except OSError as e:
-        raise FileBrowseError(f"Error accessing directory {abs_path}: {str(e)}")
+                        except DuplicateKeyError:
+                            raise DatabaseOperationError(operation="insert_video_document", details=f" file {entry.path}: Duplicate key error.")
+                        except OSError:
+                            raise FileBrowseError(f"Error accessing file {entry.path}")
+    except OSError:
+        raise FileBrowseError(f"Error accessing directory {abs_path}")
 
 
 # util functions
@@ -279,18 +295,18 @@ def get_total_size_and_last_modified_time(directory_path: str, video_extensions:
                         stat = entry.stat()
                         total_size += stat.st_size
                         last_modified_time = max(last_modified_time, stat.st_mtime)
-                    except OSError as e:
-                        raise FileBrowseError(f"Error accessing file {entry.path}: {str(e)}")
-    except OSError as e:
-        raise FileBrowseError(f"Error accessing directory {directory_path}: {str(e)}")
+                    except OSError:
+                        raise FileBrowseError(f"Error accessing file-{entry.path}'s metadata")
+    except OSError:
+        raise FileBrowseError(f"Error accessing directory {directory_path}")
     
     # If no videos found, use the folder's modification time
     if last_modified_time == 0.0:
         try:
             stat = os.stat(directory_path)
             last_modified_time = stat.st_mtime
-        except OSError as e:
-            raise FileBrowseError(f"Error accessing directory {directory_path}: {str(e)}")
+        except OSError:
+            raise FileBrowseError(f"Error getting directory-{directory_path}'s modification time")
         
     return total_size, last_modified_time
     

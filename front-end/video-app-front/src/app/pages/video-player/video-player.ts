@@ -24,8 +24,9 @@ import { Subject, merge } from 'rxjs';
 import { GqlService } from '../../services/GQL-service/GQL-service';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData } from '../../shared/models/video-edit-panel.model';
-import { VideoDetail } from '../../shared/models/GQL-result.model';
+import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { environment } from '../../../environments/environment';
+import { Video } from '../../core/graphql/generated/graphql';
 
 @Component({
   selector: 'app-video-player',
@@ -48,31 +49,11 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
+  private videoDataLoaded = toSignal(this.route.data)
 
-  private refreshTrigger$ = new Subject<void>();
-
-  videoId = toSignal(
-    this.route.paramMap.pipe(
-      map((params) => params.get('id') ?? '')
-    ),
-    { initialValue: '' }
-  );
-
-  video = toSignal(
-    merge(
-      this.route.paramMap.pipe(map(() => 'route')),
-      this.refreshTrigger$.pipe(map(() => 'refresh'))
-    ).pipe(
-      switchMap((source) => {
-        const id = this.route.snapshot.paramMap.get('id') ?? '';
-        if (source === 'route') {
-          this.hasRecordedView.set(false);
-        }
-        return this.gqlService.getVideoByIdQuery(id);
-      })
-    ),
-    { initialValue: this.gqlService.initialSignalData<VideoDetail | null>(null) }
-  );
+  video = signal<ResultState<VideoDetail | null>>(this.gqlService.initialSignalData<VideoDetail | null>(null));
+  
+  videoId = computed(() => this.video().data?.id ?? null);
 
   videoStreamUrl = computed(() => {
     const id = this.videoId();
@@ -88,7 +69,9 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
   constructor() {
     effect(() => {
+      this.video.set(this.videoDataLoaded()!['video']);
       const url = this.videoStreamUrl();
+      this.hasRecordedView.set(false);
       if (url && this.player) {
         this.player.src({ type: 'video/mp4', src: url });
       }
@@ -159,6 +142,11 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
           if (!result.data?.success) {
             window.alert('Failed to record video view');
             console.error('Failed to record video view');
+          }else if(result.data.video){
+            this.video.update(current => {
+              if (!current.data) return current;
+              return this.toVideoDetailResultState(result.data!, current);
+            });
           }
         }
       });
@@ -174,8 +162,11 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       videoData.tags.map(tag => tag.name),
     ).pipe(take(1)).subscribe({
       next: (result) => {
-        if (result.data?.success) {
-          //this.refreshTrigger$.next();
+        if (result.data?.success && result.data.video) {
+          this.video.update(current => {
+            if (!current.data) return current;
+            return this.toVideoDetailResultState(result.data!, current);
+          })
         }else{
           window.alert('Failed to update loved status');
           console.error('Failed to update loved status');
@@ -193,11 +184,21 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       video: videoData as VideoDetail,
     };
 
-    this.dialog.open(VideoEditPanel, {
+    const dialogRef = this.dialog.open(VideoEditPanel, {
       width: '600px',
       maxHeight: '90vh',
       data: dialogData,
     });
+
+    dialogRef.afterClosed().subscribe(
+      (result: VideoMutationDetail) => {
+        if (result && result.video) {
+          this.video.update(current => {
+            return this.toVideoDetailResultState(result, current);
+          });
+        }
+      }
+    )
   }
 
   onTagClick(tagName: string) {
@@ -210,5 +211,32 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     this.router.navigate(['/search'], {
       queryParams: { author: author }
     });
+  }
+
+  toVideoDetailResultState(updatedData: VideoMutationDetail | VideoRecordViewDetail, 
+                           currentData: ResultState<VideoDetail | null>
+                          ): ResultState<VideoDetail | null> {
+    if('viewCount' in updatedData.video!){
+      return {
+        ...currentData,
+        data: {
+          ...currentData.data!,
+          viewCount: updatedData.video!.viewCount!,
+          lastViewTime: updatedData.video!.lastViewTime!,
+        }
+      }
+    }else{
+      return {
+        ...currentData,
+        data: {
+          ...currentData.data!,
+          loved: updatedData.video!.loved!,
+          name: updatedData.video!.name!,
+          introduction: updatedData.video!.introduction!,
+          author: updatedData.video!.author!,
+          tags: updatedData.video!.tags!,
+        }
+      }
+    }
   }
 }

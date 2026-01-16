@@ -3,6 +3,7 @@ import { Homepage } from './pages/homepage/homepage';
 import { Search } from './pages/search/search'
 import { VideoPlayer } from './pages/video-player/video-player'
 import { Management } from './pages/management/management'
+import { VideoMetaDataResolver } from './route-resolver/video-player.resolver';
 
 
 export const routes: Routes = [
@@ -22,6 +23,10 @@ export const routes: Routes = [
   {
     path: 'video/:id',
     component: VideoPlayer,
+    resolve: {
+      //videoId: videoIdResolver,
+      video: VideoMetaDataResolver
+    }
   },
   {
     path: 'management',

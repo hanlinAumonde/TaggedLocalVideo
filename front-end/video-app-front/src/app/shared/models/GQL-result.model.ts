@@ -1,4 +1,4 @@
-import { GetTopTagsQuery, GetVideoByIdQuery, SearchVideosQuery, UpdateVideoMetadataMutation } from "../../core/graphql/generated/graphql";
+import { GetTopTagsQuery, GetVideoByIdQuery, RecordVideoViewMutation, SearchVideosQuery, UpdateVideoMetadataMutation } from "../../core/graphql/generated/graphql";
 
 export interface ResultState<T> {
     loading: boolean;
@@ -14,3 +14,5 @@ export type SearchVideosDetail = SearchVideosQuery['SearchVideos'];
 export type SearchedVideo = SearchVideosQuery['SearchVideos']['videos'][0];
 
 export type VideoMutationDetail = UpdateVideoMetadataMutation['updateVideoMetadata'];
+
+export type VideoRecordViewDetail = RecordVideoViewMutation['recordVideoView'];

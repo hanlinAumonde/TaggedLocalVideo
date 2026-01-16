@@ -4,7 +4,7 @@ resource_paths:
 
 page_size_default:
   homepage_videos: 5
-  homepage_tags: 20
+  homepage_tags: 50
   searchpage: 15
 
 suggestion_limit:
