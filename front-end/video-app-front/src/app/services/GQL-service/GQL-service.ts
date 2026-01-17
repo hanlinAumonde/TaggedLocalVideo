@@ -11,7 +11,11 @@ import {
   UpdateVideoMetadataGQL,
   VideoSearchInput,
   SearchFrom,
-  VideoSortOption
+  VideoSortOption,
+  BrowseDirectoryGQL,
+  DeleteVideoGQL,
+  BatchUpdateVideoTagsGQL,
+  VideoTagsMappingInput
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -24,12 +28,15 @@ import {
   tap } from 'rxjs';
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
-import { 
-  GetTopTagsDetail, 
-  ResultState, 
-  SearchVideosDetail, 
-  VideoDetail, 
-  VideoMutationDetail, 
+import {
+  BatchUpdateTagsDetail,
+  BrowseDirectoryDetail,
+  DeleteVideoDetail,
+  GetTopTagsDetail,
+  ResultState,
+  SearchVideosDetail,
+  VideoDetail,
+  VideoMutationDetail,
   VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 
@@ -44,6 +51,9 @@ export class GqlService {
   private searchVideosGQL = inject(SearchVideosGQL)
   private recordVideoViewGQL = inject(RecordVideoViewGQL)
   private updateVideoMetadataGQL = inject(UpdateVideoMetadataGQL)
+  private browseDirectoryGQL = inject(BrowseDirectoryGQL)
+  private deleteVideoGQL = inject(DeleteVideoGQL)
+  private batchUpdateVideoTagsGQL = inject(BatchUpdateVideoTagsGQL)
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
@@ -189,6 +199,39 @@ export class GqlService {
         success: data.recordVideoView?.success ?? false,
         video: data.recordVideoView?.video
       } as VideoRecordViewDetail)
+    )
+  }
+
+  browseDirectoryQuery(relativePath?: string): Observable<ResultState<BrowseDirectoryDetail>> {
+    return this.toResultStateObservable(
+      this.browseDirectoryGQL.watch({
+        variables: { path: { relativePath } }
+      }).valueChanges,
+      (data) => this.filterUndefinedResult(data.browseDirectory ?? []) as BrowseDirectoryDetail
+    )
+  }
+
+  deleteVideoMutation(videoId: string): Observable<ResultState<DeleteVideoDetail>> {
+    return this.toResultStateObservable(
+      this.deleteVideoGQL.mutate({ variables: { videoId } }),
+      (data) => ({
+        success: data.deleteVideo?.success ?? false,
+        video: data.deleteVideo?.video
+      } as DeleteVideoDetail)
+    )
+  }
+
+  batchUpdateVideoTagsMutation(mappings: VideoTagsMappingInput[], append: boolean): Observable<ResultState<BatchUpdateTagsDetail>> {
+    return this.toResultStateObservable(
+      this.batchUpdateVideoTagsGQL.mutate({
+        variables: {
+          input: { mappings, append }
+        }
+      }),
+      (data) => ({
+        success: data.batchUpdateVideoTags?.success ?? false,
+        successfulUpdatesMappings: data.batchUpdateVideoTags?.successfulUpdatesMappings ?? []
+      } as BatchUpdateTagsDetail)
     )
   }
 }

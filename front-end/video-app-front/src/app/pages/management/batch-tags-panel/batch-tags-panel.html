@@ -1,0 +1,103 @@
+<h2 mat-dialog-title>Batch Tag Operation</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="space-y-6">
+    <!-- Selected videos info -->
+    <div class="bg-gray-100 rounded-lg p-3">
+      <p class="text-sm text-gray-600">
+        <strong>{{ videos.length }}</strong> video(s) selected
+      </p>
+    </div>
+
+    <!-- Operation mode -->
+    <div class="flex flex-col gap-2">
+      <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        Operation:
+      </label>
+      <mat-radio-group formControlName="mode" class="flex gap-6">
+        <mat-radio-button value="append" class="text-green-700">
+          <span class="font-medium">Add Tags</span>
+        </mat-radio-button>
+        <mat-radio-button value="remove" class="text-red-700">
+          <span class="font-medium">Remove Tags</span>
+        </mat-radio-button>
+      </mat-radio-group>
+    </div>
+
+    <!-- Tags Section -->
+    <div class="flex flex-col gap-3">
+      <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        Tags:
+      </label>
+
+      <!-- Selected tags -->
+      @if (tags().length > 0) {
+        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
+          @for (tag of tags(); track tag) {
+            <mat-chip class="bg-white! border! border-gray-300!">
+              <span class="font-medium">{{ tag }}</span>
+              <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
+                <mat-icon class="text-base!">cancel</mat-icon>
+              </button>
+            </mat-chip>
+          }
+        </div>
+      }
+
+      <!-- Tag input and suggestions -->
+      <mat-form-field appearance="outline" class="w-full">
+        <input
+          matInput
+          formControlName="tagInput"
+          placeholder="Enter tag name"
+          [matAutocomplete]="tagAuto"
+          (keydown.enter)="onTagInputEnter($event)" />
+        <mat-icon matSuffix>expand_more</mat-icon>
+        <mat-autocomplete
+          #tagAuto="matAutocomplete"
+          (optionSelected)="selectTagSuggestion($event.option.value)">
+          @if(tagSuggestions().loading) {
+            <mat-option disabled>
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate">
+              </mat-progress-spinner>
+              <span class="ml-2">Loading...</span>
+            </mat-option>
+          }@else if(tagSuggestions().data && tagSuggestions().data!.length > 0){
+            @for (tag of tagSuggestions().data; track tag) {
+              <mat-option [value]="tag">
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ tag }}</span>
+              </mat-option>
+            }
+          }@else{
+            <mat-option disabled>No tag suggestions available</mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button
+    mat-button
+    type="button"
+    (click)="handleCancel()">
+    Cancel
+  </button>
+  <button
+    mat-raised-button
+    type="button"
+    (click)="handleSave()"
+    [disabled]="tags().length === 0 || isSaving()"
+    color="primary">
+    @if (isSaving()) {
+      Saving...
+    } @else if (form.value.mode === 'append') {
+      Add Tags
+    } @else {
+      Remove Tags
+    }
+  </button>
+</mat-dialog-actions>

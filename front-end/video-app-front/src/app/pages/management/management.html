@@ -1,1 +1,187 @@
-<p>management works!</p>
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-4">
+      <span class="bg-gray-800 text-white px-4 py-2 rounded-lg font-medium">Current path:</span>
+      <span class="text-gray-700 font-mono">{{ currentPathDisplay() }}</span>
+    </div>
+    <div class="flex gap-2">
+      <button
+        (click)="refreshDirectory()"
+        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
+      >
+        <mat-icon class="align-middle">refresh</mat-icon>
+      </button>
+      <button
+        [disabled]="isAtRoot()"
+        (click)="navigateBack()"
+        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+      >
+        Return
+      </button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- Table Header -->
+    <div class="grid grid-cols-[auto_60px_1fr_100px_120px_minmax(150px,1fr)_100px] gap-4 px-4 py-3 bg-gray-100 border-b font-medium text-gray-600">
+      <div class="flex items-center">
+        <mat-checkbox
+          [checked]="isAllSelected()"
+          [indeterminate]="hasSelection() && !isAllSelected()"
+          (change)="toggleSelectAll()"
+        />
+      </div>
+      <div>Type</div>
+      <div>Name</div>
+      <div>Size</div>
+      <div>Last update</div>
+      <div>Tags</div>
+      <div></div>
+    </div>
+
+    <!-- Loading State -->
+    @if (directoryContents().loading) {
+      <div class="p-8 text-center">
+        <mat-icon class="text-4xl text-gray-400 animate-spin">sync</mat-icon>
+        <p class="mt-2 text-gray-500">Loading...</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @else if (directoryContents().error) {
+      <div class="p-8 text-center">
+        <mat-icon class="text-4xl text-red-400">error_outline</mat-icon>
+        <p class="mt-2 text-gray-500">Failed to load directory</p>
+      </div>
+    }
+
+    <!-- Empty State -->
+    @else if (!directoryContents().data || directoryContents().data!.length === 0) {
+      <div class="p-8 text-center">
+        <mat-icon class="text-4xl text-gray-400">folder_open</mat-icon>
+        <p class="mt-2 text-gray-500">No items in this directory</p>
+      </div>
+    }
+
+    <!-- Content -->
+    @else {
+      @for (item of directoryContents().data; track item.node.id) {
+        <div
+          class="grid grid-cols-[auto_60px_1fr_100px_120px_minmax(150px,1fr)_100px] gap-4 px-4 py-3 border-b hover:bg-gray-50 items-center"
+          [class.bg-blue-50]="isSelected(item.node.id)"
+        >
+          <!-- Checkbox -->
+          <div>
+            @if (!item.node.isDir) {
+              <mat-checkbox
+                [checked]="isSelected(item.node.id)"
+                (change)="toggleSelection(item.node.id)"
+              />
+            } @else {
+              <div class="w-5"></div>
+            }
+          </div>
+
+          <!-- Type Icon -->
+          <div>
+            @if (item.node.isDir) {
+              <img src="foldericon.png" alt="folder" class="w-8 h-8" />
+            } @else {
+              <mat-icon class="text-red-500 text-3xl!">smart_display</mat-icon>
+            }
+          </div>
+
+          <!-- Name -->
+          <div class="truncate">
+            @if (item.node.isDir) {
+              <button
+                (click)="navigateToFolder(item.node.name)"
+                class="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
+              >
+                {{ item.node.name }}
+              </button>
+            } @else {
+              <span class="font-medium">{{ item.node.name }}</span>
+            }
+          </div>
+
+          <!-- Size -->
+          <div class="text-gray-600">{{ formatSize(item.node.size) }}</div>
+
+          <!-- Last Update -->
+          <div class="text-gray-600">{{ formatDate(item.node.lastModifyTime) }}</div>
+
+          <!-- Tags -->
+          <div class="flex items-center gap-1 flex-wrap">
+            @if (!item.node.isDir) {
+              @for (tag of getVisibleTags(item.node); track tag) {
+                <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm">
+                  {{ tag }}
+                </span>
+              }
+              @if (getRemainingTagsCount(item.node) > 0) {
+                <span
+                  class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-sm cursor-help"
+                  [matTooltip]="getAllTags(item.node)"
+                >
+                  +{{ getRemainingTagsCount(item.node) }}
+                </span>
+              }
+              @if (item.node.tags.length === 0) {
+                <span class="text-gray-400">-</span>
+              }
+            } @else {
+              <span class="text-gray-400">-</span>
+            }
+          </div>
+
+          <!-- Operations -->
+          <div>
+            @if (!item.node.isDir) {
+              <button
+                [matMenuTriggerFor]="operateMenu"
+                class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm font-medium"
+              >
+                Operate
+                <mat-icon class="text-sm! align-middle">expand_more</mat-icon>
+              </button>
+              <mat-menu #operateMenu="matMenu">
+                <button mat-menu-item (click)="openEditPanel(item.node)">
+                  <mat-icon>edit</mat-icon>
+                  <span>Edit</span>
+                </button>
+                <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
+                  <mat-icon class="text-red-600">delete</mat-icon>
+                  <span>Delete</span>
+                </button>
+              </mat-menu>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Batch Operation Button -->
+  <div class="mt-6">
+    <button
+      [disabled]="!hasSelection()"
+      [matMenuTriggerFor]="batchMenu"
+      class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+    >
+      Batch operation
+      @if (hasSelection()) {
+        <span class="ml-1">({{ selectedCount() }})</span>
+      }
+      <mat-icon class="align-middle">expand_more</mat-icon>
+    </button>
+    <mat-menu #batchMenu="matMenu">
+      <button mat-menu-item (click)="openBatchTagsPanel()">
+        <mat-icon>local_offer</mat-icon>
+        <span>Manage Tags</span>
+      </button>
+    </mat-menu>
+  </div>
+</div>

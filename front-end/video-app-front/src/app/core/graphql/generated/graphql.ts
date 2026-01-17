@@ -88,6 +88,7 @@ export type QueryGetVideoByIdArgs = {
 
 export type RelativePathInput = {
   parsedPath?: InputMaybe<Array<Scalars['String']['input']>>;
+  relativePath?: InputMaybe<Scalars['String']['input']>;
 };
 
 export enum SearchField {

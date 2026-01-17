@@ -29,9 +29,10 @@ import {
 import {
   VideoEditPanelMode,
   VideoEditPanelData,
+  EditableVideo,
 } from '../../models/video-edit-panel.model';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
-import { VideoDetail, VideoMutationDetail } from '../../models/GQL-result.model';
+import { VideoMutationDetail } from '../../models/GQL-result.model';
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -56,7 +57,7 @@ export class VideoEditPanel implements OnInit {
   private gqlService = inject(GqlService);
 
   mode: VideoEditPanelMode = this.data.mode;
-  video = signal<VideoDetail | undefined>(this.data.video);
+  video = signal<EditableVideo | undefined>(this.data.video);
   selectedTags?: string[] = this.data.selectedTags;
 
   editForm = this.formBuilder.group({

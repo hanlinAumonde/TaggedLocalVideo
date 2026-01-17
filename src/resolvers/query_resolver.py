@@ -184,13 +184,14 @@ class QueryResolver:
         :rtype: list[FileBrowseNode]
         """
         settings = get_settings()
+        resource_paths_mapping = settings.resource_paths
         # Resolve the absolute path from the relative path
-        relativePathInoutModel = path.to_pydantic()
-        if relativePathInoutModel.parsedPath is None:
+        relativePathInputModel = path.to_pydantic()
+
+        if relativePathInputModel.parsedPath is None:
             abs_path = None  # Browse root directories
         else:
-            pseudo_root_dir_name, sub_path = relativePathInoutModel.parsedPath
-            resource_paths_mapping = settings.resource_paths
+            pseudo_root_dir_name, sub_path = relativePathInputModel.parsedPath
             if pseudo_root_dir_name not in resource_paths_mapping:
                 raise InvalidPathError(f"Invalid pseudo root directory name: {pseudo_root_dir_name}")
             abs_root_path = resource_paths_mapping[pseudo_root_dir_name]
@@ -207,12 +208,12 @@ async def get_node_list_in_directory(abs_path: str | None, video_extensions: lis
     try:
         if abs_path is None:
             for name,path in resource_paths.items():
-                get_directory_node(path,name,video_extensions,fileBrowse_nodes)
+                await get_directory_node(path,name,video_extensions,fileBrowse_nodes)
         else:
             with os.scandir(abs_path) as entries:
                 for entry in entries:
                     if entry.is_dir():
-                        get_directory_node(entry.path,entry.name,video_extensions,fileBrowse_nodes)                        
+                        await get_directory_node(entry.path,entry.name,video_extensions,fileBrowse_nodes)                        
                     elif entry.is_file() and is_video_file(entry.name, video_extensions):
                         try:
                             stat = entry.stat()
@@ -223,7 +224,8 @@ async def get_node_list_in_directory(abs_path: str | None, video_extensions: lis
                                     name=entry.name,
                                     isDir=False,
                                     lastModifyTime=stat.st_mtime,
-                                    size=stat.st_size
+                                    size=stat.st_size,
+                                    tags=[]
                                 ).model_dump()},
                                 upsert=True, return_document=True
                             )
@@ -235,10 +237,12 @@ async def get_node_list_in_directory(abs_path: str | None, video_extensions: lis
                             )
                         except DuplicateKeyError:
                             raise DatabaseOperationError(operation="insert_video_document", details=f" file {entry.path}: Duplicate key error.")
-                        except OSError:
+                        except OSError | Exception:
                             raise FileBrowseError(f"Error accessing file {entry.path}")
-    except OSError:
+    except OSError | Exception:
         raise FileBrowseError(f"Error accessing directory {abs_path}")
+    
+    return fileBrowse_nodes
 
 
 # util functions
