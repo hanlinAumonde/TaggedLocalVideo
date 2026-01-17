@@ -67,11 +67,13 @@
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-purple-600 font-semibold">Tags:</span>
           @for (tag of video().data?.tags; track tag.name) {
-            <span
-              class="px-3 py-1 bg-purple-200 rounded-full cursor-pointer hover:bg-purple-300 transition-colors"
-              (click)="onTagClick(tag.name)">
-              {{ tag.name }}
-            </span>
+            <a (click)="onTagClick(tag.name)" target="_blank">
+              <span
+                class="px-3 py-1 bg-purple-200 rounded-full cursor-pointer hover:bg-purple-300 transition-colors"
+                >
+                {{ tag.name }}
+              </span>
+            </a>
           }
         </div>
       }

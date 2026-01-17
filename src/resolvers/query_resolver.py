@@ -39,6 +39,8 @@ class QueryResolver:
             query_filters["author"] = {"$regex": input.author.keyWord, "$options": "i"}
         if input.tags:
             query_filters["tags"] = {"$all": input.tags}
+        if input.sortBy == VideoSortOption.LOVED:
+            query_filters["loved"] = True
 
         sort_mapping = {
             VideoSortOption.LATEST: [("lastViewTime", -1)],

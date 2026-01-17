@@ -59,7 +59,7 @@ export class VideoEditPanel implements OnInit {
   video = signal<VideoDetail | undefined>(this.data.video);
   selectedTags?: string[] = this.data.selectedTags;
 
-  editForm: FormGroup = this.formBuilder.group({
+  editForm = this.formBuilder.group({
       name: [this.video()?.name ?? '', Validators.required],
       author: [this.video()?.author ?? ''],
       loved: [this.video()?.loved ?? false],
@@ -72,26 +72,17 @@ export class VideoEditPanel implements OnInit {
 
   authorSuggestions = this.mode === 'full'?
     toSignal(
-      this.editForm.controls['author'].valueChanges.pipe(
-        debounceTime(500),
-        distinctUntilChanged(),
-        switchMap(authorKeyword =>
-          (!authorKeyword || authorKeyword.length < 1) ?
-            [] : this.gqlService.getSuggestionsQuery(authorKeyword,SearchField.Author)
-        )
-      ), { initialValue: this.gqlService.initialSignalData<string[]>([]) }
-    ) : signal(this.gqlService.initialSignalData<string[]>([]));
+      this.gqlService.getSuggestionsQuery(this.editForm.controls.author.valueChanges, SearchField.Author), 
+      { initialValue: this.gqlService.initialSignalData<string[]>([]) }
+    ) 
+    : signal(this.gqlService.initialSignalData<string[]>([]));
 
   tagSuggestions = toSignal(
-    this.editForm.controls['tagInput'].valueChanges.pipe(
-      startWith(this.editForm.controls['tagInput'].value),
-      debounceTime(500),
-      distinctUntilChanged(),
-      switchMap(tagKeyword =>
-        (!tagKeyword || tagKeyword.length < 1)?
-          this.gqlService.getTopTagsAsSuggestionQuery()
-          : this.gqlService.getSuggestionsQuery(tagKeyword,SearchField.Tag)
-      )
+    this.gqlService.getSuggestionsQuery(
+      this.editForm.controls.tagInput.valueChanges.pipe(
+        startWith(this.editForm.controls.tagInput.value),
+      ),
+      SearchField.Tag
     ),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   )
@@ -166,9 +157,9 @@ export class VideoEditPanel implements OnInit {
 
         this.gqlService.updateVideoMetadataMutation(
           this.video()!.id,
-          formValue.loved,
+          formValue.loved ?? false,
           this.tags(),
-          formValue.name,
+          formValue.name ?? '',
           formValue.introduction ?? '',
           formValue.author ?? ''
         ).subscribe({

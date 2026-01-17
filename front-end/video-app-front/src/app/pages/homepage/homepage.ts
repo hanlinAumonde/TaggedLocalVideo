@@ -2,19 +2,24 @@ import { Component, inject } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
 import { GqlService } from '../../services/GQL-service/GQL-service';
-import { Router } from '@angular/router';
+import { Router, RouterLink, RouterModule } from '@angular/router';
 import { SearchFrom, VideoSearchResult, VideoSortOption, VideoTag } from '../../core/graphql/generated/graphql';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { SearchPageParam } from '../../shared/models/search.model';
+import { environment } from '../../../environments/environment';
+import { PageStateService } from '../../services/Page-state-service/PageState.service';
 
 @Component({
   selector: 'app-homepage',
-  imports: [VideoCard, MatButtonModule],
+  imports: [VideoCard, MatButtonModule, RouterModule],
   templateUrl: './homepage.html',
 })
 export class Homepage{
   private gqlService = inject(GqlService);
   private router = inject(Router);
+  private stateService = inject(PageStateService);
+
+  searchPageApi = environment.searchpage_api;
 
   INITIAL_VIDEOS_SEARCH_RESULT : VideoSearchResult = { 
     videos: [], 
@@ -64,16 +69,18 @@ export class Homepage{
         default: { return VideoSortOption.Loved; }
       }
     }
-    this.router.navigate(['/search'], {
+    this.stateService.clearState(environment.searchpage_api + environment.refreshKey, false);
+    this.router.navigate([environment.searchpage_api], {
       state: { sortBy: option() } as SearchPageParam,
       queryParams: { currentPageNumber: 1 }
     });
   }
 
+  tagState(tagName: string): SearchPageParam {
+    return { tags: [tagName] };
+  }
+
   onTagClick(tagName: string) {
-    this.router.navigate(['/search'], {
-      state: { tags: [tagName] } as SearchPageParam,
-      queryParams: { currentPageNumber: 1 }
-    });
+    this.stateService.setState<SearchPageParam>(environment.searchpage_api, { tags: [tagName] }, true);
   }
 }

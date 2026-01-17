@@ -1,8 +1,9 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { PageStateService } from '../../../services/Page-state-service/PageState.service';
 
 interface NavItem {
   path: string;
@@ -16,6 +17,8 @@ interface NavItem {
   templateUrl: './sidebar.html'
 })
 export class Sidebar {
+  private stateService = inject(PageStateService);
+
   isExpanded = signal(false);
 
   navItems: NavItem[] = [
@@ -38,5 +41,9 @@ export class Sidebar {
 
   toggleSidebar() {
     this.isExpanded.update((value) => !value);
+  }
+
+  onNavItemClick() {
+    this.stateService.clearAllStates(false);
   }
 }

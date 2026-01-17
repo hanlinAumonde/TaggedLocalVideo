@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-pagination',
@@ -13,37 +14,52 @@ import { MatIconModule } from '@angular/material/icon';
   imports: [MatButtonModule, MatIconModule],
   templateUrl: './pagination.html',
 })
-export class PaginationComponent {
+export class Pagination {
 
-  currentPage = input<number>(0);
+  currentPage = input<number>(1);
   totalPages = input<number>(0);
 
   pageChanged = output<number>();
 
-  isFirstPage = computed(() => this.currentPage() === 0);
-  isLastPage = computed(() => this.currentPage() + 1 === this.totalPages());
+  isFirstPage = computed(() => this.currentPage() === 1);
+  isLastPage = computed(() => this.currentPage() === this.totalPages());
 
+  // Always show a fixed number of page buttons centered around the current page
   pages = computed(() => {
     const total = this.totalPages();
     const current = this.currentPage();
 
-    if (total <= 3) {
+    if(total <= environment.pageListSize){ 
       return Array.from({ length: total }, (_, i) => i + 1);
     }
 
-    if (current === 0) {
-      return [1, 2, 3];
+    const pages: number[] = [];
+    const halfSize = Math.floor(environment.pageListSize / 2);
+    
+    let startPage = Math.max(1, current - halfSize);
+    let endPage = Math.min(total, current + halfSize);
+    
+    if (endPage - startPage + 1 < environment.pageListSize) {
+      if(startPage === 1){
+        endPage = Math.min(total, startPage + environment.pageListSize - 1);
+      }
+      else if(endPage === total){
+        startPage = Math.max(1, endPage - environment.pageListSize + 1);
+      }
     }
-
-    if (current === total - 1) {
-      return [total - 2, total - 1, total];
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
     }
-
-    return [current, current + 1, current + 2];
+    return pages;
   });
 
   changePage(page: number): void {
-    if (page < 0 || page >= this.totalPages()) return;
+    if (page < 1 || page > this.totalPages()) return;
     this.pageChanged.emit(page);
+  }
+
+  switchToEdgePage(isFirst: boolean){
+    const targetPage = isFirst? 1 : this.totalPages();
+    this.changePage(targetPage);
   }
 }

@@ -1,4 +1,14 @@
-<div class="flex justify-center items-center gap-2 mt-4">
+<div class="flex justify-center items-center gap-1 mt-4">
+
+  <!-- First Page -->
+  <button
+    mat-icon-button
+    aria-label="First page"
+    [disabled]="isFirstPage()"
+    (click)="switchToEdgePage(true)"
+  >
+    <mat-icon fontIcon="first_page"></mat-icon>
+  </button>
 
   <!-- Previous -->
   <button
@@ -7,20 +17,17 @@
     [disabled]="isFirstPage()"
     (click)="changePage(currentPage() - 1)"
   >
-    <mat-icon>chevron_left</mat-icon>
+    <mat-icon fontIcon="chevron_left"></mat-icon>
   </button>
 
   <!-- Page numbers -->
   @for (page of pages(); track page) {
     <button
-      mat-button
-      class="min-w-10 transition-colors"
-      [class.bg-blue-600]="currentPage() === page - 1"
-      [class.text-white]="currentPage() === page - 1"
-      [class.font-semibold]="currentPage() === page - 1"
-      (click)="changePage(page - 1)"
+      matButton="elevated"
+      [disabled]="currentPage() === page"
+      (click)="changePage(page)"
     >
-      {{ page }}
+      <strong class="text-base">{{ page }}</strong>
     </button>
   }
 
@@ -31,7 +38,17 @@
     [disabled]="isLastPage()"
     (click)="changePage(currentPage() + 1)"
   >
-    <mat-icon>chevron_right</mat-icon>
+    <mat-icon fontIcon="chevron_right"></mat-icon>
+  </button>
+
+  <!-- Last Page -->
+  <button
+    mat-icon-button
+    aria-label="Last page"
+    [disabled]="isLastPage()"
+    (click)="switchToEdgePage(false)"
+  >
+    <mat-icon fontIcon="last_page"></mat-icon>
   </button>
 
 </div>

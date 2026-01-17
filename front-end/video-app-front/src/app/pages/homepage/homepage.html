@@ -3,63 +3,75 @@
   <section>
     <div class="flex justify-between items-center mb-6 mt-10">
       <h2 class="text-2xl font-bold text-pink-600">Loved Videos</h2>
-      <button matButton="tonal" color="primary" (click)="OnMoreClick('loved')"><strong>More</strong></button>
-    </div>
-    <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (lovedVideos().loading) {
-        @for (item of [1,2,3,4,5]; track $index) {
-          <app-video-card />
-        }
-      } @else if(lovedVideos().data && lovedVideos().data!.videos.length > 0){
-        @for (video of lovedVideos().data!.videos; track video.id) {
-          <app-video-card [video]="video" />
-        }
-      } @else {
-        <p class="text-gray-500 italic">No loved videos yet. Show some love to your favorite videos!</p>
+      @if(!lovedVideos().loading && lovedVideos().data && lovedVideos().data!.videos.length > 0){
+        <button matButton="tonal" color="primary" (click)="OnMoreClick('loved')"><strong>More</strong></button>
       }
     </div>
+    @if (lovedVideos().loading) {
+      <div class="grid grid-cols-5 gap-4 mb-20">
+      @for (item of [1,2,3,4,5]; track $index) {
+        <app-video-card />
+      }
+    </div>
+    } @else if(lovedVideos().data && lovedVideos().data!.videos.length > 0){
+      <div class="grid grid-cols-5 gap-4 mb-20">
+      @for (video of lovedVideos().data!.videos; track video.id) {
+        <app-video-card [video]="video" />
+      }
+    </div>
+    } @else {
+      <p class="text-gray-500 italic">No loved videos yet. Show some love to your favorite videos!</p>
+    }
   </section>
 
   <!-- Latest Viewed Section -->
   <section>
     <div class="flex justify-between items-center mb-6 mt-10">
       <h2 class="text-2xl font-bold text-purple-600">Latest Viewed</h2>
-      <button matButton="tonal" color="primary" (click)="OnMoreClick('latest')"><strong>More</strong></button>
+      @if(!latestViewedVideos().loading && latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
+        <button matButton="tonal" color="primary" (click)="OnMoreClick('latest')"><strong>More</strong></button>
+      }
     </div>
-    <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (latestViewedVideos().loading) {
+    @if (latestViewedVideos().loading) {
+      <div class="grid grid-cols-5 gap-4 mb-20">
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
-      } @else if(latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
+      </div>
+    } @else if(latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
+      <div class="grid grid-cols-5 gap-4 mb-20">
         @for (video of latestViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
-      } @else{
-        <p class="text-gray-500 italic">No viewed videos yet. Start watching some videos!</p>
-      }
     </div>
+    } @else{
+      <p class="text-gray-500 italic">No viewed videos yet. Start watching some videos!</p>
+    }
   </section>
 
   <!-- Most Viewed Section -->
   <section>
     <div class="flex justify-between items-center mb-6 mt-10">
       <h2 class="text-2xl font-bold text-cyan-600">Most Viewed</h2>
-      <button matButton="tonal" color="primary" (click)="OnMoreClick('mostViewed')"><strong>More</strong></button>
+      @if(!mostViewedVideos().loading && mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
+        <button matButton="tonal" color="primary" (click)="OnMoreClick('mostViewed')"><strong>More</strong></button>
+      }
     </div>
-    <div class="grid grid-cols-5 gap-4 mb-20">
-      @if (mostViewedVideos().loading) {
+    @if (mostViewedVideos().loading) {
+      <div class="grid grid-cols-5 gap-4 mb-20">
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
-      } @else if(mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
+      </div>
+    } @else if(mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
+      <div class="grid grid-cols-5 gap-4 mb-20">
         @for (video of mostViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
-      } @else{
-        <p class="text-gray-500 italic">No videos available. Check back later!</p>
-      }
-    </div>
+      </div>
+    } @else{
+      <p class="text-gray-500 italic">No videos available. Check back later!</p>
+    }>
   </section>
 
   <!-- Top Tags Section -->
@@ -72,11 +84,15 @@
         }
       } @else {
         @for (tag of topTags().data; track tag.name) {
-          <span
-            (click)="onTagClick(tag.name)"
-            class="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-400 text-white cursor-pointer transition-colors">
+        <a 
+          [routerLink]="[searchPageApi]"
+          [queryParams]="{ currentPageNumber: 1 }"
+          [state]="tagState(tag.name)"
+          target="_blank"
+          (click)="onTagClick(tag.name)"
+          class="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-400 text-white cursor-pointer transition-colors">
             <span class="font-bold">{{ tag.name }}</span>: <span class="italic">{{ tag.count }}</span>
-          </span>
+        </a>
         }
       }
     </div>

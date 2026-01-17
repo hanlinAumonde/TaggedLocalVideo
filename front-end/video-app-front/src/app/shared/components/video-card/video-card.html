@@ -1,37 +1,38 @@
 @if (video()) {
-  <mat-card
-    class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer"
-    [routerLink]="['/video', video()!.id]"
-  >
-    <!-- 16:9 -->
-    <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
-      <img
-        [src]="thumbnailSrc"
-        [alt]="video()!.name"
-        class="absolute top-0 left-0 w-full h-full"
-        [class.object-cover]="!isDefaultThumbnail"
-        [class.object-contain]="isDefaultThumbnail"
-        [class.p-4]="isDefaultThumbnail"
-        loading="lazy"
-      />
+  <a [routerLink]="['/video', video()!.id]" target="_blank">
+    <mat-card
+      class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer"
+    >
+      <!-- 16:9 -->
+      <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
+        <img
+          [src]="thumbnailSrc"
+          [alt]="video()!.name"
+          class="absolute top-0 left-0 w-full h-full"
+          [class.object-cover]="!isDefaultThumbnail"
+          [class.object-contain]="isDefaultThumbnail"
+          [class.p-4]="isDefaultThumbnail"
+          loading="lazy"
+        />
 
-      <mat-chip class="absolute bottom-2 left-2 bg-black/70!">
-        <p class="text-white! text-xs!">{{ views() }} Views</p>
-      </mat-chip>
-    </div>
+        <mat-chip class="absolute bottom-2 left-2 bg-black/70!">
+          <p class="text-white! text-xs!">{{ views() }} Views</p>
+        </mat-chip>
+      </div>
 
-    <mat-card-content class="p-2! h-18 relative">
-      <div class="h-10 overflow-hidden">
-        <p class="text-sm font-semibold leading-tight line-clamp-2 m-0!">
-          {{ video()!.name }}
-        </p>
-      </div>
-      <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center text-xs">
-        <span class="font-medium text-gray-700 truncate max-w-[60%]">{{ video()!.author }}</span>
-        <span class="text-gray-400">{{ formattedDate }}</span>
-      </div>
-    </mat-card-content>
-  </mat-card>
+      <mat-card-content class="p-2! h-20 relative">
+        <div class="h-10 overflow-hidden">
+          <p class="text-sm font-semibold leading-tight line-clamp-2 m-1!">
+            {{ video()!.name }}
+          </p>
+        </div>
+        <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm">
+          <span class="font-medium text-gray-700 truncate max-w-[60%] italic">{{ video()!.author }}</span>
+          <span class="text-gray-400">{{ formattedDate }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </a>
 } @else {
   <!-- Skeleton Card -->
   <mat-card class="video-card w-full">

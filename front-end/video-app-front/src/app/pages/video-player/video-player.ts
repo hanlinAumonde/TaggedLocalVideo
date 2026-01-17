@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { switchMap, take, map } from 'rxjs/operators';
+import { take } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -19,14 +19,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import videojs from 'video.js';
 import Player from 'video.js/dist/types/player';
-import { Subject, merge } from 'rxjs';
 
 import { GqlService } from '../../services/GQL-service/GQL-service';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData } from '../../shared/models/video-edit-panel.model';
 import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { environment } from '../../../environments/environment';
-import { Video } from '../../core/graphql/generated/graphql';
+import { SearchPageParam } from '../../shared/models/search.model';
 
 @Component({
   selector: 'app-video-player',
@@ -202,14 +201,16 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   }
 
   onTagClick(tagName: string) {
-    this.router.navigate(['/search'], {
-      queryParams: { tag: tagName }
+    this.router.navigate([environment.searchpage_api], {
+      queryParams: { currentPageNumber: 1 },
+      state: { tags: [tagName] } as SearchPageParam
     });
   }
 
   onAuthorClick(author: string) {
-    this.router.navigate(['/search'], {
-      queryParams: { author: author }
+    this.router.navigate([environment.searchpage_api], {
+      queryParams: { currentPageNumber: 1 },
+      state: { author: author } as SearchPageParam
     });
   }
 

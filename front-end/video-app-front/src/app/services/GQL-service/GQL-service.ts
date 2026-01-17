@@ -13,10 +13,24 @@ import {
   SearchFrom,
   VideoSortOption
 } from '../../core/graphql/generated/graphql';
-import { catchError, map, Observable, of, tap } from 'rxjs';
+import { 
+  catchError, 
+  debounceTime, 
+  distinctUntilChanged, 
+  map, 
+  Observable, 
+  of, 
+  switchMap, 
+  tap } from 'rxjs';
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
-import { GetTopTagsDetail, ResultState, SearchVideosDetail, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
+import { 
+  GetTopTagsDetail, 
+  ResultState, 
+  SearchVideosDetail, 
+  VideoDetail, 
+  VideoMutationDetail, 
+  VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 
 @Injectable({
@@ -62,6 +76,17 @@ export class GqlService {
       )
   }
 
+  private getTopTagsAsSuggestionQuery(): Observable<ResultState<string[]>>{
+    return this.toResultStateObservable(
+      this.getTopTagsAsSuggestionGQL.watch().valueChanges,
+      (data) => {
+        return this.filterUndefinedResult(
+          this.filterUndefinedResult(data?.getTopTags ?? []).map(tag => tag.name)
+        );
+      }
+    )
+  }
+
   initialSignalData<T>(data: T): ResultState<T> {
     return {
       loading: true,
@@ -70,32 +95,29 @@ export class GqlService {
     } 
   }
 
-  getSuggestionsQuery(keyword: string, field: SearchField): Observable<ResultState<string[]>> {
-    return this.toResultStateObservable(
-      this.getSuggestionsGQL.watch({
-        variables: {
-          input: {
-            keyword: {
-              keyWord: keyword
-            },
-            suggestionType: field
-          }
-        } as QueryGetSuggestionsArgs
-      })
-      .valueChanges,
-      (data) => this.filterUndefinedResult(data?.getSuggestions ?? [])
-    )
-  }
-
-  getTopTagsAsSuggestionQuery(limit?: number): Observable<ResultState<string[]>>{
-    return this.toResultStateObservable(
-      this.getTopTagsAsSuggestionGQL.watch().valueChanges,
-      (data) => {
-        const tags = this.filterUndefinedResult(
-          this.filterUndefinedResult(data?.getTopTags ?? []).map(tag => tag.name)
-        );
-        return limit ? tags.slice(0, limit) : tags;
-      }
+  getSuggestionsQuery(formValueChanges: Observable<string | null>, field: SearchField): Observable<ResultState<string[]>> {
+    return formValueChanges.pipe(
+      debounceTime(500),
+      distinctUntilChanged(),
+      switchMap(keyword => 
+        (!keyword || keyword.length < 1)? 
+        (field === SearchField.Tag? this.getTopTagsAsSuggestionQuery() : of(this.initialSignalData<string[]>([]))) 
+        :
+        this.toResultStateObservable(
+          this.getSuggestionsGQL.watch({
+            variables: {
+              input: {
+                keyword: {
+                  keyWord: keyword
+                },
+                suggestionType: field
+              }
+            } as QueryGetSuggestionsArgs
+          })
+          .valueChanges,
+          (data) => this.filterUndefinedResult(data?.getSuggestions ?? [])
+        )        
+      )
     )
   }
 
