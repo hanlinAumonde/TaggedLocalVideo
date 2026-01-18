@@ -1,20 +1,23 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild, AfterViewInit, viewChild, OnInit } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatTableModule, MatTableDataSource } from '@angular/material/table';
+import { MatSort, MatSortModule } from '@angular/material/sort';
+import { SelectionModel } from '@angular/cdk/collections';
 
 import { GqlService } from '../../services/GQL-service/GQL-service';
-import { BrowseDirectoryDetail, BrowsedVideo, FileBrowseNode, VideoMutationDetail } from '../../shared/models/GQL-result.model';
+import { BrowsedVideo, FileBrowseNode, VideoMutationDetail } from '../../shared/models/GQL-result.model';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/video-edit-panel.model';
 import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
-import { ItemsSortOption, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-management',
@@ -24,8 +27,10 @@ import { RouterLink } from '@angular/router';
     MatCheckboxModule,
     MatMenuModule,
     MatTooltipModule,
+    MatTableModule,
+    MatSortModule,
     RouterLink
-],
+  ],
   templateUrl: './management.html'
 })
 export class Management {
@@ -33,18 +38,18 @@ export class Management {
   private dialog = inject(MatDialog);
   private statService = inject(PageStateService);
 
-  SORT_OPTIONS = ItemsSortOption;
-  // true for ascending, false for descending
-  // First click: Column name initially ascending, size descending, date descending
-  sortCriteria = signal<boolean[]>([false, true, true]);
+  //@ViewChild(MatSort) sort!: MatSort;
+  private sort = viewChild(MatSort);
+
+  displayedColumns: string[] = ['select', 'type', 'name', 'size', 'lastModifyTime', 'tags'];
+  dataSource = new MatTableDataSource<FileBrowseNode>([]);
+  selection = new SelectionModel<FileBrowseNode>(true, []);
 
   currentPath = signal<string[]>([]);
+  isLoading = signal(false);
+  hasError = signal(false);
 
-  // list of videos and folders in the current directory
-  directoryContents = signal(this.gqlService.initialSignalData<BrowseDirectoryDetail>([]));
-
-  // Selected items for batch operations
-  selectedIds = signal<Set<string>>(new Set());
+  private selectionChanged = toSignal(this.selection.changed);
 
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
@@ -52,20 +57,11 @@ export class Management {
   });
 
   isAtRoot = computed(() => this.currentPath().length === 0);
-
-  selectedCount = computed(() => this.selectedIds().size);
-
-  isAllSelected = computed(() => {
-    const contents = this.directoryContents().data;
-    if (!contents || contents.length === 0) return false;
-    const selectableItems = contents.filter(item => !item.node.isDir);
-    return selectableItems.length > 0 && selectableItems.every(item => this.selectedIds().has(item.node.id));
-  });
-
-  hasSelection = computed(() => this.selectedIds().size > 0);
+  selectedCount = signal<number>(this.selection.selected.length);
+  hasSelection = signal<boolean>(this.selection.hasValue());
 
   constructor() {
-    const hasStatePredicate = (state: { currentPath: string[] } | undefined) => 
+    const hasStatePredicate = (state: { currentPath: string[] } | undefined) =>
       state && Array.isArray(state.currentPath);
 
     const state = this.statService.getState<{ currentPath: string[] }>(
@@ -83,20 +79,49 @@ export class Management {
       this.statService.setState(environment.management_api + environment.refreshKey, { currentPath : path },false);
       this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
     });
+
+    // Update selection signals when selection changes
+    effect(() => {
+      this.selectionChanged();
+      this.selectedCount.set(this.selection.selected.length);
+      this.hasSelection.set(this.selection.hasValue());
+    });
+    
+    // Set up sorting after view init
+    effect(() => {
+      const sort = this.sort();
+      if (sort) {
+        this.dataSource.sort = sort;
+      }
+    });
+
+    // Custom sorting for mat-table
+    this.dataSource.sortingDataAccessor = (data: FileBrowseNode, sortHeaderId: string): string | number => {
+      switch (sortHeaderId) {
+        case 'name': return data.node.name.toLowerCase();
+        case 'size': return data.node.size;
+        case 'lastModifyTime': return data.node.lastModifyTime;
+        default: return '';
+      }
+    };
+
+    
   }
 
   private loadDirectory(relativePath?: string) {
+    this.isLoading.set(true);
+    this.hasError.set(false);
     this.gqlService.browseDirectoryQuery(relativePath).subscribe(result => {
-      this.directoryContents.set(result);
-      this.selectedIds.set(new Set());
+      this.isLoading.set(result.loading);
+      this.hasError.set(!!result.error);
+      this.dataSource.data = result.data ?? [];
+      this.selection.clear();
     });
   }
 
   private getSelectedVideos(): BrowsedVideo[] {
-    const contents = this.directoryContents().data;
-    if (!contents) return [];
-    return contents
-      .filter(item => !item.node.isDir && this.selectedIds().has(item.node.id))
+    return this.selection.selected
+      .filter(item => !item.node.isDir)
       .map(item => item.node);
   }
 
@@ -105,75 +130,32 @@ export class Management {
     this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
   }
 
-  onClickFileBrowseNode(node: FileBrowseNode) {
-    if(!node.node.isDir) {
-      this.toggleSelection(node.node.id);
-      return;
-    };
-    this.currentPath.update(path => [...path, node.node.name]);
+  onRowClick(row: FileBrowseNode) {
+    if (row.node.isDir) {
+      this.currentPath.update(path => [...path, row.node.name]);
+    } else {
+      this.selection.toggle(row);
+    }
   }
 
   navigateBack() {
     this.currentPath.update(path => path.slice(0, -1));
   }
 
-  toggleSelection(id: string) {
-    this.selectedIds.update(ids => {
-      const newIds = new Set(ids);
-      if (newIds.has(id)) {
-        newIds.delete(id);
-      } else {
-        newIds.add(id);
-      }
-      return newIds;
-    });
+  /** Whether the number of selected elements matches the total number of selectable rows. */
+  isAllSelected(): boolean {
+    const selectableRows = this.dataSource.data.filter(row => !row.node.isDir);
+    return selectableRows.length > 0 && selectableRows.every(row => this.selection.isSelected(row));
   }
 
-  toggleSelectAll() {
-    const contents = this.directoryContents().data;
-    if (!contents) return;
-
-    const selectableItems = contents.filter(item => !item.node.isDir);
-
+  /** Selects all rows if they are not all selected; otherwise clear selection. */
+  toggleAllRows() {
     if (this.isAllSelected()) {
-      this.selectedIds.set(new Set());
+      this.selection.clear();
     } else {
-      this.selectedIds.set(new Set(selectableItems.map(item => item.node.id)));
+      const selectableRows = this.dataSource.data.filter(row => !row.node.isDir);
+      this.selection.select(...selectableRows);
     }
-  }
-
-  isSelected(id: string): boolean {
-    return this.selectedIds().has(id);
-  }
-
-  getSortOptionForColumn(columnIndex: number, asc: ItemsSortOption, desc: ItemsSortOption): ItemsSortOption {
-    this.sortCriteria.update(arr => {
-      arr[columnIndex] = !arr[columnIndex];
-      return arr;
-    });
-    return this.sortCriteria()[columnIndex] ? asc : desc;
-  }
-
-  sortItemsBy(columnIndex: number) {
-    const contents = this.directoryContents().data;
-    if (!contents) return;
-    let sortedContents = [...contents];
-
-    const option = (() => {
-      switch(columnIndex){
-        case 0:
-          return this.getSortOptionForColumn(0, ItemsSortOption.NAME_ASC, ItemsSortOption.NAME_DESC);
-        case 1:
-          return this.getSortOptionForColumn(1, ItemsSortOption.SIZE_ASC, ItemsSortOption.SIZE_DESC);
-        case 2:
-          return this.getSortOptionForColumn(2, ItemsSortOption.DATE_ASC, ItemsSortOption.DATE_DESC);
-        default:
-          return ItemsSortOption.NAME_ASC;
-      }
-    })();
-
-    sortedContents.sort(comparatorBySortOption(option))
-    this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
   }
 
   formatSize(bytes: number): string {
@@ -219,26 +201,21 @@ export class Management {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        //this.refreshDirectory();
-        this.directoryContents.update(dir => {
-          const contents = dir.data;
-          if (!contents) return dir;
-          const updatedContents = contents.map(item => {
-            if (item.node.id === result.video?.id) {
-              return {
-                ...item,
-                node: {
-                  ...item.node,
-                  name: result.video?.name ?? item.node.name,
-                  introduction: result.video?.introduction ?? item.node.introduction,
-                  author: result.video?.author ?? item.node.author,
-                  tags: result.video?.tags ?? item.node.tags,
-                }
-              };
-            }
-            return item;
-          });
-          return { ...dir, data: updatedContents };
+        // Update dataSource data directly
+        this.dataSource.data = this.dataSource.data.map(item => {
+          if (item.node.id === result.video?.id) {
+            return {
+              ...item,
+              node: {
+                ...item.node,
+                name: result.video?.name ?? item.node.name,
+                introduction: result.video?.introduction ?? item.node.introduction,
+                author: result.video?.author ?? item.node.author,
+                tags: result.video?.tags ?? item.node.tags,
+              }
+            };
+          }
+          return item;
         });
       }
     });
@@ -248,14 +225,8 @@ export class Management {
     if (confirm(`Are you sure you want to delete "${video.name}"? This action cannot be undone.`)) {
       this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
         if (result.data?.success) {
-          //this.refreshDirectory();
-          this.directoryContents.update(dir => {
-            const contents = dir.data;
-            if (!contents) return dir;
-            const deletedVideoId = result.data?.video?.id ?? video.id;
-            const updatedContents = contents.filter(item => item.node.id !== deletedVideoId);
-            return { ...dir, data: updatedContents };
-          })
+          const deletedVideoId = result.data?.video?.id ?? video.id;
+          this.dataSource.data = this.dataSource.data.filter(item => item.node.id !== deletedVideoId);
         }
       });
     }
@@ -273,7 +244,7 @@ export class Management {
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.refreshDirectory();
-        this.selectedIds.set(new Set());
+        this.selection.clear();
       }
     });
   }
