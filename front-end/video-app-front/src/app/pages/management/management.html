@@ -1,27 +1,11 @@
-<div #managementContainer class="p-6">
+<div #managementContainer class="p-6 ml-4">
   <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
+  <div class="flex items-center justify-between mb-6 mr-16">
     <div class="flex items-center gap-4">
       <span class="bg-gray-800 text-white px-4 py-2 rounded-lg font-medium">Current path:</span>
       <span class="text-gray-700 font-mono">{{ currentPathDisplay() }}</span>
     </div>
     <div class="flex gap-2">
-      <button
-        (click)="refreshDirectory()"
-        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium transition-colors"
-      >
-        <mat-icon class="align-middle">refresh</mat-icon>
-      </button>
-      <button
-        [disabled]="!hasSelection()"
-        (click)="openBatchTagsPanel()"
-        class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-      >
-        Batch operation
-        @if (hasSelection()) {
-          <span class="ml-1">({{ selectedCount() }})</span>
-        }
-      </button>
       <button
         [disabled]="isAtRoot()"
         (click)="navigateBack()"
@@ -37,185 +21,216 @@
   <!-- Table with Back to Top Button -->
   <div class="flex gap-4 items-end">
     <!-- Table Container -->
-    <div class="flex-1 min-w-0 bg-white rounded-lg shadow overflow-hidden">
-      <!-- Table Header: checkbox 5%, type 6%, name 35%, size 10%, lastUpdate 12%, tags 32% -->
-      <div class="flex bg-gray-100 border-b font-medium text-gray-600">
-        <div class="w-[5%] flex items-center px-4 py-3">
-          <mat-checkbox
-            [checked]="isAllSelected()"
-            [indeterminate]="hasSelection() && !isAllSelected()"
-            (change)="toggleSelectAll()"
-          />
-        </div>
-        <div class="w-[8%] px-4 py-3 flex items-center">
-          <span>Type</span>
-        </div>
-        <div class="w-[35%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
-             (click)="sortItemsBy(0)">
-          <span>Name</span>
-          @if (sortCriteria()[0]) {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-          } @else {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
-          }
-        </div>
-        <div class="w-[12%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
-             (click)="sortItemsBy(1)">
-          <span>Size</span>
-          @if (!sortCriteria()[1]) {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-          } @else {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
-          }
-        </div>
-        <div class="w-[20%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
-             (click)="sortItemsBy(2)">
-          <span>Last update</span>
-          @if (!sortCriteria()[2]) {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-          } @else {
-            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
-          }
-        </div>
-        <div class="w-[25%] px-4 py-3 flex items-center">
-          <span>Tags</span>
-        </div>
-      </div>
-
-    <!-- Loading State -->
-    @if (directoryContents().loading) {
-      <div class="p-8 text-center">
-        <mat-icon class="text-4xl text-gray-400 animate-spin" fontIcon="sync"></mat-icon>
-        <p class="mt-2 text-gray-500">Loading...</p>
-      </div>
-    }
-
-    <!-- Error State -->
-    @else if (directoryContents().error) {
-      <div class="p-8 text-center">
-        <mat-icon class="text-4xl text-red-400" fontIcon="error_outlined"></mat-icon>
-        <p class="mt-2 text-gray-500">Failed to load directory</p>
-      </div>
-    }
-
-    <!-- Empty State -->
-    @else if (!directoryContents().data || directoryContents().data!.length === 0) {
-      <div class="p-8 text-center">
-        <mat-icon class="text-4xl text-gray-400" fontIcon="folder_open"></mat-icon>
-        <p class="mt-2 text-gray-500">No items in this directory</p>
-      </div>
-    }
-
-    <!-- Content -->
-    @else {
-      @for (item of directoryContents().data; track item.node.id) {
-        <mat-menu #operateMenu="matMenu">
-          @if(!item.node.isDir) {
-            <button mat-menu-item>
-              <a
-                [routerLink]="videoPage(item.node)"
-                target="_blank"
-                class="flex items-center"
-              >
-                <mat-icon fontIcon="play_circle"></mat-icon>
-                <span>Play Video</span>
-              </a>
-            </button>
-            <button mat-menu-item (click)="openEditPanel(item.node)">
-              <mat-icon fontIcon="edit"></mat-icon>
-              <span>Edit</span>
-            </button>
-            <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
-              <mat-icon fontIcon="delete"></mat-icon>
-              <span>Delete</span>
-            </button>
-          }
-        </mat-menu>
-        <div
-          class="flex border-b hover:bg-gray-50 items-center"
-          [class.bg-blue-50]="isSelected(item.node.id)"
-          [class.cursor-pointer]="item.node.isDir"
-          [matContextMenuTriggerFor]="operateMenu"
-          (click)="onClickFileBrowseNode(item)"
-        >
-          <!-- Checkbox -->
-          <div class="w-[5%] px-4 py-3 flex items-center">
-            @if (item.node.isDir) {
-              <mat-checkbox [disabled]="true"/>
-            } @else {
+    <div class="flex-1 min-w-0 bg-white rounded-lg shadow-2xl">
+      <table class="w-full table-fixed">
+        <!-- Table Header -->
+        <thead class="bg-gray-200 border-b font-medium text-gray-600 sticky top-0 z-10">
+          <tr>
+            <th class="w-[5%] px-4 py-3 text-left font-medium">
               <mat-checkbox
-                [checked]="isSelected(item.node.id)"
-                (change)="toggleSelection(item.node.id)"
-                (click)="$event.stopPropagation()"
+                [checked]="isAllSelected()"
+                [indeterminate]="hasSelection() && !isAllSelected()"
+                (change)="toggleSelectAll()"
               />
-            }
-          </div>
-
-          <!-- Type Icon -->
-          <div class="w-[8%] px-4 py-3">
-            @if (item.node.isDir) {
-              <img src="foldericon.png" alt="folder" class="w-8 h-8" />
-            } @else {
-              <img src="videoicon.png" alt="video" class="w-8 h-8" />
-            }
-          </div>
-
-          <!-- Name -->
-          <div class="w-[35%] px-4 py-3 truncate">
-            @if (item.node.isDir) {
-              <span class="text-blue-600 font-medium hover:underline hover:text-blue-700">
-                {{ item.node.name }}
+            </th>
+            <th class="w-[8%] px-4 py-3 text-left font-medium">Type</th>
+            <th class="w-[35%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                (click)="sortItemsBy(0)">
+              <span class="flex items-center">
+                Name
+                @if (sortCriteria()[0]) {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+                } @else {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+                }
               </span>
-            } @else {
-              <span class="font-medium">{{ item.node.name }}</span>
+            </th>
+            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                (click)="sortItemsBy(1)">
+              <span class="flex items-center">
+                Size
+                @if (!sortCriteria()[1]) {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+                } @else {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+                }
+              </span>
+            </th>
+            <th class="w-[20%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 transition-colors"
+                (click)="sortItemsBy(2)">
+              <span class="flex items-center">
+                Last update
+                @if (!sortCriteria()[2]) {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+                } @else {
+                  <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+                }
+              </span>
+            </th>
+            <th class="w-[25%] px-4 py-3 text-left font-medium">Tags</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <!-- Loading State -->
+          @if (directoryContents().loading) {
+            <tr>
+              <td colspan="6" class="p-8 text-center">
+                <mat-icon class="text-4xl text-gray-400 animate-spin" fontIcon="sync"></mat-icon>
+                <p class="mt-2 text-gray-500">Loading...</p>
+              </td>
+            </tr>
+          }
+
+          <!-- Error State -->
+          @else if (directoryContents().error) {
+            <tr>
+              <td colspan="6" class="p-8 text-center">
+                <mat-icon class="text-4xl text-red-400" fontIcon="error_outlined"></mat-icon>
+                <p class="mt-2 text-gray-500">Failed to load directory</p>
+              </td>
+            </tr>
+          }
+
+          <!-- Empty State -->
+          @else if (!directoryContents().data || directoryContents().data!.length === 0) {
+            <tr>
+              <td colspan="6" class="p-8 text-center">
+                <mat-icon class="text-4xl text-gray-400" fontIcon="folder_open"></mat-icon>
+                <p class="mt-2 text-gray-500">No items in this directory</p>
+              </td>
+            </tr>
+          }
+
+          <!-- Content -->
+          @else {
+            @for (item of directoryContents().data; track item.node.id) {
+              <mat-menu #operateMenu="matMenu">
+                @if(!item.node.isDir) {
+                  <button mat-menu-item>
+                    <a
+                      [routerLink]="videoPage(item.node)"
+                      target="_blank"
+                      class="flex items-center"
+                    >
+                      <mat-icon fontIcon="play_circle"></mat-icon>
+                      <span>Play Video</span>
+                    </a>
+                  </button>
+                  <button mat-menu-item (click)="openEditPanel(item.node)">
+                    <mat-icon fontIcon="edit"></mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
+                    <mat-icon fontIcon="delete"></mat-icon>
+                    <span>Delete</span>
+                  </button>
+                }
+              </mat-menu>
+              <tr
+                class="border-b hover:bg-gray-50"
+                [class.bg-blue-50]="isSelected(item.node.id)"
+                [class.cursor-pointer]="item.node.isDir"
+                [matContextMenuTriggerFor]="operateMenu"
+                (click)="onClickFileBrowseNode(item)"
+              >
+                <!-- Checkbox -->
+                <td class="px-4 py-3">
+                  @if (item.node.isDir) {
+                    <mat-checkbox [disabled]="true"/>
+                  } @else {
+                    <mat-checkbox
+                      [checked]="isSelected(item.node.id)"
+                      (change)="toggleSelection(item.node.id)"
+                      (click)="$event.stopPropagation()"
+                    />
+                  }
+                </td>
+
+                <!-- Type Icon -->
+                <td class="px-4 py-3">
+                  @if (item.node.isDir) {
+                    <img src="foldericon.png" alt="folder" class="w-8 h-8" />
+                  } @else {
+                    <img src="videoicon.png" alt="video" class="w-8 h-8" />
+                  }
+                </td>
+
+                <!-- Name -->
+                <td class="px-4 py-3 truncate">
+                  @if (item.node.isDir) {
+                    <span class="text-blue-600 font-medium hover:underline hover:text-blue-700">
+                      {{ item.node.name }}
+                    </span>
+                  } @else {
+                    <span class="font-medium">{{ item.node.name }}</span>
+                  }
+                </td>
+
+                <!-- Size -->
+                <td class="px-4 py-3 text-gray-600 truncate">
+                  {{ formatSize(item.node.size) }}
+                </td>
+
+                <!-- Last Update -->
+                <td class="px-4 py-3 text-gray-600 truncate">
+                  {{ formatDate(item.node.lastModifyTime) }}
+                </td>
+
+                <!-- Tags -->
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-1 flex-wrap overflow-hidden">
+                    @if (!item.node.isDir) {
+                      @for (tag of getVisibleTags(item.node); track tag) {
+                        <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm">
+                          {{ tag }}
+                        </span>
+                      }
+                      @if (getRemainingTagsCount(item.node) > 0) {
+                        <span
+                          class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-sm cursor-help"
+                          [matTooltip]="getAllRemainingTags(item.node)"
+                        >
+                          +{{ getRemainingTagsCount(item.node) }}
+                        </span>
+                      }
+                      @if (item.node.tags.length === 0) {
+                        <span class="text-gray-400">-</span>
+                      }
+                    } @else {
+                      <span class="text-gray-400">-</span>
+                    }
+                  </div>
+                </td>
+              </tr>
             }
-          </div>
-
-          <!-- Size -->
-          <div class="w-[12%] px-4 py-3 text-gray-600 truncate">
-            {{ formatSize(item.node.size) }}
-          </div>
-
-          <!-- Last Update -->
-          <div class="w-[20%] px-4 py-3 text-gray-600 truncate">
-            {{ formatDate(item.node.lastModifyTime) }}
-          </div>
-
-          <!-- Tags -->
-          <div class="w-[25%] px-4 py-3 flex items-center gap-1 flex-wrap overflow-hidden">
-            @if (!item.node.isDir) {
-              @for (tag of getVisibleTags(item.node); track tag) {
-                <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm">
-                  {{ tag }}
-                </span>
-              }
-              @if (getRemainingTagsCount(item.node) > 0) {
-                <span
-                  class="px-2 py-0.5 bg-gray-200 text-gray-600 rounded text-sm cursor-help"
-                  [matTooltip]="getAllRemainingTags(item.node)"
-                >
-                  +{{ getRemainingTagsCount(item.node) }}
-                </span>
-              }
-              @if (item.node.tags.length === 0) {
-                <span class="text-gray-400">-</span>
-              }
-            } @else {
-              <span class="text-gray-400">-</span>
-            }
-          </div>
-        </div>
-      }
-    }
+          }
+        </tbody>
+      </table>
     </div>
     <!-- placeholder for back to top button-->
-    <div class="w-12"></div>
+    <div class="w-16"></div>
   </div>
   <!-- Back to Top Button -->
   <div class="fixed bottom-1 right-6 self-end pb-2">
     <button
+      (click)="openBatchTagsPanel()"
+      [disabled]="!hasSelection()"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+    >
+      <span class="text-lg">({{ selectedCount() }})</span>
+      <span class="text-xs">Batch</span>
+    </button>
+    <button
+      (click)="refreshDirectory()"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-gray-200 hover:cursor-pointer hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition-colors"
+    >
+      <mat-icon fontIcon="refresh"></mat-icon>
+      <span class="text-xs">Refresh</span>
+    </button>
+    <button
       (click)="scrollToTop()"
-      class="flex flex-col items-center gap-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 bg-gray-600 hover:cursor-pointer hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
     >
       <mat-icon fontIcon="arrow_upward"></mat-icon>
       <span class="text-xs">Top</span>
