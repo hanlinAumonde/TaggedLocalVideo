@@ -15,6 +15,8 @@ export class App {
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
 
+  rootMainContainerId = environment.rootMainContainerId;
+
   headerTitle = toSignal(
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),

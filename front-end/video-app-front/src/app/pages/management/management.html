@@ -1,4 +1,4 @@
-<div class="p-6">
+<div #managementContainer class="p-6">
   <!-- Header -->
   <div class="flex items-center justify-between mb-6">
     <div class="flex items-center gap-4">
@@ -34,24 +34,53 @@
 
   <p class="mb-4 text-gray-600 italic">Right-click on an video item for more operations of videos.</p>
 
-  <!-- Table -->
-  <div class="bg-white rounded-lg shadow overflow-hidden">
-    <!-- Table Header -->
-    <div class="grid grid-cols-[auto_60px_1fr_100px_120px_minmax(150px,1fr)_100px] gap-4 px-4 py-3 bg-gray-100 border-b font-medium text-gray-600">
-      <div class="flex items-center">
-        <mat-checkbox
-          [checked]="isAllSelected()"
-          [indeterminate]="hasSelection() && !isAllSelected()"
-          (change)="toggleSelectAll()"
-        />
+  <!-- Table with Back to Top Button -->
+  <div class="flex gap-4 items-end">
+    <!-- Table Container -->
+    <div class="flex-1 min-w-0 bg-white rounded-lg shadow overflow-hidden">
+      <!-- Table Header: checkbox 5%, type 6%, name 35%, size 10%, lastUpdate 12%, tags 32% -->
+      <div class="flex bg-gray-100 border-b font-medium text-gray-600">
+        <div class="w-[5%] flex items-center px-4 py-3">
+          <mat-checkbox
+            [checked]="isAllSelected()"
+            [indeterminate]="hasSelection() && !isAllSelected()"
+            (change)="toggleSelectAll()"
+          />
+        </div>
+        <div class="w-[8%] px-4 py-3 flex items-center">
+          <span>Type</span>
+        </div>
+        <div class="w-[35%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
+             (click)="sortItemsBy(0)">
+          <span>Name</span>
+          @if (sortCriteria()[0]) {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+          } @else {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+          }
+        </div>
+        <div class="w-[12%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
+             (click)="sortItemsBy(1)">
+          <span>Size</span>
+          @if (!sortCriteria()[1]) {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+          } @else {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+          }
+        </div>
+        <div class="w-[20%] px-4 py-3 flex items-center cursor-pointer select-none hover:bg-gray-200 transition-colors"
+             (click)="sortItemsBy(2)">
+          <span>Last update</span>
+          @if (!sortCriteria()[2]) {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
+          } @else {
+            <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+          }
+        </div>
+        <div class="w-[25%] px-4 py-3 flex items-center">
+          <span>Tags</span>
+        </div>
       </div>
-      <div>Type</div>
-      <div (click)="sortItemsBy(0)">Name</div>
-      <div (click)="sortItemsBy(1)">Size</div>
-      <div (click)="sortItemsBy(2)">Last update</div>
-      <div>Tags</div>
-      <div></div>
-    </div>
 
     <!-- Loading State -->
     @if (directoryContents().loading) {
@@ -83,9 +112,9 @@
         <mat-menu #operateMenu="matMenu">
           @if(!item.node.isDir) {
             <button mat-menu-item>
-              <a 
+              <a
                 [routerLink]="videoPage(item.node)"
-                target="_blank" 
+                target="_blank"
                 class="flex items-center"
               >
                 <mat-icon fontIcon="play_circle"></mat-icon>
@@ -103,48 +132,57 @@
           }
         </mat-menu>
         <div
-          class="grid grid-cols-[auto_60px_1fr_100px_120px_minmax(150px,1fr)_100px] gap-4 px-4 py-3 border-b hover:bg-gray-50 items-center"
+          class="flex border-b hover:bg-gray-50 items-center"
           [class.bg-blue-50]="isSelected(item.node.id)"
+          [class.cursor-pointer]="item.node.isDir"
           [matContextMenuTriggerFor]="operateMenu"
           (click)="onClickFileBrowseNode(item)"
         >
-          <!-- Checkbox and Type Icon -->
+          <!-- Checkbox -->
+          <div class="w-[5%] px-4 py-3 flex items-center">
             @if (item.node.isDir) {
-              <div>
-                <mat-checkbox [disabled]="true"/>
-              </div>
-              <div><img src="foldericon.png" alt="folder" class="w-8 h-8" /></div>
+              <mat-checkbox [disabled]="true"/>
             } @else {
-              <div><mat-checkbox
+              <mat-checkbox
                 [checked]="isSelected(item.node.id)"
                 (change)="toggleSelection(item.node.id)"
+                (click)="$event.stopPropagation()"
               />
-              </div>
-              <div><img src="videoicon.png" alt="video" class="w-8 h-8" /></div>
-              <!-- <mat-icon class="text-red-500 text-3xl!">smart_display</mat-icon> -->
             }
+          </div>
+
+          <!-- Type Icon -->
+          <div class="w-[8%] px-4 py-3">
+            @if (item.node.isDir) {
+              <img src="foldericon.png" alt="folder" class="w-8 h-8" />
+            } @else {
+              <img src="videoicon.png" alt="video" class="w-8 h-8" />
+            }
+          </div>
 
           <!-- Name -->
-          <div class="truncate">
+          <div class="w-[35%] px-4 py-3 truncate">
             @if (item.node.isDir) {
-              <button
-                class="text-blue-600 font-medium text-left hover:underline hover:text-blue-700"
-              >
+              <span class="text-blue-600 font-medium hover:underline hover:text-blue-700">
                 {{ item.node.name }}
-              </button>
+              </span>
             } @else {
               <span class="font-medium">{{ item.node.name }}</span>
             }
           </div>
 
           <!-- Size -->
-          <div class="text-gray-600">{{ formatSize(item.node.size) }}</div>
+          <div class="w-[12%] px-4 py-3 text-gray-600 truncate">
+            {{ formatSize(item.node.size) }}
+          </div>
 
           <!-- Last Update -->
-          <div class="text-gray-600">{{ formatDate(item.node.lastModifyTime) }}</div>
+          <div class="w-[20%] px-4 py-3 text-gray-600 truncate">
+            {{ formatDate(item.node.lastModifyTime) }}
+          </div>
 
           <!-- Tags -->
-          <div class="flex items-center gap-1 flex-wrap">
+          <div class="w-[25%] px-4 py-3 flex items-center gap-1 flex-wrap overflow-hidden">
             @if (!item.node.isDir) {
               @for (tag of getVisibleTags(item.node); track tag) {
                 <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-sm">
@@ -169,10 +207,18 @@
         </div>
       }
     }
+    </div>
+    <!-- placeholder for back to top button-->
+    <div class="w-12"></div>
   </div>
-
-  <!-- Batch Operation Button -->
-  <div class="mt-6">
-    
+  <!-- Back to Top Button -->
+  <div class="fixed bottom-1 right-6 self-end pb-2">
+    <button
+      (click)="scrollToTop()"
+      class="flex flex-col items-center gap-1 px-4 py-3 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium transition-colors"
+    >
+      <mat-icon fontIcon="arrow_upward"></mat-icon>
+      <span class="text-xs">Top</span>
+    </button>
   </div>
 </div>

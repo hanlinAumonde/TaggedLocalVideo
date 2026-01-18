@@ -14,7 +14,7 @@ import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
 import { ItemsSortOption, comparatorBySortOption } from '../../shared/models/management.model';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-management',
@@ -26,19 +26,17 @@ import { Router, RouterLink } from '@angular/router';
     MatTooltipModule,
     RouterLink
 ],
-  templateUrl: './management.html',
-  styleUrl: './management.css',
+  templateUrl: './management.html'
 })
 export class Management {
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
   private statService = inject(PageStateService);
-  private router = inject(Router);
 
   SORT_OPTIONS = ItemsSortOption;
   // true for ascending, false for descending
   // First click: Column name initially ascending, size descending, date descending
-  sortCriteria = signal<boolean[]>([false, true, true]); 
+  sortCriteria = signal<boolean[]>([false, true, true]);
 
   currentPath = signal<string[]>([]);
 
@@ -278,5 +276,12 @@ export class Management {
         this.selectedIds.set(new Set());
       }
     });
+  }
+
+  scrollToTop() {
+    const mainContainer = document.getElementById(environment.rootMainContainerId);
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 }

@@ -7,5 +7,6 @@ export const environment = {
     management_api: "/management",
     videopage_api: "/video",
     pageListSize: 5,
-    refreshKey: "_refresh_key"
+    refreshKey: "_refresh_key",
+    rootMainContainerId: "root-main-container"
 };
