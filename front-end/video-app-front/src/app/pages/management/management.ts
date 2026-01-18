@@ -4,13 +4,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 
 import { GqlService } from '../../services/GQL-service/GQL-service';
-import { BrowseDirectoryDetail, BrowsedVideo } from '../../shared/models/GQL-result.model';
+import { BrowseDirectoryDetail, BrowsedVideo, FileBrowseNode, VideoMutationDetail } from '../../shared/models/GQL-result.model';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/video-edit-panel.model';
 import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
+import { PageStateService } from '../../services/Page-state-service/page-state';
+import { environment } from '../../../environments/environment';
+import { ItemsSortOption, comparatorBySortOption } from '../../shared/models/management.model';
+import { Router, RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-management',
@@ -19,25 +23,31 @@ import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
     MatButtonModule,
     MatCheckboxModule,
     MatMenuModule,
-    MatTooltipModule
-  ],
+    MatTooltipModule,
+    RouterLink
+],
   templateUrl: './management.html',
   styleUrl: './management.css',
 })
 export class Management {
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
+  private statService = inject(PageStateService);
+  private router = inject(Router);
 
-  // Current path segments for navigation
+  SORT_OPTIONS = ItemsSortOption;
+  // true for ascending, false for descending
+  // First click: Column name initially ascending, size descending, date descending
+  sortCriteria = signal<boolean[]>([false, true, true]); 
+
   currentPath = signal<string[]>([]);
 
-  // Directory contents
+  // list of videos and folders in the current directory
   directoryContents = signal(this.gqlService.initialSignalData<BrowseDirectoryDetail>([]));
 
   // Selected items for batch operations
   selectedIds = signal<Set<string>>(new Set());
 
-  // Computed values
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
     return path.length === 0 ? './' : './' + path.join('/');
@@ -57,9 +67,22 @@ export class Management {
   hasSelection = computed(() => this.selectedIds().size > 0);
 
   constructor() {
+    const hasStatePredicate = (state: { currentPath: string[] } | undefined) => 
+      state && Array.isArray(state.currentPath);
+
+    const state = this.statService.getState<{ currentPath: string[] }>(
+      environment.management_api + environment.refreshKey,
+      false
+    );
+
+    if (hasStatePredicate(state)) {
+      this.currentPath.set(state!.currentPath);
+    }
+
     // Load directory when path changes
     effect(() => {
       const path = this.currentPath();
+      this.statService.setState(environment.management_api + environment.refreshKey, { currentPath : path },false);
       this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
     });
   }
@@ -67,9 +90,16 @@ export class Management {
   private loadDirectory(relativePath?: string) {
     this.gqlService.browseDirectoryQuery(relativePath).subscribe(result => {
       this.directoryContents.set(result);
-      // Clear selection when navigating
       this.selectedIds.set(new Set());
     });
+  }
+
+  private getSelectedVideos(): BrowsedVideo[] {
+    const contents = this.directoryContents().data;
+    if (!contents) return [];
+    return contents
+      .filter(item => !item.node.isDir && this.selectedIds().has(item.node.id))
+      .map(item => item.node);
   }
 
   refreshDirectory() {
@@ -77,15 +107,18 @@ export class Management {
     this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
   }
 
-  navigateToFolder(folderName: string) {
-    this.currentPath.update(path => [...path, folderName]);
+  onClickFileBrowseNode(node: FileBrowseNode) {
+    if(!node.node.isDir) {
+      this.toggleSelection(node.node.id);
+      return;
+    };
+    this.currentPath.update(path => [...path, node.node.name]);
   }
 
   navigateBack() {
     this.currentPath.update(path => path.slice(0, -1));
   }
 
-  // Selection methods
   toggleSelection(id: string) {
     this.selectedIds.update(ids => {
       const newIds = new Set(ids);
@@ -115,7 +148,36 @@ export class Management {
     return this.selectedIds().has(id);
   }
 
-  // Format size for display
+  getSortOptionForColumn(columnIndex: number, asc: ItemsSortOption, desc: ItemsSortOption): ItemsSortOption {
+    this.sortCriteria.update(arr => {
+      arr[columnIndex] = !arr[columnIndex];
+      return arr;
+    });
+    return this.sortCriteria()[columnIndex] ? asc : desc;
+  }
+
+  sortItemsBy(columnIndex: number) {
+    const contents = this.directoryContents().data;
+    if (!contents) return;
+    let sortedContents = [...contents];
+
+    const option = (() => {
+      switch(columnIndex){
+        case 0:
+          return this.getSortOptionForColumn(0, ItemsSortOption.NAME_ASC, ItemsSortOption.NAME_DESC);
+        case 1:
+          return this.getSortOptionForColumn(1, ItemsSortOption.SIZE_ASC, ItemsSortOption.SIZE_DESC);
+        case 2:
+          return this.getSortOptionForColumn(2, ItemsSortOption.DATE_ASC, ItemsSortOption.DATE_DESC);
+        default:
+          return ItemsSortOption.NAME_ASC;
+      }
+    })();
+
+    sortedContents.sort(comparatorBySortOption(option))
+    this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
+  }
+
   formatSize(bytes: number): string {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -124,29 +186,32 @@ export class Management {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  // Format date for display
   formatDate(timestamp: number): string {
     if (!timestamp) return '-';
     return new Date(timestamp * 1000).toLocaleDateString('zh-CN');
   }
 
-  // Get visible tags (first 2) and remaining count
+  // Get visible tags (first 4) and remaining count
   getVisibleTags(video: BrowsedVideo): string[] {
-    return video.tags?.slice(0, 2).map(t => t.name) ?? [];
+    return video.tags?.slice(0, 4).map(t => t.name) ?? [];
   }
 
   getRemainingTagsCount(video: BrowsedVideo): number {
     const total = video.tags?.length ?? 0;
-    return Math.max(0, total - 2);
+    return Math.max(0, total - 4);
   }
 
-  getAllTags(video: BrowsedVideo): string {
-    return video.tags?.map(t => t.name).join(', ') ?? '';
+  getAllRemainingTags(video: BrowsedVideo): string {
+    return video.tags?.slice(4).map(t => t.name).join(', ') ?? '';
   }
 
-  // Operations
+  videoPage(video: BrowsedVideo) {
+    return [environment.videopage_api, video.id]
+  }
+
   openEditPanel(video: BrowsedVideo) {
-    const dialogRef = this.dialog.open(VideoEditPanel, {
+    const dialogRef: MatDialogRef<VideoEditPanel, VideoMutationDetail>
+     = this.dialog.open(VideoEditPanel, {
       width: '500px',
       data: {
         mode: 'full' as VideoEditPanelMode,
@@ -156,16 +221,43 @@ export class Management {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.refreshDirectory();
+        //this.refreshDirectory();
+        this.directoryContents.update(dir => {
+          const contents = dir.data;
+          if (!contents) return dir;
+          const updatedContents = contents.map(item => {
+            if (item.node.id === result.video?.id) {
+              return {
+                ...item,
+                node: {
+                  ...item.node,
+                  name: result.video?.name ?? item.node.name,
+                  introduction: result.video?.introduction ?? item.node.introduction,
+                  author: result.video?.author ?? item.node.author,
+                  tags: result.video?.tags ?? item.node.tags,
+                }
+              };
+            }
+            return item;
+          });
+          return { ...dir, data: updatedContents };
+        });
       }
     });
   }
 
   deleteVideo(video: BrowsedVideo) {
-    if (confirm(`确定要删除 "${video.name}" 吗？此操作不可恢复。`)) {
+    if (confirm(`Are you sure you want to delete "${video.name}"? This action cannot be undone.`)) {
       this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
         if (result.data?.success) {
-          this.refreshDirectory();
+          //this.refreshDirectory();
+          this.directoryContents.update(dir => {
+            const contents = dir.data;
+            if (!contents) return dir;
+            const deletedVideoId = result.data?.video?.id ?? video.id;
+            const updatedContents = contents.filter(item => item.node.id !== deletedVideoId);
+            return { ...dir, data: updatedContents };
+          })
         }
       });
     }
@@ -186,13 +278,5 @@ export class Management {
         this.selectedIds.set(new Set());
       }
     });
-  }
-
-  private getSelectedVideos(): BrowsedVideo[] {
-    const contents = this.directoryContents().data;
-    if (!contents) return [];
-    return contents
-      .filter(item => !item.node.isDir && this.selectedIds().has(item.node.id))
-      .map(item => item.node);
   }
 }

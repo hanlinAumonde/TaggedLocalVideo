@@ -26,6 +26,7 @@ import { VideoEditPanelData } from '../../shared/models/video-edit-panel.model';
 import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { environment } from '../../../environments/environment';
 import { SearchPageParam } from '../../shared/models/search.model';
+import { Title } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-video-player',
@@ -45,6 +46,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   private router = inject(Router);
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
+  private title = inject(Title);
 
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
@@ -76,6 +78,13 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       }
       this.initializePlayer();
     });
+
+    effect(() => {
+      const videoData = this.video().data;
+      if (videoData) {
+        this.title.setTitle(`${videoData.name} - Tagged Local Video App`);
+      }
+    })
   }
 
   ngAfterViewInit() {
@@ -116,7 +125,6 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     });
 
     const url = this.videoStreamUrl();
-    console.log('Setting video source URL:', url);
     if (url) {
       this.player.src({ type: 'video/mp4', src: url });
     }

@@ -22,7 +22,7 @@ import { SearchVideosDetail } from '../../shared/models/GQL-result.model';
 import { SearchFrom, VideoSortOption, SearchField } from '../../core/graphql/generated/graphql';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { environment } from '../../../environments/environment';
-import { PageStateService } from '../../services/Page-state-service/PageState.service';
+import { PageStateService } from '../../services/Page-state-service/page-state';
 
 @Component({
   selector: 'app-search',
@@ -138,8 +138,6 @@ export class Search {
       history.state as SearchPageParam | undefined,
       this.stateService.getState<SearchPageParam>(environment.searchpage_api, true)
     ].find(hasStatePredicate);
-
-    console.log('Retrieved state for search page:', stateFound);
 
     const urlParams = new URLSearchParams(window.location.search);
     const hasUrlParams = urlParams.has('currentPageNumber');

@@ -14,23 +14,29 @@ export const routes: Routes = [
   },
   {
     path: 'home',
+    title: 'Home Page - Tagged Local Video App',
     component: Homepage,
+    data: { headerTitle: 'HomePage' }
   },
   {
     path: 'search',
+    title: 'Search videos - Tagged Local Video App',
     component: Search,
+    data: { headerTitle: 'Search' }
   },
   {
     path: 'video/:id',
     component: VideoPlayer,
+    title: 'Video Player - Tagged Local Video App',
     resolve: {
-      //videoId: videoIdResolver,
       video: VideoMetaDataResolver
     }
   },
   {
     path: 'management',
     component: Management,
+    title: 'Management - Tagged Local Video App',
+    data: { headerTitle: 'Management' } 
   },
   {
     path: '**',

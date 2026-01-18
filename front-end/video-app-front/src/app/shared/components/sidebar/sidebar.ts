@@ -3,7 +3,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PageStateService } from '../../../services/Page-state-service/PageState.service';
+import { PageStateService } from '../../../services/Page-state-service/page-state';
 
 interface NavItem {
   path: string;
