@@ -9,19 +9,40 @@
       </p>
     </div>
 
-    <!-- Operation mode -->
+    <!-- Creator -->
     <div class="flex flex-col gap-2">
       <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
-        Operation:
+        Creator:
       </label>
-      <mat-radio-group formControlName="mode" class="flex gap-6">
-        <mat-radio-button value="append" class="text-green-700">
-          <span class="font-medium">Add Tags</span>
-        </mat-radio-button>
-        <mat-radio-button value="remove" class="text-red-700">
-          <span class="font-medium">Remove Tags</span>
-        </mat-radio-button>
-      </mat-radio-group>
+      <mat-form-field appearance="outline" class="w-full">
+        <input
+          matInput
+          formControlName="authorInput"
+          placeholder="search"
+          [matAutocomplete]="authorAuto" />
+        <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
+        <mat-autocomplete
+          #authorAuto="matAutocomplete"
+          (optionSelected)="selectAuthorSuggestion($event.option.value)">
+          @if(authorSuggestions().loading && authorInput.value !== '') {
+            <mat-option disabled>
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate">
+              </mat-progress-spinner>
+              <span class="ml-2">Loading...</span>
+            </mat-option>
+          }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
+            @for (author of authorSuggestions().data; track author) {
+              <mat-option [value]="author">
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+              </mat-option>
+            }
+          }@else{
+            <mat-option disabled>No author-suggestions available</mat-option>
+          }
+        </mat-autocomplete>
+      </mat-form-field>
     </div>
 
     <!-- Tags Section -->
@@ -30,6 +51,15 @@
         Tags:
       </label>
 
+      <mat-radio-group formControlName="mode" class="flex gap-6">
+        <mat-radio-button value="append" class="text-green-700">
+          <span class="font-medium">Add Tags</span>
+        </mat-radio-button>
+        <mat-radio-button value="remove" class="text-red-700">
+          <span class="font-medium">Remove Tags</span>
+        </mat-radio-button>
+      </mat-radio-group>
+
       <!-- Selected tags -->
       @if (tags().length > 0) {
         <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
@@ -37,7 +67,7 @@
             <mat-chip class="bg-white! border! border-gray-300!">
               <span class="font-medium">{{ tag }}</span>
               <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
-                <mat-icon class="text-base!">cancel</mat-icon>
+                <mat-icon class="text-base!" fontIcon="cancel"></mat-icon>
               </button>
             </mat-chip>
           }
@@ -52,7 +82,7 @@
           placeholder="Enter tag name"
           [matAutocomplete]="tagAuto"
           (keydown.enter)="onTagInputEnter($event)" />
-        <mat-icon matSuffix>expand_more</mat-icon>
+        <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
         <mat-autocomplete
           #tagAuto="matAutocomplete"
           (optionSelected)="selectTagSuggestion($event.option.value)">
@@ -71,7 +101,9 @@
               </mat-option>
             }
           }@else{
-            <mat-option disabled>No tag suggestions available</mat-option>
+            <mat-option disabled>
+              No tag suggestions available, type Enter to add as new tag
+            </mat-option>
           }
         </mat-autocomplete>
       </mat-form-field>
@@ -90,14 +122,12 @@
     mat-raised-button
     type="button"
     (click)="handleSave()"
-    [disabled]="tags().length === 0 || isSaving()"
+    [disabled]="isSaving() || (this.tags().length === 0 && this.authorInput.value.trim() === '')"
     color="primary">
     @if (isSaving()) {
       Saving...
-    } @else if (form.value.mode === 'append') {
-      Add Tags
     } @else {
-      Remove Tags
+      Save
     }
   </button>
 </mat-dialog-actions>

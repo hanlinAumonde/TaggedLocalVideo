@@ -36,7 +36,7 @@
             formControlName="author"
             placeholder="search"
             [matAutocomplete]="authorAuto" />
-          <mat-icon matSuffix>expand_more</mat-icon>
+          <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
           <mat-autocomplete
             #authorAuto="matAutocomplete"
             (optionSelected)="selectAuthorSuggestion($event.option.value)">
@@ -104,7 +104,7 @@
           placeholder="search"
           [matAutocomplete]="tagAuto"
           (keydown.enter)="onTagInputEnter($event)" />
-        <mat-icon matSuffix>expand_more</mat-icon>
+        <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
         <mat-autocomplete
           #tagAuto="matAutocomplete"
           (optionSelected)="selectTagSuggestion($event.option.value)">
@@ -123,7 +123,9 @@
             </mat-option>
             }
           }@else{
-            <mat-option disabled>No tag-suggestions available</mat-option>
+            <mat-option disabled>
+              No tag-suggestions available, type Enter to add as new tag
+            </mat-option>
           }
         </mat-autocomplete>
       </mat-form-field>

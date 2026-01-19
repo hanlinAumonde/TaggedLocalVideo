@@ -1,7 +1,7 @@
 import { Component, inject, computed, effect, signal, OnDestroy } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
-import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -99,6 +99,9 @@ export class Search {
     author: [this.searchParams().author ?? '']
   });
 
+  get title() { return this.searchForm.get('title') as FormControl<string>; }
+  get author() { return this.searchForm.get('author') as FormControl<string>; }
+
   currentPage = toSignal(
     this.route.queryParams.pipe(
       map(params => {
@@ -110,12 +113,12 @@ export class Search {
   );
 
   titleSuggestions = toSignal(
-    this.gqlService.getSuggestionsQuery(this.searchForm.controls.title.valueChanges, SearchField.Name),
+    this.gqlService.getSuggestionsQuery(this.title.valueChanges, SearchField.Name),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
 
   authorSuggestions = toSignal(
-    this.gqlService.getSuggestionsQuery(this.searchForm.controls.author.valueChanges, SearchField.Author),
+    this.gqlService.getSuggestionsQuery(this.author.valueChanges, SearchField.Author),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
 

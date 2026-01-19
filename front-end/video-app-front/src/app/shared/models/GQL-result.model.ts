@@ -1,4 +1,4 @@
-import { BatchUpdateVideoTagsMutation, BrowseDirectoryQuery, DeleteVideoMutation, GetTopTagsQuery, GetVideoByIdQuery, RecordVideoViewMutation, SearchVideosQuery, UpdateVideoMetadataMutation } from "../../core/graphql/generated/graphql";
+import { BatchUpdateVideosMutation, BrowseDirectoryQuery, DeleteVideoMutation, GetTopTagsQuery, GetVideoByIdQuery, RecordVideoViewMutation, SearchVideosQuery, UpdateVideoMetadataMutation } from "../../core/graphql/generated/graphql";
 
 export interface ResultState<T> {
     loading: boolean;
@@ -23,4 +23,4 @@ export type BrowsedVideo = BrowseDirectoryQuery['browseDirectory'][0]['node'];
 
 export type DeleteVideoDetail = DeleteVideoMutation['deleteVideo'];
 
-export type BatchUpdateTagsDetail = BatchUpdateVideoTagsMutation['batchUpdateVideoTags'];
+export type BatchUpdateVideosDetail = BatchUpdateVideosMutation['batchUpdate'];

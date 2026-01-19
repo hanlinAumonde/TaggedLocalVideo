@@ -14,8 +14,8 @@ import {
   VideoSortOption,
   BrowseDirectoryGQL,
   DeleteVideoGQL,
-  BatchUpdateVideoTagsGQL,
-  VideoTagsMappingInput
+  BatchUpdateVideosGQL,
+  VideosBatchOperationInput
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -29,7 +29,7 @@ import {
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
 import {
-  BatchUpdateTagsDetail,
+  BatchUpdateVideosDetail,
   BrowseDirectoryDetail,
   DeleteVideoDetail,
   GetTopTagsDetail,
@@ -53,7 +53,7 @@ export class GqlService {
   private updateVideoMetadataGQL = inject(UpdateVideoMetadataGQL)
   private browseDirectoryGQL = inject(BrowseDirectoryGQL)
   private deleteVideoGQL = inject(DeleteVideoGQL)
-  private batchUpdateVideoTagsGQL = inject(BatchUpdateVideoTagsGQL)
+  private batchUpdateVideosGQL = inject(BatchUpdateVideosGQL)
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
@@ -221,17 +221,21 @@ export class GqlService {
     )
   }
 
-  batchUpdateVideoTagsMutation(mappings: VideoTagsMappingInput[], append: boolean): Observable<ResultState<BatchUpdateTagsDetail>> {
+  batchUpdateVideosMutation(input: VideosBatchOperationInput): Observable<ResultState<BatchUpdateVideosDetail>> {
     return this.toResultStateObservable(
-      this.batchUpdateVideoTagsGQL.mutate({
+      this.batchUpdateVideosGQL.mutate({
         variables: {
-          input: { mappings, append }
+          input: { 
+            videoIds: input.videoIds,
+            tagsOperation: input.tagsOperation ?? undefined,
+            author: input.author ?? undefined,
+          }
         }
       }),
       (data) => ({
-        success: data.batchUpdateVideoTags?.success ?? false,
-        successfulUpdatesMappings: data.batchUpdateVideoTags?.successfulUpdatesMappings ?? []
-      } as BatchUpdateTagsDetail)
+        success: data.batchUpdate?.success ?? false,
+        successfulUpdatesMappings: data.batchUpdate?.successfulUpdatesMappings ?? []
+      } as BatchUpdateVideosDetail)
     )
   }
 }

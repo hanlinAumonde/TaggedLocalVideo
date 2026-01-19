@@ -24,15 +24,15 @@ export type FileBrowseNode = {
 
 export type Mutation = {
   __typename?: 'Mutation';
-  batchUpdateVideoTags: TagsOperationBatchResult;
+  batchUpdate: VideosBatchOperationResult;
   deleteVideo: VideoMutationResult;
   recordVideoView: VideoMutationResult;
   updateVideoMetadata: VideoMutationResult;
 };
 
 
-export type MutationBatchUpdateVideoTagsArgs = {
-  input: TagsOperationBatchInput;
+export type MutationBatchUpdateArgs = {
+  input: VideosBatchOperationInput;
 };
 
 
@@ -111,15 +111,9 @@ export type SuggestionInput = {
   suggestionType: SearchField;
 };
 
-export type TagsOperationBatchInput = {
+export type TagsOperationMappingInput = {
   append: Scalars['Boolean']['input'];
-  mappings: Array<VideoTagsMappingInput>;
-};
-
-export type TagsOperationBatchResult = {
-  __typename?: 'TagsOperationBatchResult';
-  success: Scalars['Boolean']['output'];
-  successfulUpdatesMappings: Array<Scalars['ID']['output']>;
+  tags: Array<Scalars['String']['input']>;
 };
 
 export type UpdateVideoMetadataInput = {
@@ -180,9 +174,16 @@ export type VideoTag = {
   name: Scalars['String']['output'];
 };
 
-export type VideoTagsMappingInput = {
-  tags: Array<Scalars['String']['input']>;
-  videoId: Scalars['ID']['input'];
+export type VideosBatchOperationInput = {
+  author?: InputMaybe<Scalars['String']['input']>;
+  tagsOperation?: InputMaybe<TagsOperationMappingInput>;
+  videoIds: Array<Scalars['ID']['input']>;
+};
+
+export type VideosBatchOperationResult = {
+  __typename?: 'VideosBatchOperationResult';
+  success: Scalars['Boolean']['output'];
+  successfulUpdatesMappings: Array<Scalars['ID']['output']>;
 };
 
 export type UpdateVideoMetadataMutationVariables = Exact<{
@@ -192,12 +193,12 @@ export type UpdateVideoMetadataMutationVariables = Exact<{
 
 export type UpdateVideoMetadataMutation = { __typename?: 'Mutation', updateVideoMetadata: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string, name: string, author: string, loved: boolean, introduction: string, tags: Array<{ __typename?: 'VideoTag', name: string }> } | null } };
 
-export type BatchUpdateVideoTagsMutationVariables = Exact<{
-  input: TagsOperationBatchInput;
+export type BatchUpdateVideosMutationVariables = Exact<{
+  input: VideosBatchOperationInput;
 }>;
 
 
-export type BatchUpdateVideoTagsMutation = { __typename?: 'Mutation', batchUpdateVideoTags: { __typename?: 'TagsOperationBatchResult', success: boolean, successfulUpdatesMappings: Array<string> } };
+export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', success: boolean, successfulUpdatesMappings: Array<string> } };
 
 export type RecordVideoViewMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
@@ -279,9 +280,9 @@ export const UpdateVideoMetadataDocument = gql`
       super(apollo);
     }
   }
-export const BatchUpdateVideoTagsDocument = gql`
-    mutation BatchUpdateVideoTags($input: TagsOperationBatchInput!) {
-  batchUpdateVideoTags(input: $input) {
+export const BatchUpdateVideosDocument = gql`
+    mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
+  batchUpdate(input: $input) {
     success
     successfulUpdatesMappings
   }
@@ -291,8 +292,8 @@ export const BatchUpdateVideoTagsDocument = gql`
   @Injectable({
     providedIn: 'root'
   })
-  export class BatchUpdateVideoTagsGQL extends Apollo.Mutation<BatchUpdateVideoTagsMutation, BatchUpdateVideoTagsMutationVariables> {
-    override document = BatchUpdateVideoTagsDocument;
+  export class BatchUpdateVideosGQL extends Apollo.Mutation<BatchUpdateVideosMutation, BatchUpdateVideosMutationVariables> {
+    override document = BatchUpdateVideosDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

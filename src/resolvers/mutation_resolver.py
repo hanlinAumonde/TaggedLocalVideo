@@ -2,7 +2,7 @@ import strawberry
 from bson import ObjectId
 import time
 
-from src.schema.types.fileBrowse_type import TagsOperationBatchInput, TagsOperationBatchResult, VideoMutationResult
+from src.schema.types.fileBrowse_type import VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import VideoNotFoundError, DatabaseOperationError
@@ -49,43 +49,47 @@ class MutationResolver:
         except Exception:
             raise DatabaseOperationError("update_video_metadata", f"videoId-{input.videoId}")
 
-    async def resolve_batch_update_video_tags(self,input: TagsOperationBatchInput) -> TagsOperationBatchResult:
+    async def resolve_batch_update(self,input: VideosBatchOperationInput) -> VideosBatchOperationResult:
         """
         Resolve function to batch update tags for multiple videos.
 
         :param input: Input containing the mapping of video IDs to tags and the operation type (append/remove).
-        :type input: TagsOperationBatchInput
+        :type input: VideosBatchOperationInput
         :return: Result of the batch update operation.
-        :rtype: TagsOperationBatchResult
+        :rtype: VideosBatchOperationResult
         """
         successful_updates = []
 
-        for video_tags_mapping in input.mappings:
+        for video_id_str in input.videoIds:
             try:
-                video_id_str = video_tags_mapping.videoId
-                tags_to_update = video_tags_mapping.tags
-
                 video_model = await VideoModel.get(ObjectId(str(video_id_str)))
                 if not video_model:
                     continue
+                
+                # Update Author if provided
+                if input.author is not None:
+                    video_model.author = input.author
 
-                old_tags = set(video_model.tags or [])
+                # Update Tags if operation provided
+                if input.tagsOperation is not None:
+                    old_tags = set(video_model.tags or [])
+                    tags_to_update = set(input.tagsOperation.tags)
 
-                if input.append:
-                    new_tags = old_tags.union(set(tags_to_update))
-                else:
-                    new_tags = old_tags - set(tags_to_update)
+                    if input.tagsOperation.append:
+                        new_tags = old_tags.union(tags_to_update)
+                    else:
+                        new_tags = old_tags - tags_to_update
 
-                video_model.tags = list(new_tags)
+                    video_model.tags = list(new_tags)
+                    await _update_tag_counts(old_tags, new_tags)
+
                 await video_model.save()
-
-                await _update_tag_counts(old_tags, new_tags)
                 successful_updates.append(video_id_str)
 
             except Exception:
                 continue # skip failures for individual videos
-
-        return TagsOperationBatchResult(
+        
+        return VideosBatchOperationResult(
             success = len(successful_updates) > 0,
             successfulUpdatesMappings = successful_updates
         )

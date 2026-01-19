@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -10,9 +10,9 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { startWith } from 'rxjs/operators';
+import { map, startWith, tap } from 'rxjs/operators';
 
-import { SearchField, VideoTagsMappingInput } from '../../../core/graphql/generated/graphql';
+import { SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 
@@ -45,17 +45,29 @@ export class BatchTagsPanel {
   videos = this.data.videos;
 
   form = this.formBuilder.group({
+    authorInput: [''],
     tagInput: [''],
     mode: ['append' as 'append' | 'remove']
   });
 
+  get authorInput() { return this.form.get('authorInput') as FormControl<string>; }
+  get tagInput() { return this.form.get('tagInput') as FormControl<string>; }
+
   tags = signal<string[]>([]);
   isSaving = signal<boolean>(false);
 
+  authorSuggestions = toSignal(
+    this.gqlService.getSuggestionsQuery(
+      this.authorInput.valueChanges,
+      SearchField.Author
+    ),
+    { initialValue: this.gqlService.initialSignalData<string[]>([]) }
+  );
+
   tagSuggestions = toSignal(
     this.gqlService.getSuggestionsQuery(
-      this.form.controls.tagInput.valueChanges.pipe(
-        startWith(this.form.controls.tagInput.value),
+      this.tagInput.valueChanges.pipe(
+        startWith(this.tagInput.value),
       ),
       SearchField.Tag
     ),
@@ -63,7 +75,7 @@ export class BatchTagsPanel {
   );
 
   addTag(tagValue?: string) {
-    const value = tagValue || this.form.get('tagInput')?.value;
+    const value = tagValue ?? this.tagInput.value;
 
     if (!value || value.trim() === '') {
       return;
@@ -80,6 +92,10 @@ export class BatchTagsPanel {
     this.form.patchValue({ tagInput: '' });
   }
 
+  selectAuthorSuggestion(author: string) {
+    this.form.patchValue({ authorInput: author });
+  }
+
   selectTagSuggestion(tag: string) {
     this.addTag(tag);
   }
@@ -94,18 +110,21 @@ export class BatchTagsPanel {
   }
 
   handleSave() {
-    if (this.tags().length === 0) return;
+    if (this.tags().length === 0 && this.authorInput.value.trim() === '') return;
 
     this.isSaving.set(true);
 
-    const mappings: VideoTagsMappingInput[] = this.videos.map(video => ({
-      videoId: video.id,
-      tags: this.tags()
-    }));
+    const input: VideosBatchOperationInput = {
+      videoIds: this.videos.map(video => video.id),
+      tagsOperation: this.tags().length > 0 ? {
+        tags: this.tags(),
+        append: this.form.value.mode === 'append'
+      } : undefined,
+      author: this.form.value.authorInput && this.form.value.authorInput.trim() !== '' ? 
+              this.form.value.authorInput.trim() : undefined
+    };
 
-    const isAppend = this.form.value.mode === 'append';
-
-    this.gqlService.batchUpdateVideoTagsMutation(mappings, isAppend).subscribe({
+    this.gqlService.batchUpdateVideosMutation(input).subscribe({
       next: (result) => {
         this.isSaving.set(false);
         if (result.data?.success) {

@@ -18,9 +18,9 @@ export const UPDATE_VIDEO_METADATA = gql`
   }
 `;
 
-export const BATCH_UPDATE_VIDEO_TAGS = gql`
-  mutation BatchUpdateVideoTags($input: TagsOperationBatchInput!) {
-    batchUpdateVideoTags(input: $input) {
+export const BATCH_UPDATE_VIDEOS = gql`
+  mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
+    batchUpdate(input: $input) {
       success
       successfulUpdatesMappings
     }

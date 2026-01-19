@@ -23,6 +23,5 @@ class RelativePathInputModel(BaseModel):
         # parse the relative path
         parts = relativePath.split("/", 1)
         result = (parts[0], "/"+parts[1] if len(parts) > 1 else None)
-        print("Parsed result:", result)
         return result
             

@@ -26,8 +26,8 @@ export class App {
           route = route.firstChild;
         }
         if(route.snapshot.data['video']){
-          const videoTitle = route.snapshot.data['video']?.data?.name;
-          return "Video Player" + (videoTitle ? ` - ${videoTitle}` : '');
+          //const videoTitle = route.snapshot.data['video']?.data?.name;
+          return "Video Player"; // + (videoTitle ? ` - ${videoTitle}` : '');
         }
         return route.snapshot.data['headerTitle'] ?? 'Loading...';
       })

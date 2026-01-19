@@ -12,7 +12,7 @@
           class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
           (keydown.enter)="onSearch()"
         />
-        @if (searchForm.controls.title.value) {
+        @if (title.value) {
           <button
             type="button"
             (click)="clearTitle()"
@@ -24,15 +24,23 @@
         <mat-autocomplete
             #titleAuto="matAutocomplete"
             (optionSelected)="selectTitleSuggestion($event.option.value)">
-            @if(!titleSuggestions().loading && titleSuggestions().data && titleSuggestions().data!.length > 0){
-              @for (title of titleSuggestions().data; track title) {
-                <mat-option [value]="title">
-                  <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ title }}</span>
-                </mat-option>
-              }
-            }@else{
-              <mat-option disabled>No result</mat-option>
+          @if(titleSuggestions().loading && title.value !== '') {
+            <mat-option disabled>
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate">
+              </mat-progress-spinner>
+              <span class="ml-2">Loading...</span>
+            </mat-option>
+          }@else if(titleSuggestions().data && titleSuggestions().data!.length > 0){
+            @for (title of titleSuggestions().data; track title) {
+              <mat-option [value]="title">
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ title }}</span>
+              </mat-option>
             }
+          }@else{
+            <mat-option disabled>No result</mat-option>
+          }
           </mat-autocomplete>
       </div>
 
@@ -49,7 +57,7 @@
           class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
           (keydown.enter)="onSearch()"
         />
-        @if (searchForm.controls.author.value) {
+        @if (author.value) {
           <button
             type="button"
             (click)="clearAuthor()"
@@ -59,18 +67,26 @@
           </button>
         }
         <mat-autocomplete
-            #authorAuto="matAutocomplete"
-            (optionSelected)="selectAuthorSuggestion($event.option.value)">
-            @if(!authorSuggestions().loading && authorSuggestions().data && authorSuggestions().data!.length > 0){
-              @for (author of authorSuggestions().data; track author) {
-                <mat-option [value]="author">
-                  <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
-                </mat-option>
-              }
-            }@else{
-              <mat-option disabled>No result</mat-option>
+          #authorAuto="matAutocomplete"
+          (optionSelected)="selectAuthorSuggestion($event.option.value)">
+          @if(authorSuggestions().loading && author.value !== '') {
+            <mat-option disabled>
+              <mat-progress-spinner
+                diameter="20"
+                mode="indeterminate">
+              </mat-progress-spinner>
+              <span class="ml-2">Loading...</span>
+            </mat-option>
+          }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
+            @for (author of authorSuggestions().data; track author) {
+              <mat-option [value]="author">
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+              </mat-option>
             }
-          </mat-autocomplete>
+          }@else{
+            <mat-option disabled>No result</mat-option>
+          }
+        </mat-autocomplete>
       </div>
 
       <!-- Search button -->

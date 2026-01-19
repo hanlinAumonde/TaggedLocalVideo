@@ -1,6 +1,6 @@
 import strawberry
 
-from src.schema.types.fileBrowse_type import TagsOperationBatchResult, VideoMutationResult
+from src.schema.types.fileBrowse_type import VideosBatchOperationResult, VideoMutationResult
 from src.resolvers.mutation_resolver import MutationResolver
 
 
@@ -8,7 +8,7 @@ from src.resolvers.mutation_resolver import MutationResolver
 class Mutation:
     updateVideoMetadata: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_update_video_metadata)
 
-    batchUpdateVideoTags: TagsOperationBatchResult = strawberry.mutation(MutationResolver.resolve_batch_update_video_tags)
+    batchUpdate: VideosBatchOperationResult = strawberry.mutation(MutationResolver.resolve_batch_update)
 
     recordVideoView: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_record_video_view)
 
