@@ -2,6 +2,8 @@ from typing import Optional
 import strawberry
 
 from src.db.models.Video_model import VideoModel, VideoTagModel
+from src.schema.types.pydantic_types.video_type import UpdateVideoMetadataInputModel
+
 
 @strawberry.type
 class VideoTag:
@@ -77,11 +79,11 @@ class Video:
             thumbnail=None
         )
     
-@strawberry.input
+@strawberry.experimental.pydantic.input(model=UpdateVideoMetadataInputModel)
 class UpdateVideoMetadataInput:
-    videoId: strawberry.ID
-    name: Optional[str] = None
-    introduction: Optional[str] = None
-    author: Optional[str] = None
-    tags: list[str]
-    loved: Optional[bool] = None
+    videoId: strawberry.auto
+    name: strawberry.auto
+    introduction: strawberry.auto
+    author: strawberry.auto
+    tags: strawberry.auto
+    loved: strawberry.auto

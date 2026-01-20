@@ -3,6 +3,12 @@ import strawberry
 from enum import Enum
 
 from src.schema.types.video_type import Video, VideoTag
+from src.schema.types.pydantic_types.search_type import (
+    SearchKeywordModel,
+    SuggestionInputModel,
+    VideoSearchInputModel
+)
+
 
 @strawberry.enum
 class VideoSortOption(Enum):
@@ -10,10 +16,12 @@ class VideoSortOption(Enum):
     MOST_VIEWED = "most_viewed"
     LOVED = "loved"
 
+
 @strawberry.enum
 class SearchFrom(Enum):
     FrontalPage = "frontal_page"
     SearchPage = "search_page"
+
 
 @strawberry.enum
 class SearchField(Enum):
@@ -21,29 +29,34 @@ class SearchField(Enum):
     AUTHOR = "author"
     TAG = "tag"
 
+
 @strawberry.type
 class Pagination:
     size: int
     totalCount: int
     currentPageNumber: int
 
-@strawberry.input
-class SerachKeyword:
-    keyWord: Optional[str] = None
 
-@strawberry.input
+@strawberry.experimental.pydantic.input(model=SearchKeywordModel)
+class SerachKeyword:
+    keyWord: strawberry.auto
+
+
+@strawberry.experimental.pydantic.input(model=SuggestionInputModel)
 class SuggestionInput:
     keyword: SerachKeyword
     suggestionType: SearchField
 
-@strawberry.input
+
+@strawberry.experimental.pydantic.input(model=VideoSearchInputModel)
 class VideoSearchInput:
     titleKeyword: SerachKeyword
     author: SerachKeyword
-    tags: list[str]
+    tags: strawberry.auto
     sortBy: VideoSortOption = VideoSortOption.LATEST
     fromPage: SearchFrom
-    currentPageNumber: Optional[int] = 1
+    currentPageNumber: strawberry.auto
+
 
 @strawberry.type
 class VideoSearchResult:

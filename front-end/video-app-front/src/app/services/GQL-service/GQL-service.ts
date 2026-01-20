@@ -171,14 +171,14 @@ export class GqlService {
   }
   
   searchVideosQuery(fromPage: SearchFrom,sortBy?: VideoSortOption, author?: string, title?: string,
-                    currentPageNumber: number = 0, tags: string[] = []): Observable<ResultState<SearchVideosDetail>> {
+                    currentPageNumber: number = 1, tags: string[] = []): Observable<ResultState<SearchVideosDetail>> {
     const input = {
-      author: { keyWord: this.validationService.escapeRegex(author) ?? undefined },
+      author: { keyWord: author ?? undefined },
       currentPageNumber: currentPageNumber,
       fromPage: fromPage,
       sortBy: sortBy,
       tags: tags,
-      titleKeyword: { keyWord: this.validationService.escapeRegex(title) ?? undefined },
+      titleKeyword: { keyWord: title ?? undefined },
     } as VideoSearchInput;
     return this.toResultStateObservable(
       this.searchVideosGQL.watch({ variables: { input: input }}).valueChanges,

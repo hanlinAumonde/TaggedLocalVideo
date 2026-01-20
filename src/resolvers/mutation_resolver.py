@@ -18,25 +18,28 @@ class MutationResolver:
         :return: VideoMutationResult contains a success flag and an object of updated video metadata
         :rtype: VideoMutationResult
         """
+        # Trigger pydantic validation
+        validated_input = input.to_pydantic()
+
         try:
-            video_model = await VideoModel.get(ObjectId(str(input.videoId)))
+            video_model = await VideoModel.get(ObjectId(str(validated_input.videoId)))
             if not video_model:
-                raise VideoNotFoundError(str(input.videoId))
+                raise VideoNotFoundError(str(validated_input.videoId))
 
             old_tags = set(video_model.tags or [])
-            new_tags = set(input.tags)
+            new_tags = set(validated_input.tags)
 
             # update fields if provided
-            if input.name is not None:
-                video_model.name = input.name
-            if input.introduction is not None:
-                video_model.introduction = input.introduction
-            if input.author is not None:
-                video_model.author = input.author
-            if input.loved is not None:
-                video_model.loved = input.loved
+            if validated_input.name is not None:
+                video_model.name = validated_input.name
+            if validated_input.introduction is not None:
+                video_model.introduction = validated_input.introduction
+            if validated_input.author is not None:
+                video_model.author = validated_input.author
+            if validated_input.loved is not None:
+                video_model.loved = validated_input.loved
 
-            video_model.tags = input.tags
+            video_model.tags = validated_input.tags
 
             await video_model.save()
             await _update_tag_counts(old_tags, new_tags)
@@ -47,7 +50,7 @@ class MutationResolver:
         except VideoNotFoundError:
             raise
         except Exception:
-            raise DatabaseOperationError("update_video_metadata", f"videoId-{input.videoId}")
+            raise DatabaseOperationError("update_video_metadata", f"videoId-{validated_input.videoId}")
 
     async def resolve_batch_update(self,input: VideosBatchOperationInput) -> VideosBatchOperationResult:
         """
@@ -58,24 +61,27 @@ class MutationResolver:
         :return: Result of the batch update operation.
         :rtype: VideosBatchOperationResult
         """
+        # Trigger pydantic validation
+        validated_input = input.to_pydantic()
+
         successful_updates = []
 
-        for video_id_str in input.videoIds:
+        for video_id_str in validated_input.videoIds:
             try:
                 video_model = await VideoModel.get(ObjectId(str(video_id_str)))
                 if not video_model:
                     continue
-                
+
                 # Update Author if provided
-                if input.author is not None:
-                    video_model.author = input.author
+                if validated_input.author is not None:
+                    video_model.author = validated_input.author
 
                 # Update Tags if operation provided
-                if input.tagsOperation is not None:
+                if validated_input.tagsOperation is not None:
                     old_tags = set(video_model.tags or [])
-                    tags_to_update = set(input.tagsOperation.tags)
+                    tags_to_update = set(validated_input.tagsOperation.tags)
 
-                    if input.tagsOperation.append:
+                    if validated_input.tagsOperation.append:
                         new_tags = old_tags.union(tags_to_update)
                     else:
                         new_tags = old_tags - tags_to_update

@@ -101,15 +101,6 @@ export class ValidationService {
     return this.maxLengthValidator(environment.VALIDATION_RULES.NAME_MAX_LENGTH);
   }
 
-  /**
-   * convert special regex characters to escaped characters
-   * ex: "C++" -> "C\\+\\+", "[test]" -> "\\[test\\]"
-   */
-  escapeRegex(value: string | null | undefined): string | null {
-    if (!value) return null;
-    return value.replace(REGEX_SPECIAL_CHARS, '\\$&');
-  }
-
   // ==================== RxJS Operator ====================
 
   filterValidInput(field: SearchField): MonoTypeOperatorFunction<string | null> {
@@ -131,8 +122,7 @@ export class ValidationService {
             return false;
         }
         return value.trim().length <= maxLength;
-      }),
-      map((value: string | null) => this.escapeRegex(value))
+      })
     );
   }
 }

@@ -1,3 +1,4 @@
+from functools import lru_cache
 import os
 from fastapi.concurrency import run_in_threadpool
 from pymongo.errors import DuplicateKeyError
@@ -29,17 +30,19 @@ class QueryResolver:
         :return: Search results for videos.
         :rtype: VideoSearchResult
         """
+        validated_input = input.to_pydantic()
+
         settings = get_settings()
         query_filters = {}
 
         # build query
-        if input.titleKeyword.keyWord:
-            query_filters["name"] = {"$regex": input.titleKeyword.keyWord, "$options": "i"}
-        if input.author.keyWord:
-            query_filters["author"] = {"$regex": input.author.keyWord, "$options": "i"}
-        if input.tags:
-            query_filters["tags"] = {"$all": input.tags}
-        if input.sortBy == VideoSortOption.LOVED:
+        if validated_input.titleKeyword.keyWord:
+            query_filters["name"] = {"$regex": validated_input.titleKeyword.keyWord, "$options": "i"}
+        if validated_input.author.keyWord:
+            query_filters["author"] = {"$regex": validated_input.author.keyWord, "$options": "i"}
+        if validated_input.tags:
+            query_filters["tags"] = {"$all": validated_input.tags}
+        if validated_input.sortBy == VideoSortOption.LOVED:
             query_filters["loved"] = True
 
         sort_mapping = {
@@ -47,13 +50,13 @@ class QueryResolver:
             VideoSortOption.MOST_VIEWED: [("viewCount", -1), ("lastViewTime", -1)],
             VideoSortOption.LOVED: [("loved", -1), ("lastViewTime", -1)]
         }
-        sort_criteria = sort_mapping.get(input.sortBy, [("lastModifyTime", -1)])
+        sort_criteria = sort_mapping.get(validated_input.sortBy, [("lastModifyTime", -1)])
 
-        if input.fromPage == SearchFrom.FrontalPage:
+        if validated_input.fromPage == SearchFrom.FrontalPage.value:
             page_size = settings.page_size_default.homepage_videos
         else:
             page_size = settings.page_size_default.searchpage
-        page_number = input.currentPageNumber or 1
+        page_number = validated_input.currentPageNumber or 1
         skip = (page_number - 1) * page_size
 
         try:
@@ -102,19 +105,21 @@ class QueryResolver:
         :return: Suggestion results.
         :rtype: SuggestionResults
         """
+        validated_input = input.to_pydantic()
+        print("escaped keyword: " + validated_input.keyword.keyWord)
+
         settings = get_settings()
-        if input.keyword.keyWord:
-            keyword = input.keyword.keyWord
+        if validated_input.keyword.keyWord:
+            keyword = validated_input.keyword.keyWord
         else:
             return []
-        suggestion_type = input.suggestionType
-
+        suggestion_type = validated_input.suggestionType
         limits = settings.suggestion_limit
 
         try:
             match suggestion_type:
 
-                case SearchField.TAG:
+                case SearchField.TAG.value:
                     limit = limits.tag
                     if not keyword:
                         tag_docs = await get_top_tag_docs(limit)
@@ -136,10 +141,10 @@ class QueryResolver:
                     return prefix_matches_names
 
                 case _:
-                    limit = limits.name if suggestion_type == SearchField.NAME else limits.author
+                    limit = limits.name if suggestion_type == SearchField.NAME.value else limits.author
                     pipeline = [
-                        {"$match": {suggestion_type.value: {"$regex": keyword, "$options": "i"}}},
-                        {"$group": {"_id": "$" + suggestion_type.value}},
+                        {"$match": {suggestion_type: {"$regex": keyword, "$options": "i"}}},
+                        {"$group": {"_id": "$" + suggestion_type}},
                         {"$limit": limit}
                     ]
                     collection = VideoModel.get_pymongo_collection()
@@ -185,7 +190,6 @@ class QueryResolver:
         """
         settings = get_settings()
         resource_paths_mapping = settings.resource_paths
-        # Resolve the absolute path from the relative path
         relativePathInputModel = path.to_pydantic()
 
         if relativePathInputModel.parsedPath is None:
@@ -200,21 +204,22 @@ class QueryResolver:
             else:
                 abs_path = abs_root_path + sub_path
 
-        return await get_node_list_in_directory(abs_path, settings.video_extensions, resource_paths_mapping)
+        return await get_node_list_in_directory(abs_path, resource_paths_mapping)
 
 
-async def get_node_list_in_directory(abs_path: str | None, video_extensions: list[str], resource_paths: dict[str,str]) -> list[FileBrowseNode]:
+async def get_node_list_in_directory(abs_path: str | None, resource_paths: dict[str,str]) -> list[FileBrowseNode]:
     fileBrowse_nodes: list[FileBrowseNode] = []
+
     try:
         if abs_path is None:
             for name,path in resource_paths.items():
-                await get_directory_node(path,name,video_extensions,fileBrowse_nodes)
+                await get_directory_node(path,name,fileBrowse_nodes)
         else:
             with os.scandir(abs_path) as entries:
                 for entry in entries:
                     if entry.is_dir():
-                        await get_directory_node(entry.path,entry.name,video_extensions,fileBrowse_nodes)                        
-                    elif entry.is_file() and is_video_file(entry.name, video_extensions):
+                        await get_directory_node(entry.path,entry.name,fileBrowse_nodes)                        
+                    elif entry.is_file() and is_video_file(entry.name):
                         try:
                             stat = entry.stat()
                             video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
@@ -247,12 +252,11 @@ async def get_node_list_in_directory(abs_path: str | None, video_extensions: lis
 
 # util functions
 
-async def get_directory_node(path: str, name:str, video_extensions: list[str], fileBrowse_nodes: list[FileBrowseNode]):
+async def get_directory_node(path: str, name:str, fileBrowse_nodes: list[FileBrowseNode]):
     # Calculate total size and last modified time of all videos under this directory
     total_size, last_modified_time = await run_in_threadpool(
         get_total_size_and_last_modified_time,
-        get_path_standard_format(path),
-        video_extensions
+        get_path_standard_format(path)
     )
     if total_size > 0:
         fileBrowse_nodes.append(
@@ -267,10 +271,10 @@ async def get_directory_node(path: str, name:str, video_extensions: list[str], f
             )
         )
 
-def is_video_file(filename: str, video_extensions: list[str]) -> bool:
+def is_video_file(filename: str) -> bool:
     # Helper function to check if a file is a video based on its extension.
     _, ext = os.path.splitext(filename.lower())
-    return ext in video_extensions
+    return ext in get_settings().video_extensions
 
 def get_path_standard_format(path: str) -> str:
         """Standardize path format"""
@@ -282,21 +286,21 @@ async def get_top_tag_docs(limit: int, findQuery = None) -> list[VideoTagModel] 
     return await findQuery.sort([("count", -1)]).limit(limit).to_list()
 
 #@cached(TTLCache(maxsize=128, ttl=300))
-def get_total_size_and_last_modified_time(directory_path: str, video_extensions: list[str]) -> tuple[float, float]:
+@lru_cache(maxsize=128)
+def get_total_size_and_last_modified_time(directory_path: str) -> tuple[float, float]:
     total_size = 0.0
     last_modified_time = 0.0
-
+    
     try:
         with os.scandir(directory_path) as entries:
             for entry in entries:
                 if entry.is_dir():
                     dir_size, dir_mtime = get_total_size_and_last_modified_time(
-                        get_path_standard_format(entry.path),
-                        video_extensions
+                        get_path_standard_format(entry.path)
                     )
                     total_size += dir_size
                     last_modified_time = max(last_modified_time, dir_mtime)
-                elif entry.is_file() and is_video_file(entry.name, video_extensions):
+                elif entry.is_file() and is_video_file(entry.name):
                     try:
                         stat = entry.stat()
                         total_size += stat.st_size
