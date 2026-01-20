@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -10,11 +10,12 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { map, startWith, tap } from 'rxjs/operators';
+import { startWith } from 'rxjs/operators';
 
 import { SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
+import { ValidationService } from '../../../services/validation-service/validation-service';
 
 export interface BatchTagsPanelData {
   videos: BrowsedVideo[];
@@ -41,12 +42,13 @@ export class BatchTagsPanel {
   private data = inject<BatchTagsPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
+  private validationService = inject(ValidationService);
 
   videos = this.data.videos;
 
   form = this.formBuilder.group({
-    authorInput: [''],
-    tagInput: [''],
+    authorInput: ['', [this.validationService.authorValidator()]],
+    tagInput: ['', [this.validationService.tagValidator()]],
     mode: ['append' as 'append' | 'remove']
   });
 
@@ -57,22 +59,19 @@ export class BatchTagsPanel {
   isSaving = signal<boolean>(false);
 
   authorSuggestions = toSignal(
-    this.gqlService.getSuggestionsQuery(
-      this.authorInput.valueChanges,
-      SearchField.Author
-    ),
+    this.gqlService.getSuggestionsQuery(this.authorInput.valueChanges, SearchField.Author),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
 
   tagSuggestions = toSignal(
-    this.gqlService.getSuggestionsQuery(
-      this.tagInput.valueChanges.pipe(
-        startWith(this.tagInput.value),
-      ),
-      SearchField.Tag
-    ),
+    this.gqlService.getSuggestionsQuery(this.tagInput.valueChanges, SearchField.Tag),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
+
+  tagsError = computed(() => {
+    const result = this.validationService.validateTagsArray(this.tags());
+    return result.valid ? null : result.error;
+  });
 
   addTag(tagValue?: string) {
     const value = tagValue ?? this.tagInput.value;
@@ -82,6 +81,16 @@ export class BatchTagsPanel {
     }
 
     const trimmedTag = value.trim();
+
+    const tagValidation = this.validationService.validateTag(trimmedTag);
+    if (!tagValidation.valid) {
+      return;
+    }
+
+    const tagsArrayValidation = this.validationService.validateTagsArray([...this.tags(), trimmedTag]);
+    if (!tagsArrayValidation.valid) {
+      return;
+    }
 
     if (this.tags().includes(trimmedTag)) {
       this.form.patchValue({ tagInput: '' });
@@ -111,6 +120,7 @@ export class BatchTagsPanel {
 
   handleSave() {
     if (this.tags().length === 0 && this.authorInput.value.trim() === '') return;
+    if (this.form.invalid || this.tagsError()) return;
 
     this.isSaving.set(true);
 

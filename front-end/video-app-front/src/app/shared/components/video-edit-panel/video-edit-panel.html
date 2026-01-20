@@ -13,6 +13,8 @@
           <input matInput formControlName="name" placeholder="Title-video" />
           @if (editForm.get('name')?.hasError('required') && editForm.get('name')?.touched) {
             <mat-error>Title is required</mat-error>
+          } @else if (editForm.get('name')?.hasError('maxLength')) {
+            <mat-error>Title too long (max {{ editForm.get('name')?.errors?.['maxLength']?.max }})</mat-error>
           }
         </mat-form-field>
       </div>
@@ -36,6 +38,9 @@
             formControlName="author"
             placeholder="search"
             [matAutocomplete]="authorAuto" />
+          @if (editForm.get('author')?.hasError('maxLength')) {
+            <mat-error>Author too long (max {{ editForm.get('author')?.errors?.['maxLength']?.max }})</mat-error>
+          }
           <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
           <mat-autocomplete
             #authorAuto="matAutocomplete"
@@ -72,6 +77,9 @@
             formControlName="introduction"
             placeholder="Enter introduction"
             rows="4"></textarea>
+          @if (editForm.get('introduction')?.hasError('maxLength')) {
+            <mat-error>Introduction too long (max {{ editForm.get('introduction')?.errors?.['maxLength']?.max }})</mat-error>
+          }
         </mat-form-field>
       </div>
     }
@@ -83,6 +91,9 @@
       </label>
 
       <!-- Selected tag -->
+      @if (tagsError()) {
+        <div class="text-red-500 text-sm">{{ tagsError() }}</div>
+      }
       @if (tags().length > 0) {
         <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
           @for (tag of tags(); track tag) {
@@ -104,6 +115,9 @@
           placeholder="search"
           [matAutocomplete]="tagAuto"
           (keydown.enter)="onTagInputEnter($event)" />
+        @if (editForm.get('tagInput')?.hasError('maxLength')) {
+          <mat-error>Tag too long (max {{ editForm.get('tagInput')?.errors?.['maxLength']?.max }})</mat-error>
+        }
         <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
         <mat-autocomplete
           #tagAuto="matAutocomplete"
@@ -156,7 +170,7 @@
     mat-raised-button
     type="button"
     (click)="handleSave()"
-    [disabled]="isFullMode() && (editForm.invalid || isSaving())"
+    [disabled]="isFullMode() && (editForm.invalid || isSaving() || tagsError())"
     color="primary">
     {{ saveButtonText() }}
   </button>

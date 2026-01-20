@@ -39,6 +39,7 @@ import {
   VideoMutationDetail,
   VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
+import { ValidationService } from '../validation-service/validation-service';
 
 @Injectable({
   providedIn: 'root',
@@ -54,6 +55,8 @@ export class GqlService {
   private browseDirectoryGQL = inject(BrowseDirectoryGQL)
   private deleteVideoGQL = inject(DeleteVideoGQL)
   private batchUpdateVideosGQL = inject(BatchUpdateVideosGQL)
+
+  private validationService = inject(ValidationService);
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
@@ -107,6 +110,7 @@ export class GqlService {
 
   getSuggestionsQuery(formValueChanges: Observable<string | null>, field: SearchField): Observable<ResultState<string[]>> {
     return formValueChanges.pipe(
+      this.validationService.filterValidInput(field),
       debounceTime(500),
       distinctUntilChanged(),
       switchMap(keyword => 
@@ -169,12 +173,12 @@ export class GqlService {
   searchVideosQuery(fromPage: SearchFrom,sortBy?: VideoSortOption, author?: string, title?: string,
                     currentPageNumber: number = 0, tags: string[] = []): Observable<ResultState<SearchVideosDetail>> {
     const input = {
-      author: { keyWord: author },
+      author: { keyWord: this.validationService.escapeRegex(author) ?? undefined },
       currentPageNumber: currentPageNumber,
       fromPage: fromPage,
       sortBy: sortBy,
       tags: tags,
-      titleKeyword: { keyWord: title },
+      titleKeyword: { keyWord: this.validationService.escapeRegex(title) ?? undefined },
     } as VideoSearchInput;
     return this.toResultStateObservable(
       this.searchVideosGQL.watch({ variables: { input: input }}).valueChanges,

@@ -1,4 +1,4 @@
-import { Component, inject, computed, effect, signal, OnDestroy } from '@angular/core';
+import { Component, inject, computed, effect, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -23,6 +23,7 @@ import { SearchFrom, VideoSortOption, SearchField } from '../../core/graphql/gen
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { environment } from '../../../environments/environment';
 import { PageStateService } from '../../services/Page-state-service/page-state';
+import { ValidationService } from '../../services/validation-service/validation-service';
 
 @Component({
   selector: 'app-search',
@@ -49,13 +50,7 @@ export class Search {
   private dialog = inject(MatDialog);
   private fb = inject(FormBuilder);
   private stateService = inject(PageStateService);
-
-  private navigateWithState(page: number, params: SearchPageParam) {
-    this.router.navigate([environment.searchpage_api], {
-      queryParams: { currentPageNumber: page },
-      state: params
-    });
-  }
+  private validationService = inject(ValidationService);
 
   private updateSearchParamsAndForm(params: SearchPageParam) {
     this.searchParams.set({
@@ -95,8 +90,8 @@ export class Search {
   searchParams = signal<SearchPageParam>(this.DEFAULT_SEARCH_PARAMS);
 
   searchForm = this.fb.group({
-    title: [this.searchParams().title ?? ''],
-    author: [this.searchParams().author ?? '']
+    title: [this.searchParams().title ?? '', [this.validationService.searchKeywordValidator()]],
+    author: [this.searchParams().author ?? '', [this.validationService.searchKeywordValidator()]]
   });
 
   get title() { return this.searchForm.get('title') as FormControl<string>; }
@@ -177,6 +172,8 @@ export class Search {
   }
 
   onSearch() {
+    if (this.searchForm.invalid) return;
+
     const formValue = this.searchForm.value;
     const newParams: SearchPageParam = {
       ...this.searchParams(),
@@ -189,7 +186,6 @@ export class Search {
     if (!this.hasSearched()) {
       this.hasSearched.set(true);
     }
-    this.navigateWithState(1, newParams);
   }
 
   clearTitle() {
@@ -211,7 +207,6 @@ export class Search {
   onSortChange(sortBy: VideoSortOption) {
     const newParams: SearchPageParam = { ...this.searchParams(), sortBy };
     this.searchParams.set(newParams);
-    this.navigateWithState(1, newParams);
   }
 
   openTagFilter() {
@@ -227,12 +222,14 @@ export class Search {
       if (result !== undefined) {
         const newParams: SearchPageParam = { ...this.searchParams(), tags: result };
         this.searchParams.set(newParams);
-        this.navigateWithState(1, newParams);
       }
     });
   }
 
   onPageChange(page: number) {
-    this.navigateWithState(page, this.searchParams());
+    this.router.navigate([environment.searchpage_api], {
+      queryParams: { currentPageNumber: page },
+      state: this.searchParams()
+    });
   }
 }

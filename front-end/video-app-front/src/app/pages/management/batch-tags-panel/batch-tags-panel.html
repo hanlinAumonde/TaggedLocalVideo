@@ -20,6 +20,9 @@
           formControlName="authorInput"
           placeholder="search"
           [matAutocomplete]="authorAuto" />
+        @if (form.get('authorInput')?.hasError('maxLength')) {
+          <mat-error>Author too long (max {{ form.get('authorInput')?.errors?.['maxLength']?.max }})</mat-error>
+        }
         <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
         <mat-autocomplete
           #authorAuto="matAutocomplete"
@@ -61,6 +64,9 @@
       </mat-radio-group>
 
       <!-- Selected tags -->
+      @if (tagsError()) {
+        <div class="text-red-500 text-sm">{{ tagsError() }}</div>
+      }
       @if (tags().length > 0) {
         <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
           @for (tag of tags(); track tag) {
@@ -82,6 +88,9 @@
           placeholder="Enter tag name"
           [matAutocomplete]="tagAuto"
           (keydown.enter)="onTagInputEnter($event)" />
+        @if (form.get('tagInput')?.hasError('maxLength')) {
+          <mat-error>Tag too long (max {{ form.get('tagInput')?.errors?.['maxLength']?.max }})</mat-error>
+        }
         <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
         <mat-autocomplete
           #tagAuto="matAutocomplete"
@@ -122,7 +131,7 @@
     mat-raised-button
     type="button"
     (click)="handleSave()"
-    [disabled]="isSaving() || (this.tags().length === 0 && this.authorInput.value.trim() === '')"
+    [disabled]="isSaving() || form.invalid || tagsError() || (tags().length === 0 && authorInput.value.trim() === '')"
     color="primary">
     @if (isSaving()) {
       Saving...

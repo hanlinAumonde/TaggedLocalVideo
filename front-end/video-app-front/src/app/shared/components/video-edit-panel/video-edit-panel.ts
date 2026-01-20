@@ -21,7 +21,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { debounceTime, distinctUntilChanged, switchMap, startWith } from 'rxjs/operators';
+import { startWith } from 'rxjs/operators';
 
 import {
   SearchField,
@@ -33,6 +33,7 @@ import {
 } from '../../models/video-edit-panel.model';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
+import { ValidationService } from '../../../services/validation-service/validation-service';
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -55,17 +56,18 @@ export class VideoEditPanel implements OnInit {
   private data = inject<VideoEditPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
+  private validationService = inject(ValidationService);
 
   mode: VideoEditPanelMode = this.data.mode;
   video = signal<EditableVideo | undefined>(this.data.video);
   selectedTags?: string[] = this.data.selectedTags;
 
   editForm = this.formBuilder.group({
-      name: [this.video()?.name ?? '', Validators.required],
-      author: [this.video()?.author ?? ''],
+      name: [this.video()?.name ?? '', [Validators.required, this.validationService.nameValidator()]],
+      author: [this.video()?.author ?? '', [this.validationService.authorValidator()]],
       loved: [this.video()?.loved ?? false],
-      introduction: [this.video()?.introduction ?? ''],
-      tagInput: [''],
+      introduction: [this.video()?.introduction ?? '', [this.validationService.introductionValidator()]],
+      tagInput: ['', [this.validationService.tagValidator()]],
   });
 
   tags = signal<string[]>([]);
@@ -73,20 +75,28 @@ export class VideoEditPanel implements OnInit {
 
   authorSuggestions = this.mode === 'full'?
     toSignal(
-      this.gqlService.getSuggestionsQuery(this.editForm.controls.author.valueChanges, SearchField.Author), 
+      this.gqlService.getSuggestionsQuery(
+        this.editForm.controls.author.valueChanges,
+        SearchField.Author
+      ),
       { initialValue: this.gqlService.initialSignalData<string[]>([]) }
-    ) 
+    )
     : signal(this.gqlService.initialSignalData<string[]>([]));
 
   tagSuggestions = toSignal(
     this.gqlService.getSuggestionsQuery(
       this.editForm.controls.tagInput.valueChanges.pipe(
-        startWith(this.editForm.controls.tagInput.value),
+        startWith(this.editForm.controls.tagInput.value)
       ),
       SearchField.Tag
     ),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   )
+
+  tagsError = computed(() => {
+    const result = this.validationService.validateTagsArray(this.tags());
+    return result.valid ? null : result.error;
+  });
 
   isFullMode = computed(() => this.mode === 'full');
 
@@ -123,6 +133,16 @@ export class VideoEditPanel implements OnInit {
 
     const trimmedTag = value.trim();
 
+    const tagValidation = this.validationService.validateTag(trimmedTag);
+    if (!tagValidation.valid) {
+      return;
+    }
+
+    const tagsArrayValidation = this.validationService.validateTagsArray([...this.tags(), trimmedTag]);
+    if (!tagsArrayValidation.valid) {
+      return;
+    }
+
     if (this.tags().includes(trimmedTag)) {
       this.editForm.patchValue({ tagInput: '' });
       return;
@@ -149,9 +169,9 @@ export class VideoEditPanel implements OnInit {
   handleSave() {
     if (this.mode === 'filter') {
       this.dialogRef.close(this.tags());
-    } 
+    }
     else {
-      if (this.editForm.valid && this.video()) {
+      if (this.editForm.valid && !this.tagsError() && this.video()) {
         const formValue = this.editForm.value;
 
         this.isSaving.set(true);

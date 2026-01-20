@@ -1,7 +1,7 @@
 <div class="p-6 min-h-[calc(100vh-5rem)]" [class.flex]="!hasSearched()" [class.flex-col]="!hasSearched()" [class.justify-center]="!hasSearched()">
   <!-- Search Bar -->
   <div class="flex justify-center transition-all duration-500 ease-out">
-    <div class="flex items-center border border-gray-300 rounded-full bg-white shadow-sm max-w-2xl w-full">
+    <div class="flex items-center border border-gray-300 rounded-full bg-white shadow-sm max-w-7xl w-full">
       <!-- Title input area -->
       <div class="flex-1 flex items-center px-4 py-2 min-w-0">
         <span class="text-sm font-medium text-orange-500 bg-orange-100 px-2 py-0.5 rounded shrink-0">Title</span>
@@ -9,6 +9,7 @@
           type="text"
           [formControl]="searchForm.controls.title"
           [matAutocomplete]="titleAuto"
+          [class.border-red-500]="title.hasError('maxLength')"
           class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
           (keydown.enter)="onSearch()"
         />
@@ -35,7 +36,7 @@
           }@else if(titleSuggestions().data && titleSuggestions().data!.length > 0){
             @for (title of titleSuggestions().data; track title) {
               <mat-option [value]="title">
-                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ title }}</span>
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm font-semibold truncate">{{ title }}</span>
               </mat-option>
             }
           }@else{
@@ -54,6 +55,7 @@
           type="text"
           [formControl]="searchForm.controls.author"
           [matAutocomplete]="authorAuto"
+          [class.border-red-500]="author.hasError('maxLength')"
           class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
           (keydown.enter)="onSearch()"
         />
@@ -80,7 +82,7 @@
           }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
             @for (author of authorSuggestions().data; track author) {
               <mat-option [value]="author">
-                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm font-semibold truncate">{{ author }}</span>
               </mat-option>
             }
           }@else{
@@ -92,7 +94,8 @@
       <!-- Search button -->
       <button
         (click)="onSearch()"
-        class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center mr-1 shrink-0"
+        [disabled]="searchForm.invalid"
+        class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white flex items-center justify-center mr-1 shrink-0"
       >
         <mat-icon>search</mat-icon>
       </button>
