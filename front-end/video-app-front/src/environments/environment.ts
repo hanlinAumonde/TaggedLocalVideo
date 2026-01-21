@@ -18,5 +18,10 @@ export const environment = {
         MAX_TAGS_COUNT: 50,
         PAGE_NUMBER_MIN: 1,
         PAGE_NUMBER_MAX: 10000,
+    },
+    ERROR_TOAST_SETTINGS: {
+        MAX_TOASTS: 4,
+        AUTO_DISMISS_MS: 10000,
+        EXIT_ANIMATION_MS: 300,
     }
 } as const;

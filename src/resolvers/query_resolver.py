@@ -91,11 +91,6 @@ class QueryResolver:
         :return: List of top video tags.
         :rtype: list[VideoTag]
         """
-        try:
-             validated_input = input.to_pydantic()
-        except Exception:
-            raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
-
         settings = get_settings()
         limit = settings.page_size_default.homepage_tags
         try:
@@ -153,10 +148,11 @@ class QueryResolver:
                 case _:
                     limit = limits.name if suggestion_type == SearchField.Name.value else limits.author
                     pipeline = [
-                        {"$match": {suggestion_type: {"$regex": keyword, "$options": "i"}}},
-                        {"$group": {"_id": "$" + suggestion_type}},
+                        {"$match": {suggestion_type.lower(): {"$regex": keyword, "$options": "i"}}},
+                        {"$group": {"_id": "$" + suggestion_type.lower()}},
                         {"$limit": limit}
                     ]
+                    
                     collection = VideoModel.get_pymongo_collection()
                     cursor = await collection.aggregate(pipeline)
                     result = []

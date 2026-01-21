@@ -40,6 +40,7 @@ import {
   VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 import { ValidationService } from '../validation-service/validation-service';
+import { ErrorHandlerService } from '../errorHandler-service/error-handler-service';
 
 @Injectable({
   providedIn: 'root',
@@ -57,6 +58,7 @@ export class GqlService {
   private batchUpdateVideosGQL = inject(BatchUpdateVideosGQL)
 
   private validationService = inject(ValidationService);
+  private errorHandlerService = inject(ErrorHandlerService);
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
@@ -81,8 +83,8 @@ export class GqlService {
         }),
         tap(result => {
           if(result.error){
-            window.alert(`Failed GraphQL request: ${result.error}`)
-            // Currently use alert to notify user, TODO: emit event to a custom component to show notification
+            //window.alert(`Failed GraphQL request: ${result.error}`)
+            this.errorHandlerService.emitError(`Failed GraphQL request: ${result.error}`);
           }
         })
         

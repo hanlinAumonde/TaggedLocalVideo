@@ -9,7 +9,7 @@ import {
   effect,
   viewChild,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { take } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,6 +27,8 @@ import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } 
 import { environment } from '../../../environments/environment';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { Title } from '@angular/platform-browser';
+import { ErrorHandlerService } from '../../services/errorHandler-service/error-handler-service';
+import { PageStateService } from '../../services/Page-state-service/page-state';
 
 @Component({
   selector: 'app-video-player',
@@ -36,6 +38,7 @@ import { Title } from '@angular/platform-browser';
     MatChipsModule,
     MatProgressSpinnerModule,
     MatDialogModule,
+    RouterLink
   ],
   templateUrl: './video-player.html'
 })
@@ -45,12 +48,16 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private gqlService = inject(GqlService);
+  private errorHandlerService = inject(ErrorHandlerService);
+  private stateService = inject(PageStateService);
   private dialog = inject(MatDialog);
   private title = inject(Title);
 
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
   private videoDataLoaded = toSignal(this.route.data)
+
+  searchPageApi = environment.searchpage_api;
 
   video = signal<ResultState<VideoDetail | null>>(this.gqlService.initialSignalData<VideoDetail | null>(null));
   
@@ -147,7 +154,8 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       .subscribe({
         next: (result) => {
           if (!result.data?.success) {
-            window.alert('Failed to record video view');
+            //window.alert('Failed to record video view');
+            this.errorHandlerService.emitError('Failed to record video view');
             console.error('Failed to record video view');
           }else if(result.data.video){
             this.video.update(current => {
@@ -175,7 +183,8 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
             return this.toVideoDetailResultState(result.data!, current);
           })
         }else{
-          window.alert('Failed to update loved status');
+          //window.alert('Failed to update loved status');
+          this.errorHandlerService.emitError('Failed to update loved status');
           console.error('Failed to update loved status');
         }
       }
@@ -208,18 +217,24 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     )
   }
 
+  searchPageState(state: string, option: "author" | "tags"): SearchPageParam {
+    return option === "author" ? { author: state } : { tags: [state] };
+  }
+
   onTagClick(tagName: string) {
-    this.router.navigate([environment.searchpage_api], {
-      queryParams: { currentPageNumber: 1 },
-      state: { tags: [tagName] } as SearchPageParam
-    });
+    this.stateService.setState<SearchPageParam>(
+      environment.searchpage_api, 
+      this.searchPageState(tagName, "tags"), 
+      true
+    );
   }
 
   onAuthorClick(author: string) {
-    this.router.navigate([environment.searchpage_api], {
-      queryParams: { currentPageNumber: 1 },
-      state: { author: author } as SearchPageParam
-    });
+    this.stateService.setState<SearchPageParam>(
+      environment.searchpage_api, 
+      this.searchPageState(author, "author"), 
+      true
+    );
   }
 
   toVideoDetailResultState(updatedData: VideoMutationDetail | VideoRecordViewDetail, 

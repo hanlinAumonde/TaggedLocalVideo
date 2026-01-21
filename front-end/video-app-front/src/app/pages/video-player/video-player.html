@@ -37,11 +37,20 @@
       <!-- Creator -->
       <div class="flex items-center gap-2">
         <span class="text-pink-600 font-semibold">Creator:</span>
-        <span
-          class="px-3 py-1 bg-pink-100 rounded-full cursor-pointer hover:bg-pink-200 transition-colors"
-          (click)="onAuthorClick(video().data?.author || '')">
-          {{ video().data?.author || 'Unknown' }}
+        <a
+          [routerLink]="[searchPageApi]"
+          [queryParams]="{ currentPageNumber: 1 }"
+          [state]="searchPageState(video().data?.author ?? '', 'author')"
+          (click)="onAuthorClick(video().data?.author ?? '')"
+          target="_blank"
+        >
+          <span
+            class="px-3 py-1 bg-pink-100 rounded-full cursor-pointer hover:bg-pink-200 transition-colors"
+          > 
+          {{ video().data?.author ?? 'Unknown' }}
         </span>
+        </a>
+          
       </div>
 
       <!-- Introduction -->
@@ -67,7 +76,13 @@
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-purple-600 font-semibold">Tags:</span>
           @for (tag of video().data?.tags; track tag.name) {
-            <a (click)="onTagClick(tag.name)" target="_blank">
+            <a 
+              [routerLink]="[searchPageApi]"
+              [queryParams]="{ currentPageNumber: 1 }"
+              [state]="searchPageState(tag.name, 'tags')"
+              (click)="onTagClick(tag.name)" 
+              target="_blank"
+            >
               <span
                 class="px-3 py-1 bg-purple-200 rounded-full cursor-pointer hover:bg-purple-300 transition-colors"
                 >
