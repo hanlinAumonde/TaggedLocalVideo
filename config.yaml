@@ -24,6 +24,16 @@ video_extensions:
   - .mpg
   - .mpeg
 
+# Validation rules (sync with frontend environment.ts)
+validation:
+  name_max_length: 200
+  author_max_length: 50
+  introduction_max_length: 2000
+  tag_max_length: 30
+  max_tags_count: 50
+  page_number_min: 1
+  page_number_max: 10000
+
 # MongoDB config
 mongo:
   host: localhost

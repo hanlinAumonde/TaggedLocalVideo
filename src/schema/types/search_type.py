@@ -12,22 +12,22 @@ from src.schema.types.pydantic_types.search_type import (
 
 @strawberry.enum
 class VideoSortOption(Enum):
-    LATEST = "latest"
-    MOST_VIEWED = "most_viewed"
-    LOVED = "loved"
+    Latest = "Latest"
+    MostViewed = "MostViewed"
+    Loved = "Loved"
 
 
 @strawberry.enum
 class SearchFrom(Enum):
-    FrontalPage = "frontal_page"
-    SearchPage = "search_page"
+    FrontalPage = "FrontalPage"
+    SearchPage = "SearchPage"
 
 
 @strawberry.enum
 class SearchField(Enum):
-    NAME = "name"
-    AUTHOR = "author"
-    TAG = "tag"
+    Name = "Name"
+    Author = "Author"
+    Tag = "Tag"
 
 
 @strawberry.type
@@ -53,7 +53,7 @@ class VideoSearchInput:
     titleKeyword: SerachKeyword
     author: SerachKeyword
     tags: strawberry.auto
-    sortBy: VideoSortOption = VideoSortOption.LATEST
+    sortBy: VideoSortOption = VideoSortOption.Latest
     fromPage: SearchFrom
     currentPageNumber: strawberry.auto
 

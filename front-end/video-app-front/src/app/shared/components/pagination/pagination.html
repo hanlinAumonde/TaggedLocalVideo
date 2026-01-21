@@ -1,54 +1,73 @@
 <div class="flex justify-center items-center gap-1 mt-4">
-
-  <!-- First Page -->
-  <button
-    mat-icon-button
-    aria-label="First page"
-    [disabled]="isFirstPage()"
-    (click)="switchToEdgePage(true)"
-  >
-    <mat-icon fontIcon="first_page"></mat-icon>
-  </button>
-
-  <!-- Previous -->
-  <button
-    mat-icon-button
-    aria-label="Previous page"
-    [disabled]="isFirstPage()"
-    (click)="changePage(currentPage() - 1)"
-  >
-    <mat-icon fontIcon="chevron_left"></mat-icon>
-  </button>
-
-  <!-- Page numbers -->
-  @for (page of pages(); track page) {
+  @if(!isActive()){
+    <!-- skeleton loader -->
+    <button mat-icon-button disabled>
+      <mat-icon fontIcon="first_page"></mat-icon>
+    </button>
+    <button mat-icon-button disabled>
+      <mat-icon fontIcon="chevron_left"></mat-icon>
+    </button>
+    @for (i of [1,2,3,4,5]; track i) {
+      <button matButton="elevated" disabled>
+        <strong class="text-base">...</strong>
+      </button>
+    }
+    <button mat-icon-button disabled>
+      <mat-icon fontIcon="chevron_right"></mat-icon> 
+    </button>
+    <button mat-icon-button disabled>
+      <mat-icon fontIcon="last_page"></mat-icon>
+    </button>
+  }@else{
+    <!-- First Page -->
     <button
-      matButton="elevated"
-      [disabled]="currentPage() === page"
-      (click)="changePage(page)"
+      mat-icon-button
+      aria-label="First page"
+      [disabled]="isFirstPage()"
+      (click)="switchToEdgePage(true)"
     >
-      <strong class="text-base">{{ page }}</strong>
+      <mat-icon fontIcon="first_page"></mat-icon>
+    </button>
+
+    <!-- Previous -->
+    <button
+      mat-icon-button
+      aria-label="Previous page"
+      [disabled]="isFirstPage()"
+      (click)="changePage(currentPage() - 1)"
+    >
+      <mat-icon fontIcon="chevron_left"></mat-icon>
+    </button>
+
+    <!-- Page numbers -->
+    @for (page of pages(); track page) {
+      <button
+        matButton="elevated"
+        [disabled]="currentPage() === page"
+        (click)="changePage(page)"
+      >
+        <strong class="text-base">{{ page }}</strong>
+      </button>
+    }
+
+    <!-- Next -->
+    <button
+      mat-icon-button
+      aria-label="Next page"
+      [disabled]="isLastPage()"
+      (click)="changePage(currentPage() + 1)"
+    >
+      <mat-icon fontIcon="chevron_right"></mat-icon>
+    </button>
+
+    <!-- Last Page -->
+    <button
+      mat-icon-button
+      aria-label="Last page"
+      [disabled]="isLastPage()"
+      (click)="switchToEdgePage(false)"
+    >
+      <mat-icon fontIcon="last_page"></mat-icon>
     </button>
   }
-
-  <!-- Next -->
-  <button
-    mat-icon-button
-    aria-label="Next page"
-    [disabled]="isLastPage()"
-    (click)="changePage(currentPage() + 1)"
-  >
-    <mat-icon fontIcon="chevron_right"></mat-icon>
-  </button>
-
-  <!-- Last Page -->
-  <button
-    mat-icon-button
-    aria-label="Last page"
-    [disabled]="isLastPage()"
-    (click)="switchToEdgePage(false)"
-  >
-    <mat-icon fontIcon="last_page"></mat-icon>
-  </button>
-
 </div>

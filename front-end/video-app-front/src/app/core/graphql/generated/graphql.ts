@@ -92,9 +92,9 @@ export type RelativePathInput = {
 };
 
 export enum SearchField {
-  Author = 'AUTHOR',
-  Name = 'NAME',
-  Tag = 'TAG'
+  Author = 'Author',
+  Name = 'Name',
+  Tag = 'Tag'
 }
 
 export enum SearchFrom {
@@ -122,7 +122,7 @@ export type UpdateVideoMetadataInput = {
   loved?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   tags: Array<Scalars['String']['input']>;
-  videoId: Scalars['ID']['input'];
+  videoId: Scalars['String']['input'];
 };
 
 export type Video = {
@@ -151,7 +151,7 @@ export type VideoSearchInput = {
   author: SerachKeyword;
   currentPageNumber?: InputMaybe<Scalars['Int']['input']>;
   fromPage: SearchFrom;
-  sortBy?: VideoSortOption;
+  sortBy: VideoSortOption;
   tags: Array<Scalars['String']['input']>;
   titleKeyword: SerachKeyword;
 };
@@ -163,9 +163,9 @@ export type VideoSearchResult = {
 };
 
 export enum VideoSortOption {
-  Latest = 'LATEST',
-  Loved = 'LOVED',
-  MostViewed = 'MOST_VIEWED'
+  Latest = 'Latest',
+  Loved = 'Loved',
+  MostViewed = 'MostViewed'
 }
 
 export type VideoTag = {
@@ -177,7 +177,7 @@ export type VideoTag = {
 export type VideosBatchOperationInput = {
   author?: InputMaybe<Scalars['String']['input']>;
   tagsOperation?: InputMaybe<TagsOperationMappingInput>;
-  videoIds: Array<Scalars['ID']['input']>;
+  videoIds: Array<Scalars['String']['input']>;
 };
 
 export type VideosBatchOperationResult = {

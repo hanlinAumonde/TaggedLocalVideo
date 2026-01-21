@@ -133,7 +133,10 @@
     <!-- Search results -->
     <div class="animate-fade-in m-10">
       @if (searchResults().loading) {
-        <div class="grid grid-cols-5 gap-4 mb-10">
+        <app-pagination
+          [isActive]="false"
+        />
+        <div class="grid grid-cols-5 gap-4 mb-10 mt-10">
           @for (item of skeletonArray; track $index) {
             <app-video-card />
           }
@@ -147,6 +150,7 @@
         <!-- Pagination -->
         @if (totalPages() > 1) {
           <app-pagination
+            [isActive]="true"
             [currentPage]="currentPage()"
             [totalPages]="totalPages()"
             (pageChanged)="onPageChange($event)"

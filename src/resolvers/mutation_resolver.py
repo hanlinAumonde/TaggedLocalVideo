@@ -5,7 +5,7 @@ import time
 from src.schema.types.fileBrowse_type import VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel, VideoTagModel
-from src.errors import VideoNotFoundError, DatabaseOperationError
+from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
 
 class MutationResolver:
 
@@ -18,8 +18,10 @@ class MutationResolver:
         :return: VideoMutationResult contains a success flag and an object of updated video metadata
         :rtype: VideoMutationResult
         """
-        # Trigger pydantic validation
-        validated_input = input.to_pydantic()
+        try:
+            validated_input = input.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="UpdateVideoMetadataInput", issue="Invalid input data for updating video metadata")
 
         try:
             video_model = await VideoModel.get(ObjectId(str(validated_input.videoId)))
@@ -61,8 +63,10 @@ class MutationResolver:
         :return: Result of the batch update operation.
         :rtype: VideosBatchOperationResult
         """
-        # Trigger pydantic validation
-        validated_input = input.to_pydantic()
+        try:
+            validated_input = input.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
 
         successful_updates = []
 

@@ -8,6 +8,7 @@ export const environment = {
     videopage_api: "/video",
     pageListSize: 5,
     refreshKey: "_refresh_key",
+    scrollKey: "_scroll_position",
     rootMainContainerId: "root-main-container",
     VALIDATION_RULES:{
         NAME_MAX_LENGTH: 200,

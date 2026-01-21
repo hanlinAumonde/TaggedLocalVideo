@@ -4,7 +4,6 @@ import strawberry
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.schema.types.pydantic_types.video_type import UpdateVideoMetadataInputModel
 
-
 @strawberry.type
 class VideoTag:
     name: str

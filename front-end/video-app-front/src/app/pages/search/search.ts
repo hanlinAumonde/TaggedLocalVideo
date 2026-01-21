@@ -40,7 +40,7 @@ import { ValidationService } from '../../services/validation-service/validation-
     MatProgressSpinnerModule,
     VideoCard,
     Pagination
-  ],
+],
   templateUrl: './search.html'
 })
 export class Search {

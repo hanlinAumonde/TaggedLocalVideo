@@ -20,3 +20,9 @@ class DatabaseOperationError(Exception):
         self.operation = operation
         self.details = details
         super().__init__(f"Database operation '{operation}' failed: {details}")
+
+class InputValidationError(Exception):
+    def __init__(self, field: str, issue: str):
+        self.field = field
+        self.issue = issue
+        super().__init__(f"Input validation error on field '{field}': {issue}")

@@ -8,11 +8,9 @@ from src.schema.types.pydantic_types.batch_operation_type import (
 )
 from src.schema.types.video_type import Video
 
-
 @strawberry.type
 class FileBrowseNode:
     node: Video
-
 
 @strawberry.experimental.pydantic.input(model=RelativePathInputModel)
 class RelativePathInput:

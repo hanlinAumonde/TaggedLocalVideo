@@ -1,7 +1,7 @@
 @if (video()) {
   <a [routerLink]="['/video', video()!.id]" target="_blank">
     <mat-card
-      class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer"
+      class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer m-3"
     >
       <!-- 16:9 -->
       <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
@@ -35,7 +35,7 @@
   </a>
 } @else {
   <!-- Skeleton Card -->
-  <mat-card class="video-card w-full">
+  <mat-card class="video-card w-full m-3">
     <!-- 16:9 -->
     <div
       class="relative w-full pt-[56.25%] bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 bg-size-[200%_100%] animate-[shimmer_1.5s_infinite]"

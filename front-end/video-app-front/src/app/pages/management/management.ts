@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnDestroy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -13,8 +13,10 @@ import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/vide
 import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
-import { ItemsSortOption, comparatorBySortOption } from '../../shared/models/management.model';
+import { ItemsSortOption, ManagementState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
+import { ViewportScroller } from '@angular/common';
+import { set } from 'video.js/dist/types/tech/middleware';
 
 @Component({
   selector: 'app-management',
@@ -65,10 +67,10 @@ export class Management {
   hasSelection = computed(() => this.selectedIds().size > 0);
 
   constructor() {
-    const hasStatePredicate = (state: { currentPath: string[] } | undefined) => 
+    const hasStatePredicate = (state: ManagementState | undefined) => 
       state && Array.isArray(state.currentPath);
 
-    const state = this.statService.getState<{ currentPath: string[] }>(
+    const state = this.statService.getState<ManagementState>(
       environment.management_api + environment.refreshKey,
       false
     );
@@ -77,15 +79,33 @@ export class Management {
       this.currentPath.set(state!.currentPath);
     }
 
+    effect(() => {
+      const contents = this.directoryContents();
+      if(!contents.loading && contents.data){
+        const newPosition = this.statService.getState<{ scrollPosition?: number }>(
+          environment.management_api + environment.refreshKey + environment.scrollKey,
+          false
+        );
+        setTimeout(() => {
+          if(newPosition !== undefined){
+            this.scrollTo(newPosition.scrollPosition ?? 0);
+          }
+        }, 200);
+      }
+    })
+
     // Load directory when path changes
     effect(() => {
       const path = this.currentPath();
-      this.statService.setState(environment.management_api + environment.refreshKey, { currentPath : path },false);
+      this.statService.setState(
+        environment.management_api + environment.refreshKey, 
+        { currentPath : path } as ManagementState
+        ,false);
       this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
     });
   }
 
-  private loadDirectory(relativePath?: string) {
+  private loadDirectory(relativePath?: string, scrollPosition?: number) {
     this.gqlService.browseDirectoryQuery(relativePath).subscribe(result => {
       this.directoryContents.set(result);
       this.selectedIds.set(new Set());
@@ -100,8 +120,18 @@ export class Management {
       .map(item => item.node);
   }
 
+  private getParentScrollContainer(): HTMLElement | null {
+    return document.getElementById(environment.rootMainContainerId);
+  }
+
   refreshDirectory() {
     const path = this.currentPath();
+    // get current scroll position
+    this.statService.setState(
+      environment.management_api + environment.refreshKey + environment.scrollKey,
+      { scrollPosition: this.getParentScrollContainer()?.scrollTop },
+      false
+    );
     this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
   }
 
@@ -219,27 +249,7 @@ export class Management {
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        //this.refreshDirectory();
-        this.directoryContents.update(dir => {
-          const contents = dir.data;
-          if (!contents) return dir;
-          const updatedContents = contents.map(item => {
-            if (item.node.id === result.video?.id) {
-              return {
-                ...item,
-                node: {
-                  ...item.node,
-                  name: result.video?.name ?? item.node.name,
-                  introduction: result.video?.introduction ?? item.node.introduction,
-                  author: result.video?.author ?? item.node.author,
-                  tags: result.video?.tags ?? item.node.tags,
-                }
-              };
-            }
-            return item;
-          });
-          return { ...dir, data: updatedContents };
-        });
+        this.refreshDirectory();
       }
     });
   }
@@ -248,14 +258,7 @@ export class Management {
     if (confirm(`Are you sure you want to delete "${video.name}"? This action cannot be undone.`)) {
       this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
         if (result.data?.success) {
-          //this.refreshDirectory();
-          this.directoryContents.update(dir => {
-            const contents = dir.data;
-            if (!contents) return dir;
-            const deletedVideoId = result.data?.video?.id ?? video.id;
-            const updatedContents = contents.filter(item => item.node.id !== deletedVideoId);
-            return { ...dir, data: updatedContents };
-          })
+          this.refreshDirectory();
         }
       });
     }
@@ -278,10 +281,10 @@ export class Management {
     });
   }
 
-  scrollToTop() {
-    const mainContainer = document.getElementById(environment.rootMainContainerId);
+  scrollTo(position: number) {
+    const mainContainer = this.getParentScrollContainer();
     if (mainContainer) {
-      mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      mainContainer.scrollTo({ top: position, behavior: 'smooth' });
     }
   }
 }

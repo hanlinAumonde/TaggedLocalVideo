@@ -17,7 +17,7 @@ from src.schema.types.search_type import (
 )
 from src.schema.types.video_type import Video, VideoTag
 from src.db.models.Video_model import VideoModel, VideoTagModel
-from src.errors import DatabaseOperationError, FileBrowseError, InvalidPathError, VideoNotFoundError
+from src.errors import DatabaseOperationError, FileBrowseError, InputValidationError, InvalidPathError, VideoNotFoundError
 
 class QueryResolver:
 
@@ -30,7 +30,10 @@ class QueryResolver:
         :return: Search results for videos.
         :rtype: VideoSearchResult
         """
-        validated_input = input.to_pydantic()
+        try:
+            validated_input = input.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="VideoSearchInput", issue="Invalid input data for video search")
 
         settings = get_settings()
         query_filters = {}
@@ -42,13 +45,13 @@ class QueryResolver:
             query_filters["author"] = {"$regex": validated_input.author.keyWord, "$options": "i"}
         if validated_input.tags:
             query_filters["tags"] = {"$all": validated_input.tags}
-        if validated_input.sortBy == VideoSortOption.LOVED:
+        if validated_input.sortBy == VideoSortOption.Loved.value:
             query_filters["loved"] = True
 
         sort_mapping = {
-            VideoSortOption.LATEST: [("lastViewTime", -1)],
-            VideoSortOption.MOST_VIEWED: [("viewCount", -1), ("lastViewTime", -1)],
-            VideoSortOption.LOVED: [("loved", -1), ("lastViewTime", -1)]
+            VideoSortOption.Latest.value: [("lastViewTime", -1)],
+            VideoSortOption.MostViewed.value: [("viewCount", -1), ("lastViewTime", -1)],
+            VideoSortOption.Loved.value: [("loved", -1), ("lastViewTime", -1)]
         }
         sort_criteria = sort_mapping.get(validated_input.sortBy, [("lastModifyTime", -1)])
 
@@ -76,6 +79,7 @@ class QueryResolver:
             )
 
             return VideoSearchResult(pagination=pagination, videos=videos)
+        
         except Exception:
             raise DatabaseOperationError(operation="video search", 
                                          details=f"Filters-{query_filters}, Sort-{sort_criteria}, Skip-{skip}, Limit-{page_size}")
@@ -87,6 +91,11 @@ class QueryResolver:
         :return: List of top video tags.
         :rtype: list[VideoTag]
         """
+        try:
+             validated_input = input.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
+
         settings = get_settings()
         limit = settings.page_size_default.homepage_tags
         try:
@@ -105,8 +114,10 @@ class QueryResolver:
         :return: Suggestion results.
         :rtype: SuggestionResults
         """
-        validated_input = input.to_pydantic()
-        print("escaped keyword: " + validated_input.keyword.keyWord)
+        try:             
+            validated_input = input.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
 
         settings = get_settings()
         if validated_input.keyword.keyWord:
@@ -118,8 +129,7 @@ class QueryResolver:
 
         try:
             match suggestion_type:
-
-                case SearchField.TAG.value:
+                case SearchField.Tag.value:
                     limit = limits.tag
                     if not keyword:
                         tag_docs = await get_top_tag_docs(limit)
@@ -141,7 +151,7 @@ class QueryResolver:
                     return prefix_matches_names
 
                 case _:
-                    limit = limits.name if suggestion_type == SearchField.NAME.value else limits.author
+                    limit = limits.name if suggestion_type == SearchField.Name.value else limits.author
                     pipeline = [
                         {"$match": {suggestion_type: {"$regex": keyword, "$options": "i"}}},
                         {"$group": {"_id": "$" + suggestion_type}},
@@ -188,9 +198,13 @@ class QueryResolver:
         :return: List of file browse nodes in the specified directory.
         :rtype: list[FileBrowseNode]
         """
+        try:
+            relativePathInputModel = path.to_pydantic()
+        except Exception:
+            raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
+        
         settings = get_settings()
         resource_paths_mapping = settings.resource_paths
-        relativePathInputModel = path.to_pydantic()
 
         if relativePathInputModel.parsedPath is None:
             abs_path = None  # Browse root directories

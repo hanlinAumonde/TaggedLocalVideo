@@ -16,6 +16,8 @@ import { environment } from '../../../../environments/environment';
 })
 export class Pagination {
 
+  readonly isActive = input<boolean>(true);
+
   currentPage = input<number>(1);
   totalPages = input<number>(0);
 
