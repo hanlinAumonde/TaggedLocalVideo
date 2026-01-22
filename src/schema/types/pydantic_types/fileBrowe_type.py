@@ -18,9 +18,15 @@ class RelativePathInputModel(BaseModel):
                       3. <pseudo_root_dir_name>
         """
         relativePath: str | None = info.data['relativePath']
+
         # validate the format
         if relativePath is None:
             return None
+        if relativePath.startswith("/") or relativePath.endswith("/"):
+            raise ValueError("relativePath should not start or end with '/'")
+        if ".." in relativePath.split("/"):
+            raise ValueError("relativePath should not contain '..'")
+        
         # parse the relative path
         parts = relativePath.split("/", 1)
         result = (parts[0], "/"+parts[1] if len(parts) > 1 else None)

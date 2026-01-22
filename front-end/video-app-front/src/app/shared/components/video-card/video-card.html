@@ -6,13 +6,12 @@
       <!-- 16:9 -->
       <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
         <img
-          [src]="thumbnailSrc"
+          [src]="thumbnailSrc()"
           [alt]="video()!.name"
           class="absolute top-0 left-0 w-full h-full"
-          [class.object-cover]="!isDefaultThumbnail"
-          [class.object-contain]="isDefaultThumbnail"
-          [class.p-4]="isDefaultThumbnail"
-          loading="lazy"
+          [class.object-cover]="!isDefaultThumbnail()"
+          [class.object-contain]="isDefaultThumbnail()"
+          [class.p-4]="isDefaultThumbnail()"
         />
 
         <mat-chip class="absolute bottom-2 left-2 bg-black/70!">

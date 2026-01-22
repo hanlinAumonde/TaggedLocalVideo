@@ -11,6 +11,10 @@ services:
     restart: unless-stopped
     networks:
       - video-app-network
+    develop:
+      watch:
+        - action: rebuild
+          path: ./front-end/video-app-front/src
 
   backend:
     build:
@@ -26,9 +30,6 @@ services:
       # e.g.:
       # /path/on/host:/app/resources/Resource-1
       # /another/path/on/host:/app/resources/Resource-2
-      
-      # mount config file
-      - ./config.yaml:/app/config.yaml:ro
     environment:
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
@@ -38,12 +39,30 @@ services:
     restart: unless-stopped
     networks:
       - video-app-network
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./src
+          target: /app/src
+
+        - action: sync+restart
+          path: ./main.py
+          target: /app/main.py
+        
+        - action: sync+restart
+          path: ./config.yaml
+          target: /app/config.yaml
+        
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
 
   mongodb:
     image: mongo:latest
     container_name: video-app-mongodb
-    # ports:
-    #   - "27017:27017"
+    ports:
+      - "27017:27017"
     volumes:
       - ./mongodb-data:/data/db
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js

@@ -1,8 +1,8 @@
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
-from src.resolvers.resolver_utils import get_absolute_resource_path, get_node_list_in_directory, get_top_tag_docs
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
+from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.search_type import (
     SearchFrom,
     SuggestionInput,
@@ -14,7 +14,7 @@ from src.schema.types.search_type import (
 )
 from src.schema.types.video_type import Video, VideoTag
 from src.db.models.Video_model import VideoModel, VideoTagModel
-from src.errors import DatabaseOperationError, InputValidationError, InvalidPathError, VideoNotFoundError
+from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
 
 class QueryResolver:
 
@@ -91,7 +91,7 @@ class QueryResolver:
         settings = get_settings()
         limit = settings.page_size_default.homepage_tags
         try:
-            tag_docs = await get_top_tag_docs(limit)
+            tag_docs = await resolver_utils().get_top_tag_docs(limit)
             return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
         except Exception:
             raise DatabaseOperationError(operation="get top tags",
@@ -124,20 +124,20 @@ class QueryResolver:
                 case SearchField.Tag.value:
                     limit = limits.tag
                     if not keyword:
-                        tag_docs = await get_top_tag_docs(limit)
+                        tag_docs = await resolver_utils().get_top_tag_docs(limit)
                         return [tag.name for tag in tag_docs]
 
                     prefix_query = VideoTagModel.find(
                         {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
                     )
-                    prefix_matches = await get_top_tag_docs(limit,prefix_query)
+                    prefix_matches = await resolver_utils().get_top_tag_docs(limit,prefix_query)
                     prefix_matches_names = [tag.name for tag in prefix_matches]
 
                     if limit - len(prefix_matches_names) > 0:
                         contains_query = VideoTagModel.find(
                             {"name": {"$regex": f".*{keyword}.*", "$options":"i", "$nin": prefix_matches_names}}
                         )
-                        contains_matches = await get_top_tag_docs(limit, contains_query)
+                        contains_matches = await resolver_utils().get_top_tag_docs(limit, contains_query)
                         prefix_matches_names.extend([tag.name for tag in contains_matches])
 
                     return prefix_matches_names
@@ -201,11 +201,11 @@ class QueryResolver:
             abs_path = None  # Browse root directories
         else:
             pseudo_root_dir_name, sub_path = relativePathInputModel.parsedPath
-            abs_resource_path = get_absolute_resource_path(pseudo_root_dir_name)
+            abs_resource_path = resolver_utils().get_absolute_resource_path(pseudo_root_dir_name)
             
             if sub_path is None:
                 abs_path = abs_resource_path
             else:
                 abs_path = abs_resource_path + sub_path
 
-        return await get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)
+        return await resolver_utils().get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)

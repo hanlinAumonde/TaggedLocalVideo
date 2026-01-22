@@ -1,20 +1,21 @@
-import { Component, computed, input, OnChanges } from '@angular/core';
+import { Component, computed, effect, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { SearchedVideo } from '../../models/GQL-result.model';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-video-card',
   imports: [RouterLink, MatCardModule, MatChipsModule],
   templateUrl: './video-card.html',
 })
-export class VideoCard implements OnChanges{
+export class VideoCard {
   video = input<SearchedVideo | null>(null);
 
   readonly defaultThumbnail = '/videoicon.png';
-  thumbnailSrc = this.defaultThumbnail;
-  isDefaultThumbnail = true;
+  thumbnailSrc = signal(this.defaultThumbnail);
+  isDefaultThumbnail = signal(true);
 
   views = computed(() => {
     if (!this.video()?.viewCount) return '0';
@@ -25,23 +26,26 @@ export class VideoCard implements OnChanges{
     return (count / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
   })
 
-  ngOnChanges() {
-    if (!this.video()?.thumbnail || !this.video()?.id) {
-      this.thumbnailSrc = this.defaultThumbnail;
-      this.isDefaultThumbnail = true;
-      return;
-    }
+  constructor() {
+    effect(() => {
+      const video = this.video();
+      if (!video?.id) {
+        this.thumbnailSrc.set(this.defaultThumbnail);
+        this.isDefaultThumbnail.set(true);
+        return;
+      }
 
-    const realUrl =
-      `/video/thumbnail/?video_id=${this.video()?.id}&thumbnail_id=${this.video()?.thumbnail}`;
+      const realUrl = environment.backend_api +
+        `/video/thumbnail?video_id=${video.id}&thumbnail_id=${video.thumbnail ?? ''}`;
 
-    const img = new Image();
-    img.src = realUrl;
+      const img = new Image();
+      img.src = realUrl;
 
-    img.onload = () => {
-      this.thumbnailSrc = realUrl;
-      this.isDefaultThumbnail = false;
-    };
+      img.onload = () => {
+        this.thumbnailSrc.set(realUrl);
+        this.isDefaultThumbnail.set(false);
+      };
+    });
   }
 
   get formattedDate(): string {

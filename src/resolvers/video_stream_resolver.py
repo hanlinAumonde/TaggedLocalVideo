@@ -1,14 +1,14 @@
 import os
 import aiofiles
+from fastapi.concurrency import run_in_threadpool
 from fastapi import HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from src.db.models.Video_model import VideoModel
-from src.resolvers.resolver_utils import to_mounted_path
-
+from src.resolvers.resolver_utils import resolver_utils
 
 class VideoResolver:
 
-    async def video_stream_resolver(self,video_id: str, request: Request):
+    async def video_stream_resolver(self,video_id: str, request: Request) -> StreamingResponse:
         """
         Handles video streaming requests and supports Range requests (for drag-and-drop playback in Video.js).
 
@@ -23,7 +23,7 @@ class VideoResolver:
         if not video:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
-        video_path = to_mounted_path(video.path)
+        video_path = resolver_utils().to_mounted_path(video.path)
         if not os.path.exists(video_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 
@@ -67,9 +67,9 @@ class VideoResolver:
                     "Content-Range": f"bytes {start}-{end}/{file_size}",
                     "Accept-Ranges": "bytes",
                     "Content-Length": str(content_length),
-                    "Content-Type": self.get_video_mime_type(video_path),
+                    "Content-Type": resolver_utils().get_video_mime_type(video_path),
                 },
-                media_type=self.get_video_mime_type(video_path)
+                media_type=resolver_utils().get_video_mime_type(video_path)
             )
 
         else:
@@ -85,47 +85,33 @@ class VideoResolver:
                 headers={
                     "Accept-Ranges": "bytes",
                     "Content-Length": str(file_size),
-                    "Content-Type": self.get_video_mime_type(video_path),
+                    "Content-Type": resolver_utils().get_video_mime_type(video_path),
                 },
-                media_type=self.get_video_mime_type(video_path)
+                media_type=resolver_utils().get_video_mime_type(video_path)
             )
-
-
-    def get_video_mime_type(self,file_path: str) -> str:
-        """
-        Returns the correct MIME type based on the file extension.
-
-        Args:
-            file_path: Video file path
-
-        Returns:
-            str: MIME type string
-        """
-        ext = os.path.splitext(file_path)[1].lower()
-        mime_types = {
-            ".mp4": "video/mp4",
-            ".webm": "video/webm",
-            ".ogg": "video/ogg",
-            ".ogv": "video/ogg",
-            ".avi": "video/x-msvideo",
-            ".mov": "video/quicktime",
-            ".wmv": "video/x-ms-wmv",
-            ".flv": "video/x-flv",
-            ".mkv": "video/x-matroska",
-            ".m4v": "video/x-m4v",
-            ".mpg": "video/mpeg",
-            ".mpeg": "video/mpeg",
-        }
-        return mime_types.get(ext, "video/mp4")
+        
     
-    async def get_thumbnail(self,video_id:str,thumbnail_id:str) -> FileResponse | None:
+    async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> Response:
         if thumbnail_id:
-            pass # TODO: find jpeg thumbnail from file system using thumbnail-id
-        elif not video_id:
-            raise HTTPException(status_code=404, detail="Cannot find thumbnail without video-id")
-        else:
-            return None
-            # TODO:
-            # video-id is not null and thumbnail-id is null
-            # using for example ffmpeg to generate a thumbnail and store it in the file system, and update db
-            # return the jpeg file
+            pass  # TODO: find jpeg thumbnail from file system (or object storage) using thumbnail-id
+
+        if not video_id:
+            raise HTTPException(status_code=400, detail="Cannot find thumbnail without video-id")
+
+        # video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
+        video = await VideoModel.get(video_id)
+        if not video:
+            raise HTTPException(status_code=404, detail="Video not found")
+
+        video_path = resolver_utils().to_mounted_path(video.path)
+        if not os.path.exists(video_path):
+            raise HTTPException(status_code=404, detail="Video file doesn't exist")
+
+        thumbnail_bytes = await run_in_threadpool(resolver_utils().generate_thumbnail, video_path)
+        return Response(
+            content=thumbnail_bytes,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+
+    

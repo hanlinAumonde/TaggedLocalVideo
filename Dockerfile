@@ -1,6 +1,10 @@
 # use official uv image with Python 3.12 and Debian Bookworm slim
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
+# install ffmpeg for thumbnail generation
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 # setup non-root user
 RUN groupadd --system --gid 999 nonroot \
  && useradd --system --gid 999 --uid 999 --create-home nonroot
