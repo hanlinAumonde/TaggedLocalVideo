@@ -208,10 +208,13 @@ export class GqlService {
     )
   }
 
-  browseDirectoryQuery(relativePath?: string): Observable<ResultState<BrowseDirectoryDetail>> {
+  browseDirectoryQuery(relativePath?: string, refreshCache: boolean = false): Observable<ResultState<BrowseDirectoryDetail>> {
     return this.toResultStateObservable(
       this.browseDirectoryGQL.watch({
-        variables: { path: { relativePath } }
+        variables: { path: { 
+          relativePath: relativePath,
+          refreshFlag: refreshCache 
+        } }
       }).valueChanges,
       (data) => this.filterUndefinedResult(data.browseDirectory ?? []) as BrowseDirectoryDetail
     )

@@ -105,8 +105,8 @@ export class Management {
     });
   }
 
-  private loadDirectory(relativePath?: string, scrollPosition?: number) {
-    this.gqlService.browseDirectoryQuery(relativePath).subscribe(result => {
+  private loadDirectory(relativePath?: string, refreshCache: boolean = false) {
+    this.gqlService.browseDirectoryQuery(relativePath, refreshCache).subscribe(result => {
       this.directoryContents.set(result);
       this.selectedIds.set(new Set());
     });
@@ -132,7 +132,7 @@ export class Management {
       { scrollPosition: this.getParentScrollContainer()?.scrollTop },
       false
     );
-    this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
+    this.loadDirectory(path.length > 0 ? path.join('/') : undefined, true);
   }
 
   onClickFileBrowseNode(node: FileBrowseNode) {

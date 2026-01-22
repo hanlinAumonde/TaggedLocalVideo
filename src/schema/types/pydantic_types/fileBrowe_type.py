@@ -2,7 +2,8 @@ from pydantic import BaseModel, ValidationInfo, field_validator
 
 
 class RelativePathInputModel(BaseModel):
-    # refreshFlag: bool = False  # If True, bypass any caching
+    refreshFlag: bool = False  # If True, bypass any caching
+    
     relativePath: str | None = None  # If None, browse the root directory that contains all resources paths with their pesudo names
 
     parsedPath: tuple[str, str | None] | None = None  # (pesudo_root_dir_name, sub_path), not provided by user

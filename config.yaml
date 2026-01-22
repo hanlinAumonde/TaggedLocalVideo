@@ -1,6 +1,8 @@
 resource_paths:
-  pseudo1: path1
-  pseudo2: path2
+  Resource-1: path1
+  Resource-2: path2
+
+root_path: /app/resources
 
 page_size_default:
   homepage_videos: 5

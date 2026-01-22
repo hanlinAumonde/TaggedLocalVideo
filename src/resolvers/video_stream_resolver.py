@@ -3,6 +3,7 @@ import aiofiles
 from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from src.db.models.Video_model import VideoModel
+from src.resolvers.resolver_utils import to_mounted_path
 
 
 class VideoResolver:
@@ -22,7 +23,7 @@ class VideoResolver:
         if not video:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
-        video_path = video.path
+        video_path = to_mounted_path(video.path)
         if not os.path.exists(video_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 

@@ -1,0 +1,67 @@
+services:
+  frontend:
+    build:
+      context: ./front-end/video-app-front
+      dockerfile: Dockerfile
+    container_name: video-app-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - video-app-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: video-app-backend
+    # ports:
+    #   - "12000:12000"
+    volumes:
+      # mount resource paths
+      # make sure that these paths are same as those defined in config.yaml
+
+      # e.g.:
+      # /path/on/host:/app/resources/Resource-1
+      # /another/path/on/host:/app/resources/Resource-2
+      
+      # mount config file
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - video-app-network
+
+  mongodb:
+    image: mongo:latest
+    container_name: video-app-mongodb
+    # ports:
+    #   - "27017:27017"
+    volumes:
+      - ./mongodb-data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    environment:
+      - MONGO_INITDB_DATABASE=video_tag_db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - video-app-network
+
+networks:
+  video-app-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
