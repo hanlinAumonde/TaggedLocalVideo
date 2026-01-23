@@ -1,0 +1,13 @@
+<h2 mat-dialog-title class="text-red-500">Delete</h2>
+<mat-dialog-content>
+  Are you sure you want to delete this video?
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button matButton mat-dialog-close cdkInitialFocus>No</button>
+  <button 
+    matButton
+    (click)="dialogRef.close(true)"
+  >
+    Yes
+  </button>
+</mat-dialog-actions>

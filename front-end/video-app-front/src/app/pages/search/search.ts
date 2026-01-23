@@ -186,26 +186,35 @@ export class Search {
     if (!this.hasSearched()) {
       this.hasSearched.set(true);
     }
+
+    // navigate to first page
+    this.router.navigate([environment.searchpage_api], {
+      queryParams: { currentPageNumber: 1 },
+      state: newParams
+    });
   }
 
-  clearTitle() {
-    this.searchForm.patchValue({ title: '' });
+  clearInput(field: "title" | "author") {
+    if (field === "title") {
+      this.updateSearchForm({title: ''});
+    } else if (field === "author") {
+      this.updateSearchForm({author: ''});
+    }
   }
 
-  clearAuthor() {
-    this.searchForm.patchValue({ author: '' });
-  }
-
-  selectTitleSuggestion(title: string) {
-    this.searchForm.patchValue({ title });
-  }
-
-  selectAuthorSuggestion(author: string) {
-    this.searchForm.patchValue({ author });
+  updateSearchForm(searchFormInputs: {title?: string, author?: string}) {
+    this.searchForm.patchValue({ 
+      title: searchFormInputs.title ?? this.searchParams().title, 
+      author: searchFormInputs.author ?? this.searchParams().author 
+    });
   }
 
   onSortChange(sortBy: VideoSortOption) {
     const newParams: SearchPageParam = { ...this.searchParams(), sortBy };
+    this.updateSearchForm({ 
+      title: this.searchParams().title, 
+      author: this.searchParams().author 
+    });
     this.searchParams.set(newParams);
   }
 

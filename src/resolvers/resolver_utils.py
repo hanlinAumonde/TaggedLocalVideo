@@ -15,8 +15,11 @@ from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.video_type import Video
 
 
-# cache for directory size and last modified time (5 min TTL, max 1024 entries)
-_dir_cache: TTLCache[str, tuple[float, float]] = TTLCache(maxsize=1024, ttl=300)
+# cache for directory size and last modified time
+_dir_cache: TTLCache[str, tuple[float, float]] = TTLCache(
+    maxsize=get_settings().cache_config.max_size, 
+    ttl=get_settings().cache_config.ttl
+)
 
 class ResolverUtils:
 
@@ -41,9 +44,9 @@ class ResolverUtils:
                             try:
                                 stat = entry.stat()
                                 video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
-                                    {"path": self.to_local_path(entry.path)},
+                                    {"path": self.to_host_path(entry.path)},
                                     {"$setOnInsert": VideoModel(
-                                        path=self.to_local_path(entry.path),
+                                        path=self.to_host_path(entry.path),
                                         name=entry.name,
                                         isDir=False,
                                         lastModifyTime=stat.st_mtime,
@@ -72,6 +75,7 @@ class ResolverUtils:
         total_size, last_modified_time = await run_in_threadpool(
             self.get_total_size_and_last_modified_time,
             self.get_path_standard_format(path),
+            refreshFlag
         )
 
         if total_size > 0:
@@ -111,10 +115,11 @@ class ResolverUtils:
         Uses caching to avoid redundant calculations.
         """
         if not refreshFlag and directory_path in _dir_cache:
-            return _dir_cache[directory_path]
+             return _dir_cache.get(directory_path)
 
         result = self._get_total_size_and_last_modified_time_impl(directory_path)
-        _dir_cache[directory_path] = result
+        _dir_cache.update({directory_path: result})
+
         return result
 
     def _get_total_size_and_last_modified_time_impl(self, directory_path: str) -> tuple[float, float]:
@@ -152,7 +157,7 @@ class ResolverUtils:
     def get_path_standard_format(self, path: str) -> str:
         """Standardize path format"""
         return os.path.normpath(path).replace("\\", "/")
-
+    
     def get_absolute_resource_path(self, pseudo_root_dir_name: str) -> str:
         """Get the absolute resource path from pseudo root dir name and sub path"""
         settings = get_settings()
@@ -179,9 +184,9 @@ class ResolverUtils:
                 if mounted_path.startswith(resource_path):
                     relative_sub_path = mounted_path[len(resource_path):]
                     return self.get_path_standard_format(os.path.join(settings.root_path, pseudo_name, relative_sub_path.lstrip("/")))
-        return mounted_path
+        return self.get_path_standard_format(mounted_path)
 
-    def to_local_path(self, mounted_path: str) -> str:
+    def to_host_path(self, mounted_path: str) -> str:
         """Convert mounted path in container to local absolute path if root_path is set"""
         settings = get_settings()
         local_path = mounted_path
@@ -191,7 +196,7 @@ class ResolverUtils:
                 if local_path.startswith(mounted_root_path):
                     relative_sub_path = local_path[len(mounted_root_path):]
                     return self.get_path_standard_format(os.path.join(resource_path, relative_sub_path.lstrip("/")))
-        return local_path
+        return self.get_path_standard_format(local_path)
 
     # ============================================================
     # Video MIME type utils
@@ -223,52 +228,6 @@ class ResolverUtils:
             ".mpeg": "video/mpeg",
         }
         return mime_types.get(ext, "video/mp4")
-
-    # ============================================================
-    # Thumbnail generation utils
-    # ============================================================
-
-    def generate_thumbnail(self, video_path: str) -> bytes:
-        """
-        Generate a thumbnail from video using ffmpeg sync API.
-        Captures a frame at 5 seconds into the video.
-        """
-        try:
-            return self._process_ffmpeg(video_path, ss=10)
-        except Exception:
-            # If seeking to 10s fails (video too short), try at 0s
-            try:
-                return self._process_ffmpeg(video_path, ss=0)
-            except Exception:
-                raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
-
-    def _process_ffmpeg(self, video_path: str, ss: float) -> bytes:
-        """
-        Construct an FFmpeg command to generate a thumbnail from the video at the specified timestamp.
-        """
-        command = [
-            "ffmpeg",
-            "-loglevel", "error",
-            "-ss", str(ss),
-            "-i", video_path,
-            "-frames:v", "1",
-            "-f", "image2",
-            "-vcodec", "mjpeg",
-            "-aspect", "16:9",
-            "-vf", "scale=320:-1",
-            "pipe:1"
-        ]
-
-        result = subprocess.run(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=True
-        )
-        if result.returncode != 0 or not result.stdout:
-            raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
-
-        return result.stdout
 
 @lru_cache
 def resolver_utils() -> ResolverUtils:

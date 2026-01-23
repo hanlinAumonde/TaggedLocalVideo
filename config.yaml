@@ -4,6 +4,10 @@ resource_paths:
 
 root_path: /app/resources
 
+cache_config:
+  max_size: 2048
+  ttl: 300  # in seconds
+
 page_size_default:
   homepage_videos: 5
   homepage_tags: 50

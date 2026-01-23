@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -15,8 +15,7 @@ import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
 import { ItemsSortOption, ManagementState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
-import { ViewportScroller } from '@angular/common';
-import { set } from 'video.js/dist/types/tech/middleware';
+import { DeleteCheckPanel } from './delete-check-panel/delete-check-panel';
 
 @Component({
   selector: 'app-management',
@@ -255,13 +254,18 @@ export class Management {
   }
 
   deleteVideo(video: BrowsedVideo) {
-    if (confirm(`Are you sure you want to delete "${video.name}"? This action cannot be undone.`)) {
-      this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
-        if (result.data?.success) {
-          this.refreshDirectory();
-        }
-      });
-    }
+    const checkResult = this.dialog.open(DeleteCheckPanel, {
+      width: '400px'
+    })
+    checkResult.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
+          if (result.data?.success) {
+            this.refreshDirectory();
+          }
+        });
+      }
+    });
   }
 
   openBatchTagsPanel() {

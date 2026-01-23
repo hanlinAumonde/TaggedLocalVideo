@@ -16,15 +16,16 @@
         @if (title.value) {
           <button
             type="button"
-            (click)="clearTitle()"
-            class="text-gray-400 hover:text-gray-600 shrink-0"
+            (click)="clearInput('title')"
+            class="text-gray-400 hover:text-gray-600 flex flex-col items-center"
           >
-            <mat-icon class="text-lg!">close</mat-icon>
+            <mat-icon fontIcon="close"></mat-icon>
           </button>
         }
         <mat-autocomplete
             #titleAuto="matAutocomplete"
-            (optionSelected)="selectTitleSuggestion($event.option.value)">
+            (optionSelected)="updateSearchForm({title: $event.option.value})">
+          <!--  (optionSelected)="selectTitleSuggestion($event.option.value)"-->
           @if(titleSuggestions().loading && title.value !== '') {
             <mat-option disabled>
               <mat-progress-spinner
@@ -62,15 +63,15 @@
         @if (author.value) {
           <button
             type="button"
-            (click)="clearAuthor()"
-            class="text-gray-400 hover:text-gray-600 shrink-0"
+            (click)="clearInput('author')"
+            class="text-gray-400 hover:text-gray-600 flex flex-col items-center"
           >
-            <mat-icon class="text-lg!">close</mat-icon>
+            <mat-icon fontIcon="close"></mat-icon>
           </button>
         }
         <mat-autocomplete
           #authorAuto="matAutocomplete"
-          (optionSelected)="selectAuthorSuggestion($event.option.value)">
+          (optionSelected)="updateSearchForm({author: $event.option.value})">
           @if(authorSuggestions().loading && author.value !== '') {
             <mat-option disabled>
               <mat-progress-spinner
@@ -97,7 +98,7 @@
         [disabled]="searchForm.invalid"
         class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white flex items-center justify-center mr-1 shrink-0"
       >
-        <mat-icon>search</mat-icon>
+        <mat-icon fontIcon="search"></mat-icon>
       </button>
     </div>
     
@@ -143,7 +144,7 @@
         </div>
       } @else if (searchResults().error) {
         <div class="text-center py-12">
-          <mat-icon class="text-6xl text-red-400">error_outline</mat-icon>
+          <mat-icon fontIcon="error_outline"></mat-icon>
           <p class="mt-4 text-gray-600">Failed to load search results</p>
         </div>
       } @else if (searchResults().data && searchResults().data!.videos.length > 0) {
@@ -163,7 +164,7 @@
         </div>
       } @else {
         <div class="text-center py-12">
-          <mat-icon class="text-6xl text-gray-400">search_off</mat-icon>
+          <mat-icon fontIcon="search_off"></mat-icon>
           <p class="mt-4 text-gray-600">No videos found. Try adjusting your search criteria.</p>
         </div>
       }

@@ -10,12 +10,12 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { startWith } from 'rxjs/operators';
 
 import { SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
+import { startWith } from 'rxjs';
 
 export interface BatchTagsPanelData {
   videos: BrowsedVideo[];
@@ -64,7 +64,10 @@ export class BatchTagsPanel {
   );
 
   tagSuggestions = toSignal(
-    this.gqlService.getSuggestionsQuery(this.tagInput.valueChanges, SearchField.Tag),
+    this.gqlService.getSuggestionsQuery(
+      this.tagInput.valueChanges.pipe(startWith(this.tagInput.value)),
+      SearchField.Tag
+    ),
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
 

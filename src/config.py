@@ -4,6 +4,9 @@ from pydantic import BaseModel, Field
 import yaml
 from pydantic_settings import BaseSettings
 
+class CacheConfig(BaseModel):
+    max_size: int = 2048
+    ttl: int = 300  # in seconds
 
 class PageSize(BaseModel):
     homepage_videos: int = 5
@@ -38,6 +41,7 @@ class ValidationConfig(BaseModel):
 class Settings(BaseSettings):
     resource_paths: dict[str, str] = Field(default_factory=dict)
     root_path: Optional[str] = None
+    cache_config: CacheConfig = CacheConfig()
     page_size_default: PageSize = PageSize()
     suggestion_limit: SuggestionLimit = SuggestionLimit()
     video_extensions: list[str] = Field(default_factory=lambda: [".mp4"])

@@ -1,12 +1,6 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 
-from src.resolvers.video_stream_resolver import VideoResolver
-
-def get_video_resolver():
-    return VideoResolver()
-
-VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]
+from src.resolvers.video_stream_resolver import VideoResolverDep
 
 router = APIRouter(prefix="/video")
 
@@ -16,5 +10,5 @@ async def stream_video(video_id: str, request: Request, videoResolverDep: VideoR
     return await videoResolverDep.video_stream_resolver(video_id, request)
 
 @router.get("/thumbnail")
-async def get_thumbnail(video_id: str, videoResolverDep: VideoResolverDep, thumbnail_id: str | None = None):
+async def get_thumbnail(videoResolverDep: VideoResolverDep, video_id: str, thumbnail_id: str | None = None):
     return await videoResolverDep.get_thumbnail(video_id, thumbnail_id)

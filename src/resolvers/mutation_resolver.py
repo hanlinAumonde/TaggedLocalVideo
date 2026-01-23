@@ -1,7 +1,9 @@
+import os
 import strawberry
 from bson import ObjectId
 import time
 
+from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.fileBrowse_type import VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel, VideoTagModel
@@ -146,10 +148,14 @@ class MutationResolver:
                 raise VideoNotFoundError(str(videoId))
 
             old_tags = set(video_model.tags or [])
+            video_path = video_model.path
 
             await video_model.delete()
 
             await _update_tag_counts(old_tags, set())
+
+            os.remove(resolver_utils().to_mounted_path(video_path))
+
             return VideoMutationResult(success=True, video=None)
 
         except VideoNotFoundError:

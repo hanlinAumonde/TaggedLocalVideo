@@ -106,32 +106,31 @@
           @else {
             @for (item of directoryContents().data; track item.node.id) {
               <mat-menu #operateMenu="matMenu">
-                @if(!item.node.isDir) {
-                  <button mat-menu-item>
-                    <a
-                      [routerLink]="videoPage(item.node)"
-                      target="_blank"
-                      class="flex items-center"
-                    >
-                      <mat-icon fontIcon="play_circle"></mat-icon>
-                      <span>Play Video</span>
-                    </a>
-                  </button>
-                  <button mat-menu-item (click)="openEditPanel(item.node)">
-                    <mat-icon fontIcon="edit"></mat-icon>
-                    <span>Edit</span>
-                  </button>
-                  <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
-                    <mat-icon fontIcon="delete"></mat-icon>
-                    <span>Delete</span>
-                  </button>
-                }
+                <button mat-menu-item>
+                  <a
+                    [routerLink]="videoPage(item.node)"
+                    target="_blank"
+                    class="flex items-center"
+                  >
+                    <mat-icon fontIcon="play_circle"></mat-icon>
+                    <span>Play Video</span>
+                  </a>
+                </button>
+                <button mat-menu-item (click)="openEditPanel(item.node)">
+                  <mat-icon fontIcon="edit"></mat-icon>
+                  <span>Edit</span>
+                </button>
+                <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
+                  <mat-icon fontIcon="delete"></mat-icon>
+                  <span>Delete</span>
+                </button>
               </mat-menu>
               <tr
                 class="border-b hover:bg-gray-50"
                 [class.bg-blue-50]="isSelected(item.node.id)"
                 [class.cursor-pointer]="item.node.isDir"
                 [matContextMenuTriggerFor]="operateMenu"
+                [matContextMenuTriggerDisabled]="item.node.isDir"
                 (click)="onClickFileBrowseNode(item)"
               >
                 <!-- Checkbox -->

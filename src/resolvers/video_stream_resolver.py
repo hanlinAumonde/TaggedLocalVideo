@@ -1,12 +1,19 @@
 import os
+from typing import Annotated
 import aiofiles
 from fastapi.concurrency import run_in_threadpool
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.resolvers.resolver_utils import resolver_utils
+from src.resolvers.thumbnail_resolver import ThumbnailResolverDep
 
 class VideoResolver:
+    def __init__(
+        self,
+        thumbnailResolver: ThumbnailResolverDep
+    ):
+        self.thumbnailResolver = thumbnailResolver
 
     async def video_stream_resolver(self,video_id: str, request: Request) -> StreamingResponse:
         """
@@ -107,11 +114,16 @@ class VideoResolver:
         if not os.path.exists(video_path):
             raise HTTPException(status_code=404, detail="Video file doesn't exist")
 
-        thumbnail_bytes = await run_in_threadpool(resolver_utils().generate_thumbnail, video_path)
+        thumbnail_bytes = await run_in_threadpool(self.thumbnailResolver.generate_thumbnail, video_path)
         return Response(
             content=thumbnail_bytes,
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=3600"}
         )
 
-    
+def get_video_resolver(
+    thumbnailResolver: ThumbnailResolverDep
+):
+    return VideoResolver(thumbnailResolver)
+
+VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]
