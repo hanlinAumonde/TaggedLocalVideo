@@ -5,8 +5,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from src.db.models.Video_model import VideoModel
+from src.logger import get_logger
 from src.resolvers.resolver_utils import resolver_utils
 from src.resolvers.thumbnail_resolver import ThumbnailResolverDep
+
+logger = get_logger("video_stream_resolver")
 
 class VideoResolver:
     def __init__(
@@ -121,9 +124,7 @@ class VideoResolver:
             headers={"Cache-Control": "public, max-age=3600"}
         )
 
-def get_video_resolver(
-    thumbnailResolver: ThumbnailResolverDep
-):
+def get_video_resolver(thumbnailResolver: ThumbnailResolverDep):
     return VideoResolver(thumbnailResolver)
 
 VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]

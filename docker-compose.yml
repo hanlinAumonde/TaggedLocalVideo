@@ -24,6 +24,7 @@ services:
     # ports:
     #   - "12000:12000"
     volumes:
+      - ./logs:/app/logs
       # mount resource paths
       # make sure that these paths are same as those defined in config.yaml
 

@@ -10,4 +10,7 @@ uv.lock
 # Virtual environments
 .venv
 
+# Logs
+logs/
+
 mongodb-data/

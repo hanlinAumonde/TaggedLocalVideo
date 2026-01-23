@@ -38,6 +38,12 @@ class ValidationConfig(BaseModel):
     page_number_max: int = 10000
 
 
+class LoggingConfig(BaseModel):
+    log_dir: str = "logs"
+    rotation: str = "10 MB"
+    retention: str = "30 days"
+
+
 class Settings(BaseSettings):
     resource_paths: dict[str, str] = Field(default_factory=dict)
     root_path: Optional[str] = None
@@ -47,6 +53,7 @@ class Settings(BaseSettings):
     video_extensions: list[str] = Field(default_factory=lambda: [".mp4"])
     mongo: MongoConfig = MongoConfig()
     validation: ValidationConfig = ValidationConfig()
+    logging: LoggingConfig = LoggingConfig()
 
 
 @lru_cache

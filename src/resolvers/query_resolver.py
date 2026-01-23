@@ -1,6 +1,7 @@
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
+from src.logger import get_logger
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
 from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.search_type import (
@@ -16,6 +17,8 @@ from src.schema.types.video_type import Video, VideoTag
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
 
+logger = get_logger("query_resolver")
+
 class QueryResolver:
 
     async def resolve_search_videos(self,input: VideoSearchInput) -> VideoSearchResult:
@@ -29,7 +32,8 @@ class QueryResolver:
         """
         try:
             validated_input = input.to_pydantic()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="VideoSearchInput", issue="Invalid input data for video search")
 
         settings = get_settings()
@@ -63,9 +67,7 @@ class QueryResolver:
             # execute query
             query = VideoModel.find(query_filters)
             total_count = await query.count()
-            for field, order in sort_criteria:
-                query = query.sort((field, order))
-            video_models = await query.skip(skip).limit(page_size).to_list()
+            video_models = await query.sort(sort_criteria).skip(skip).limit(page_size).to_list()
 
             # build results
             videos = [await Video.from_mongoDB(vm) for vm in video_models]
@@ -77,7 +79,8 @@ class QueryResolver:
 
             return VideoSearchResult(pagination=pagination, videos=videos)
         
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during video search: {e}")
             raise DatabaseOperationError(operation="video search", 
                                          details=f"Filters-{query_filters}, Sort-{sort_criteria}, Skip-{skip}, Limit-{page_size}")
 
@@ -93,7 +96,8 @@ class QueryResolver:
         try:
             tag_docs = await resolver_utils().get_top_tag_docs(limit)
             return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during get top tags: {e}")
             raise DatabaseOperationError(operation="get top tags",
                                          details=f"Limit-{limit}")
 
@@ -108,7 +112,8 @@ class QueryResolver:
         """
         try:             
             validated_input = input.to_pydantic()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
 
         settings = get_settings()
@@ -157,7 +162,8 @@ class QueryResolver:
                         if doc.get("_id"):
                             result.append(doc["_id"])
                     return result
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during get suggestions: {e}")
             raise DatabaseOperationError(operation="get suggestions",
                                          details=f"Keyword-{keyword}, SuggestionType-{suggestion_type}")
 
@@ -174,10 +180,12 @@ class QueryResolver:
         """
         try:
             video_model = await VideoModel.get(ObjectId(str(videoId)))
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during get video by id: {e}")
             raise DatabaseOperationError(operation="get video by id", details=f"videoId-{videoId}")
         
         if not video_model:
+            logger.error(f"Video not found: {videoId}")
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
 
@@ -193,7 +201,8 @@ class QueryResolver:
         """
         try:
             relativePathInputModel = path.to_pydantic()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
 
@@ -208,4 +217,5 @@ class QueryResolver:
             else:
                 abs_path = abs_resource_path + sub_path
 
+        logger.info(f"Browsing directory at absolute path: {abs_path}")
         return await resolver_utils().get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)

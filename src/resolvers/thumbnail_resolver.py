@@ -2,6 +2,9 @@ import subprocess
 from typing_extensions import Annotated
 from fastapi import Depends, HTTPException
 
+from src.logger import get_logger
+
+logger = get_logger("thumbnail_resolver")
 
 class ThumbnailResolver:
 
@@ -12,11 +15,13 @@ class ThumbnailResolver:
         """
         try:
             return self._process_ffmpeg(video_path, ss=10)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error generating thumbnail at 10s for {video_path}: {e}")
             # If seeking to 10s fails (video too short), try at 0s
             try:
                 return self._process_ffmpeg(video_path, ss=0)
-            except Exception:
+            except Exception as e2:
+                logger.error(f"Error generating thumbnail at 0s for {video_path}: {e2}")
                 raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
 
     def _process_ffmpeg(self, video_path: str, ss: float) -> bytes:

@@ -3,11 +3,14 @@ import strawberry
 from bson import ObjectId
 import time
 
+from src.logger import get_logger
 from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.fileBrowse_type import VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
+
+logger = get_logger("mutation_resolver")
 
 class MutationResolver:
 
@@ -22,7 +25,8 @@ class MutationResolver:
         """
         try:
             validated_input = input.to_pydantic()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="UpdateVideoMetadataInput", issue="Invalid input data for updating video metadata")
 
         try:
@@ -52,8 +56,10 @@ class MutationResolver:
             return VideoMutationResult(success=True, video=updated_video)
 
         except VideoNotFoundError:
+            logger.error(f"Video not found: {validated_input.videoId}")
             raise
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during update video metadata: {e}")
             raise DatabaseOperationError("update_video_metadata", f"videoId-{validated_input.videoId}")
 
     async def resolve_batch_update(self,input: VideosBatchOperationInput) -> VideosBatchOperationResult:
@@ -67,7 +73,8 @@ class MutationResolver:
         """
         try:
             validated_input = input.to_pydantic()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
 
         successful_updates = []
@@ -98,7 +105,8 @@ class MutationResolver:
                 await video_model.save()
                 successful_updates.append(video_id_str)
 
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error updating video {video_id_str}: {e}")
                 continue # skip failures for individual videos
         
         return VideosBatchOperationResult(
@@ -130,7 +138,8 @@ class MutationResolver:
 
         except VideoNotFoundError:
             raise
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during record video view: {e}")
             raise DatabaseOperationError("record_video_view", f"videoId-{videoId}")
 
     async def resolve_delete_video(self,videoId: strawberry.ID) -> VideoMutationResult:
@@ -153,14 +162,18 @@ class MutationResolver:
             await video_model.delete()
 
             await _update_tag_counts(old_tags, set())
+            logger.info(f"Updated tag counts after deleting video {videoId}")
 
             os.remove(resolver_utils().to_mounted_path(video_path))
+            logger.info(f"Deleted video file at path: {video_path}")
 
             return VideoMutationResult(success=True, video=None)
 
         except VideoNotFoundError:
+            logger.error(f"Video not found: {videoId}")
             raise
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database operation error during delete video: {e}")
             raise DatabaseOperationError("delete_video", f"videoId-{videoId}")
         
 

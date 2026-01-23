@@ -1,10 +1,8 @@
 from functools import lru_cache
 import os
-import subprocess
 
 from bson import ObjectId
 from cachetools import TTLCache
-from fastapi import HTTPException
 from fastapi.concurrency import run_in_threadpool
 from pymongo.errors import DuplicateKeyError
 import strawberry
@@ -13,6 +11,9 @@ from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import DatabaseOperationError, FileBrowseError
 from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.video_type import Video
+from src.logger import get_logger
+
+logger = get_logger("resolver_utils")
 
 
 # cache for directory size and last modified time
@@ -61,13 +62,17 @@ class ResolverUtils:
                                         node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
                                     )
                                 )
-                            except DuplicateKeyError:
+                            except DuplicateKeyError as e:
+                                logger.error(f"Duplicate key error inserting video document for file {entry.path}: {e}")
                                 raise DatabaseOperationError(operation="insert_video_document", details=f" file {entry.path}: Duplicate key error.")
-                            except (OSError, Exception):
+                            except (OSError, Exception) as e:
+                                logger.error(f"Error accessing file {entry.path}: {e}")
                                 raise FileBrowseError(f"Error accessing file {entry.path}")
-        except (OSError, Exception):
+        except (OSError, Exception) as e:
+            logger.error(f"Error accessing directory {abs_path}: {e}")
             raise FileBrowseError(f"Error accessing directory {abs_path}")
-
+        
+        logger.info(f"Cached size: {_dir_cache.currsize}/{_dir_cache.maxsize}")
         return fileBrowse_nodes
 
     async def _get_directory_node(self, path: str, name: str, fileBrowse_nodes: list[FileBrowseNode], refreshFlag: bool = False):
@@ -119,7 +124,7 @@ class ResolverUtils:
 
         result = self._get_total_size_and_last_modified_time_impl(directory_path)
         _dir_cache.update({directory_path: result})
-
+        
         return result
 
     def _get_total_size_and_last_modified_time_impl(self, directory_path: str) -> tuple[float, float]:
@@ -146,7 +151,7 @@ class ResolverUtils:
                 last_modified_time = stat.st_mtime
         except (OSError, Exception):
             # If any error occurs (e.g., permission denied), log and return 0 size and time
-            print(f"Error accessing directory {directory_path} to calculate size and last modified time.")
+            logger.warning(f"Error accessing directory {directory_path} to calculate size and last modified time.")
 
         return total_size, last_modified_time
 

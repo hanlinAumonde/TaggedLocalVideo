@@ -40,6 +40,12 @@ validation:
   page_number_min: 1
   page_number_max: 10000
 
+# Logging config
+logging:
+  log_dir: logs
+  rotation: "10 MB"
+  retention: "30 days"
+
 # MongoDB config
 mongo:
   host: localhost

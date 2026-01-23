@@ -1,4 +1,3 @@
-from typing import Optional
 import strawberry
 from enum import Enum
 
@@ -8,7 +7,6 @@ from src.schema.types.pydantic_types.search_type import (
     SuggestionInputModel,
     VideoSearchInputModel
 )
-
 
 @strawberry.enum
 class VideoSortOption(Enum):

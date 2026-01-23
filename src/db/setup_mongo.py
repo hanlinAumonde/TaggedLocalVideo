@@ -1,8 +1,10 @@
 from beanie import init_beanie
 from pymongo import AsyncMongoClient
-#from motor.motor_asyncio import AsyncIOMotorClient
 from .models.Video_model import VideoModel, VideoTagModel
 from src.config import MongoConfig, get_settings
+from src.logger import get_logger
+
+logger = get_logger("setup_mongo")
 
 async def setup_mongo():
     mongo_config: MongoConfig = get_settings().mongo
@@ -13,9 +15,9 @@ async def setup_mongo():
         mongo_uri += f"{mongo_config.username}:{mongo_config.password}@" + mongo_host_port + f"/{mongo_config.database}?authSource={mongo_config.database}"
     else:
         mongo_uri += mongo_host_port
-    #client = AsyncIOMotorClient(mongo_uri)
+    
     client = AsyncMongoClient(mongo_uri)
 
     #initialize Beanie with the client and database name
     await init_beanie(database=client.get_database(mongo_config.database), document_models=[VideoModel, VideoTagModel])
-    print("MongoDB setup complete")
+    logger.info("MongoDB setup complete")
