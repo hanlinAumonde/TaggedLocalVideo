@@ -34,6 +34,7 @@ import {
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
+import { ErrorHandlerService } from '../../../services/errorHandler-service/error-handler-service';
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -57,6 +58,7 @@ export class VideoEditPanel implements OnInit {
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
+  private errorHandlerService = inject(ErrorHandlerService);
 
   mode: VideoEditPanelMode = this.data.mode;
   video = signal<EditableVideo | undefined>(this.data.video);
@@ -190,11 +192,13 @@ export class VideoEditPanel implements OnInit {
               this.dialogRef.close(result.data);
             } else {
               // update failed, keep the dialog open for user to retry
+              this.errorHandlerService.emitError('Failed to update video metadata');
               console.error('Failed to update video metadata');
             }
           },
           error: (err) => {
             this.isSaving.set(false);
+            this.errorHandlerService.emitError('Error updating video metadata: ' + err.message);
             console.error('Error updating video metadata:', err);
           }
         });

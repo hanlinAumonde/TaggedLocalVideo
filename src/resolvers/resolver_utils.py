@@ -151,7 +151,7 @@ class ResolverUtils:
                 last_modified_time = stat.st_mtime
         except (OSError, Exception):
             # If any error occurs (e.g., permission denied), log and return 0 size and time
-            logger.warning(f"Error accessing directory {directory_path} to calculate size and last modified time.")
+            logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
 
         return total_size, last_modified_time
 

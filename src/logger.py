@@ -67,7 +67,7 @@ def setup_logger(
         rotation=rotation,
         retention=retention,
         backtrace=True,      # Show full traceback
-        diagnose=True,       # Show variable values (set to False in production)
+        diagnose=False,       
         encoding="utf-8",
     )
 

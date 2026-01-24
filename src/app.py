@@ -1,17 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import asynccontextmanager
-import strawberry
+from fastapi.responses import JSONResponse
 from strawberry.fastapi import GraphQLRouter
-
+from src.schema.strawberry_schema import schema
 from src.db.setup_mongo import setup_mongo
 from src.router import video_router
-from src.schema.mutation_schema import Mutation
-from .schema.query_schema import Query
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.logger import setup_logger, get_logger
-
-schema = strawberry.Schema(query=Query, mutation=Mutation)
 
 # Initialize logger
 settings = get_settings()
@@ -29,8 +25,20 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Application shutdown")
 
+async def global_exception_handler(request: Request, exc: HTTPException):
+    logger.error(
+        f"Unhandled exception: {exc.status_code} - {exc.detail}"
+        f" on path: {request.url.path}"
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
 def create_app():
     app = FastAPI(lifespan=lifespan)
+
+    app.add_exception_handler(HTTPException, global_exception_handler)
 
     app.add_middleware(
         CORSMiddleware,

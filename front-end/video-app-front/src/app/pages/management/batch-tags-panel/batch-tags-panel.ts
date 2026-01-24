@@ -16,6 +16,7 @@ import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
 import { startWith } from 'rxjs';
+import { ErrorHandlerService } from '../../../services/errorHandler-service/error-handler-service';
 
 export interface BatchTagsPanelData {
   videos: BrowsedVideo[];
@@ -43,6 +44,7 @@ export class BatchTagsPanel {
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
+  private errorHandlerService = inject(ErrorHandlerService);
 
   videos = this.data.videos;
 
@@ -144,8 +146,10 @@ export class BatchTagsPanel {
           this.dialogRef.close(true);
         }
       },
-      error: () => {
+      error: (err) => {
         this.isSaving.set(false);
+        this.errorHandlerService.emitError('Error performing batch update on videos: ' + err.message);
+        console.error('Error performing batch update on videos:', err);
       }
     });
   }
