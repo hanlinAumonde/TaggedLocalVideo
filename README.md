@@ -1,100 +1,102 @@
-# Video App - 全栈视频管理应用
+English | [中文](README.cn.md)
 
-一个简单的本地视频元数据管理、流传输和浏览webUI应用，支持视频分类、标签管理、搜索和网页播放。
+# Video App - Full-Stack Video Management Application
 
-## ✨ 功能特性
+A simple local video metadata management, streaming, and browsing web UI application with support for video categorization, tag management, search, and web playback.
 
-- 🏷️ **标签管理** - 视频标签系统，支持批量操作
-- 📁 **目录浏览** - 本地文件系统目录浏览
-- 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成
-- ❤️ **收藏功能** - 视频收藏与播放统计
-- 📱 **响应式设计** - 适配多种屏幕尺寸
+## ✨ Features
 
-## 🛠️ 技术栈
+- 🏷️ **Tag Management** - Video tagging system with batch operations support
+- 📁 **Directory Browsing** - Local file system directory browsing
+- 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg
+- ❤️ **Favorites** - Video favorites and view statistics
+- 📱 **Responsive Design** - Adapts to various screen sizes
 
-### 后端
-| 技术 | 用途 |
-|------|------|
-| FastAPI | Web框架 |
-| Strawberry | GraphQL服务 |
-| MongoDB | 数据库 |
+## 🛠️ Tech Stack
+
+### Backend
+| Technology | Purpose |
+|------------|---------|
+| FastAPI | Web Framework |
+| Strawberry | GraphQL Server |
+| MongoDB | Database |
 | Beanie | MongoDB ODM |
-| pytest | 单元测试 |
+| pytest | Unit Testing |
 
-### 前端
-| 技术 | 用途 |
-|------|------|
-| Angular 21 | 前端框架 (Standalone) |
-| Apollo Client | GraphQL客户端 |
-| Angular Material | UI组件库 |
-| Tailwind CSS v4 | 样式框架 |
-| Video.js | 视频播放器 |
+### Frontend
+| Technology | Purpose |
+|------------|---------|
+| Angular 21 | Frontend Framework (Standalone) |
+| Apollo Client | GraphQL Client |
+| Angular Material | UI Component Library |
+| Tailwind CSS v4 | Styling Framework |
+| Video.js | Video Player |
 
-### 部署
-| 技术 | 用途 |
-|------|------|
-| Docker | 容器化 |
-| docker-compose | 容器编排 |
-| ffmpeg | 缩略图生成 |
+### Deployment
+| Technology | Purpose |
+|------------|---------|
+| Docker | Containerization |
+| docker-compose | Container Orchestration |
+| ffmpeg | Thumbnail Generation |
 
-## 📁 项目结构
+## 📁 Project Structure
 
 ```
 video-app/
-├── main.py                    # 后端入口 (localhost:12000)
-├── config.yaml               # 配置文件
-├── Dockerfile                # Docker镜像配置
-├── docker-compose.yml        # Docker编排配置
-├── src/                      # 后端源码
-│   ├── app.py               # FastAPI应用工厂
-│   ├── config.py            # 配置管理
-│   ├── errors.py            # 自定义异常
-│   ├── db/                  # 数据库层
-│   │   ├── setup_mongo.py   # MongoDB连接
-│   │   └── models/          # 数据模型
-│   ├── router/              # HTTP路由
+├── main.py                    # Backend entry (localhost:12000)
+├── config.yaml               # Configuration file
+├── Dockerfile                # Docker image config
+├── docker-compose.yml        # Docker compose config
+├── src/                      # Backend source code
+│   ├── app.py               # FastAPI application factory
+│   ├── config.py            # Configuration management
+│   ├── errors.py            # Custom exceptions
+│   ├── db/                  # Database layer
+│   │   ├── setup_mongo.py   # MongoDB connection
+│   │   └── models/          # Data models
+│   ├── router/              # HTTP routes
 │   ├── schema/              # GraphQL Schema
-│   └── resolvers/           # GraphQL解析器
-├── tests/                    # 测试文件
-└── front-end/               # 前端项目
+│   └── resolvers/           # GraphQL resolvers
+├── tests/                    # Test files
+└── front-end/               # Frontend project
     └── video-app-front/
         └── src/app/
-            ├── core/graphql/    # GraphQL操作
-            ├── pages/           # 页面组件
-            ├── services/        # 服务层
-            └── shared/          # 共享组件
+            ├── core/graphql/    # GraphQL operations
+            ├── pages/           # Page components
+            ├── services/        # Service layer
+            └── shared/          # Shared components
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 使用 Docker 部署（推荐）
+### Docker Deployment (Recommended)
 
-#### 环境要求
+#### Requirements
 - Docker & Docker Compose
 
-#### 步骤
+#### Steps
 
-**1. 克隆项目**
+**1. Clone the project**
 ```bash
 git clone <repository-url>
 cd video-app
 ```
 
-**2. 配置视频资源路径**
+**2. Configure video resource paths**
 
-编辑 `docker-compose.yml`，修改后端服务的 volumes 映射：
+Edit `docker-compose.yml` to modify the backend service volumes mapping:
 
 ```yaml
 backend:
   volumes:
     - ./logs:/app/logs
-    # 将宿主机的视频目录映射到容器内
-    # 格式: 宿主机路径:容器内路径
+    # Map host video directories to container
+    # Format: host_path:container_path
     - /your/video/path1:/app/resources/Resource-1
     - /your/video/path2:/app/resources/Resource-2
 ```
 
-编辑 `config.yaml`，确保 `resource_paths` 与容器内路径一致：
+Edit `config.yaml` to ensure `resource_paths` matches the container paths:
 
 ```yaml
 resource_paths:
@@ -104,14 +106,14 @@ resource_paths:
 root_path: /app/resources
 ```
 
-**3. 启动服务**
+**3. Start services**
 ```bash
 docker-compose up -d
 ```
 
-访问 `http://localhost` 即可使用。
+Access `http://localhost` to use the application.
 
-**4. 以watch模式启动docker-compose（便于开发调试）**
+**4. Start docker-compose in watch mode (for development)**
 ```bash
 docker-compose watch
 # or
@@ -120,18 +122,18 @@ docker-compose up --build -d
 
 ---
 
-### 手动安装（开发环境）
+### Manual Installation (Development)
 
-#### 环境要求
+#### Requirements
 
-- [uv](https://docs.astral.sh/uv/) (Python 包管理器)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 - Node.js 24+
 - MongoDB 6.0+
-- ffmpeg (用于缩略图生成)
+- ffmpeg (for thumbnail generation)
 
-#### 步骤
+#### Steps
 
-**1. 安装 uv**
+**1. Install uv**
 ```bash
 # Windows (PowerShell)
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
@@ -140,109 +142,108 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-**2. 准备 MongoDB**
+**2. Prepare MongoDB**
 
-- 确保 MongoDB 服务已启动，并记录连接信息。
-- 可以使用本地安装的 MongoDB，或使用 Docker 运行
-- 可在`video_tag_db`数据库中创建有足够权限（CRUD，集合、索引操作）的用户（如有需要），或不设置认证。
+- Ensure MongoDB service is running and note the connection details.
+- You can use a locally installed MongoDB or run it via Docker.
+- Optionally create a user with sufficient permissions (CRUD, collection, index operations) in the `video_tag_db` database, or run without authentication.
 
+**3. Configure backend**
 
-**3. 配置后端**
-
-编辑 `config.yaml`：
+Edit `config.yaml`:
 
 ```yaml
-# 视频资源路径（使用本地绝对路径）
+# Video resource paths (use local absolute paths)
 resource_paths:
   Resource-1: /your/video/path1
   Resource-2: /your/video/path2
 
-# 本地开发时注释掉 root_path
+# Comment out root_path for local development
 # root_path: /app/resources
 
-# MongoDB 配置
+# MongoDB configuration
 mongo:
   host: localhost
   port: 27017
   database: video_tag_db
-  username: your_username    # 如无认证可留空
-  password: your_password    # 如无认证可留空
+  username: your_username    # Leave empty if no auth
+  password: your_password    # Leave empty if no auth
 ```
 
-**4. 启动后端**
+**4. Start backend**
 ```bash
-# 安装依赖
+# Install dependencies
 uv sync
 
-# 启动服务
+# Start service
 uv run main.py
 ```
 
-后端将运行在 `http://localhost:12000`
+Backend will run at `http://localhost:12000`
 
-**5. 配置前端**
+**5. Configure frontend**
 
-编辑 `front-end/video-app-front/src/environments/environment.development.ts`：
+Edit `front-end/video-app-front/src/environments/environment.development.ts`:
 
 ```typescript
 export const environment = {
     production: false,
-    backend_api: "http://localhost:12000",  // 后端地址
-    // ... 其他配置保持默认
+    backend_api: "http://localhost:12000",  // Backend address
+    // ... keep other settings as default
 }
 ```
 
-**6. 启动前端**
+**6. Start frontend**
 ```bash
 cd front-end/video-app-front
 
-# 安装依赖
+# Install dependencies
 npm install
 
-# 若开发中修改了后端 GraphQL schema，需重新生成代码
+# Regenerate code if backend GraphQL schema was modified
 npm run codegen
 
-# 启动开发服务器
+# Start development server
 npm start
 ```
 
-前端将运行在 `http://localhost:4200`
+Frontend will run at `http://localhost:4200`
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-### config.yaml 完整配置
+### Full config.yaml Configuration
 
 ```yaml
-# 视频资源路径映射
-# Docker部署: 使用容器内路径 (需配合docker-compose.yml的volumes)
-# 手动安装: 使用本地绝对路径
+# Video resource path mapping
+# Docker deployment: use container paths (must match docker-compose.yml volumes)
+# Manual installation: use local absolute paths
 resource_paths:
   Resource-1: /app/resources/Resource-1  # Docker
   Resource-2: /app/resources/Resource-2
-  # Resource-1: D:/videos/folder1        # 手动安装示例
+  # Resource-1: D:/videos/folder1        # Manual installation example
   # Resource-2: E:/videos/folder2
 
-# Docker部署时需要设置，手动安装时注释掉
+# Required for Docker deployment, comment out for manual installation
 root_path: /app/resources
 
-# 缓存配置
+# Cache configuration
 cache_config:
-  max_size: 2048    # 最大缓存条目数
-  ttl: 300          # 缓存过期时间（秒）
+  max_size: 2048    # Maximum cache entries
+  ttl: 300          # Cache expiration time (seconds)
 
-# 分页配置
+# Pagination configuration
 page_size_default:
   homepage_videos: 5
   homepage_tags: 50
   searchpage: 15
 
-# 搜索建议数量限制
+# Search suggestion limits
 suggestion_limit:
   name: 10
   author: 10
   tag: 20
 
-# 支持的视频格式
+# Supported video formats
 video_extensions:
   - .mp4
   - .avi
@@ -255,7 +256,7 @@ video_extensions:
   - .mpg
   - .mpeg
 
-# 验证规则 (需与前端 environment.ts 保持同步)
+# Validation rules (must sync with frontend environment.ts)
 validation:
   name_max_length: 200
   author_max_length: 50
@@ -265,68 +266,64 @@ validation:
   page_number_min: 1
   page_number_max: 10000
 
-# 日志配置
+# Logging configuration
 logging:
   log_dir: logs
   rotation: "10 MB"
   retention: "30 days"
 
-# MongoDB 配置
-# Docker部署时会通过环境变量覆盖 host
+# MongoDB configuration
+# Docker deployment will override host via environment variable
 mongo:
-  host: localhost       # Docker时会被MONGO_HOST环境变量覆盖
+  host: localhost       # Overridden by MONGO_HOST env var in Docker
   port: 27017
   database: video_tag_db
-  username: ""          # 如无认证可留空
+  username: ""          # Leave empty if no auth
   password: ""
 ```
 
-### 前端环境配置
+### Frontend Environment Configuration
 
-**开发环境** (`environment.development.ts`):
+**Development** (`environment.development.ts`):
 ```typescript
-backend_api: "http://localhost:12000"  // 指向本地后端
+backend_api: "http://localhost:12000"  // Points to local backend
 ```
 
-**生产环境** (`environment.ts`):
+**Production** (`environment.ts`):
 ```typescript
-backend_api: ""  // 空字符串，使用相对路径（nginx代理）
+backend_api: ""  // Empty string, uses relative path (nginx proxy)
 ```
 
-## 📖 API 文档
+## 📖 API Documentation
 
-### GraphQL 端点
+### GraphQL Endpoint
 
 ```
 http://localhost:12000/graphql
 ```
 
+### Queries
 
-### 查询 (Queries)
+| Query | Description |
+|-------|-------------|
+| `SearchVideos` | Search videos |
+| `getTopTags` | Get top tags |
+| `getSuggestions` | Get search suggestions |
+| `getVideoById` | Get video by ID |
+| `browseDirectory` | Browse directory |
 
-| 查询 | 描述 |
-|------|------|
-| `SearchVideos` | 搜索视频 |
-| `getTopTags` | 获取热门标签 |
-| `getSuggestions` | 获取搜索建议 |
-| `getVideoById` | 根据ID获取视频 |
-| `browseDirectory` | 浏览目录 |
+### Mutations
 
-### 变更 (Mutations)
+| Mutation | Description |
+|----------|-------------|
+| `updateVideoMetadata` | Update video metadata |
+| `batchUpdate` | Batch update |
+| `recordVideoView` | Record view count |
+| `deleteVideo` | Delete video |
 
-| 变更 | 描述 |
-|------|------|
-| `updateVideoMetadata` | 更新视频元数据 |
-| `batchUpdate` | 批量更新 |
-| `recordVideoView` | 记录播放次数 |
-| `deleteVideo` | 删除视频 |
+### HTTP Endpoints
 
-### HTTP 端点
-
-| 端点 | 方法 | 描述 |
-|------|------|------|
-| `/video/stream/{id}` | GET | 视频流（支持Range请求，1MB分块） |
-| `/video/thumbnail` | GET | 获取缩略图 |
-
-
-
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/video/stream/{id}` | GET | Video stream (supports Range requests, 1MB chunks) |
+| `/video/thumbnail` | GET | Get thumbnail |
