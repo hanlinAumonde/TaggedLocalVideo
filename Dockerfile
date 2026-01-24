@@ -18,12 +18,13 @@ ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 
 # copy dependency files first (leverage Docker layer caching)
-#COPY pyproject.toml uv.lock ./
+# COPY pyproject.toml uv.lock ./
 COPY pyproject.toml ./
 
 # install dependencies (without installing the project itself)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev
+#    uv sync --locked --no-install-project --no-dev
+     uv sync --no-install-project --no-dev
 
 COPY main.py .
 COPY config.yaml .
