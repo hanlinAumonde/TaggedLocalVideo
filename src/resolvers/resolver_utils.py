@@ -38,36 +38,39 @@ class ResolverUtils:
                     await self._get_directory_node(abs_resource_path, name, fileBrowse_nodes, refreshFlag)
             else:
                 with os.scandir(abs_path) as entries:
-                    for entry in entries:
-                        if entry.is_dir():
-                            await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, refreshFlag)
-                        elif entry.is_file() and self.is_video_file(entry.name):
-                            try:
-                                stat = entry.stat()
-                                video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
-                                    {"path": self.to_host_path(entry.path)},
-                                    {"$setOnInsert": VideoModel(
-                                        path=self.to_host_path(entry.path),
-                                        name=entry.name,
-                                        isDir=False,
-                                        lastModifyTime=stat.st_mtime,
-                                        size=stat.st_size,
-                                        tags=[]
-                                    ).model_dump()},
-                                    upsert=True, return_document=True
-                                )
-
-                                fileBrowse_nodes.append(
-                                    FileBrowseNode(
-                                        node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
+                    while True:
+                        try:
+                            entry = next(entries)
+                            logger.info(f"Processing entry: {entry.path}")
+                            if entry.is_dir():
+                                await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, refreshFlag)
+                            elif entry.is_file() and self.is_video_file(entry.name):
+                                    stat = entry.stat()
+                                    video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
+                                        {"path": self.to_host_path(entry.path)},
+                                        {"$setOnInsert": VideoModel(
+                                            path=self.to_host_path(entry.path),
+                                            name=entry.name,
+                                            isDir=False,
+                                            lastModifyTime=stat.st_mtime,
+                                            size=stat.st_size,
+                                            tags=[]
+                                        ).model_dump()},
+                                        upsert=True, return_document=True
                                     )
-                                )
-                            except DuplicateKeyError as e:
-                                logger.error(f"Duplicate key error inserting video document for file {entry.path}: {e}")
-                                raise DatabaseOperationError(operation="insert_video_document", details=f" file {entry.path}: Duplicate key error.")
-                            except (OSError, Exception) as e:
-                                logger.error(f"Error accessing file {entry.path}: {e}")
-                                raise FileBrowseError(f"Error accessing file {entry.path}")
+
+                                    fileBrowse_nodes.append(
+                                        FileBrowseNode(
+                                            node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
+                                        )
+                                    )
+                        except StopIteration:
+                            break
+                        except OSError as e:
+                            logger.error(f"Error processing file {entry.path}: {e}")
+                            # Skip this entry if any error occurs
+                            continue
+
         except (OSError, Exception) as e:
             logger.error(f"Error accessing directory {abs_path}: {e}")
             raise FileBrowseError(f"Error accessing directory {abs_path}")
@@ -82,8 +85,8 @@ class ResolverUtils:
             self.get_path_standard_format(path),
             refreshFlag
         )
-
-        if total_size > 0:
+        # Append directory node only when there is at least one video file inside or
+        if total_size != 0.0 and last_modified_time != 0.0:
             fileBrowse_nodes.append(
                 FileBrowseNode(
                     node=Video.create_new(
@@ -120,39 +123,47 @@ class ResolverUtils:
         Uses caching to avoid redundant calculations.
         """
         if not refreshFlag and directory_path in _dir_cache:
-             return _dir_cache.get(directory_path)
+            return _dir_cache.get(directory_path)
 
-        result = self._get_total_size_and_last_modified_time_impl(directory_path)
+        result = self._get_total_size_and_last_modified_time_impl(directory_path, refreshFlag)
         _dir_cache.update({directory_path: result})
         
         return result
 
-    def _get_total_size_and_last_modified_time_impl(self, directory_path: str) -> tuple[float, float]:
+    def _get_total_size_and_last_modified_time_impl(self, directory_path: str, refreshFlag: bool) -> tuple[float, float]:
         total_size = 0.0
         last_modified_time = 0.0
+        
+        def calculate_entry():
+            nonlocal total_size, last_modified_time
+            try:
+                with os.scandir(directory_path) as entries:
+                    for entry in entries:
+                        if entry and not refreshFlag:
+                            total_size = -1.0
+                            last_modified_time = -1.0
+                            return
+                        
+                        if entry.is_dir():
+                            dir_size, dir_mtime = self.get_total_size_and_last_modified_time(
+                                self.get_path_standard_format(entry.path),
+                                refreshFlag
+                            )
+                            total_size += dir_size
+                            last_modified_time = max(last_modified_time, dir_mtime)
+                        elif entry.is_file() and self.is_video_file(entry.name):
+                            stat = entry.stat()
+                            total_size += stat.st_size
+                            last_modified_time = max(last_modified_time, stat.st_mtime)
 
-        try:
-            with os.scandir(directory_path) as entries:
-                for entry in entries:
-                    if entry.is_dir():
-                        dir_size, dir_mtime = self.get_total_size_and_last_modified_time(
-                            self.get_path_standard_format(entry.path)
-                        )
-                        total_size += dir_size
-                        last_modified_time = max(last_modified_time, dir_mtime)
-                    elif entry.is_file() and self.is_video_file(entry.name):
-                        stat = entry.stat()
-                        total_size += stat.st_size
-                        last_modified_time = max(last_modified_time, stat.st_mtime)
+            except (OSError, Exception):
+                # If any error occurs (e.g., permission denied), log and return 0 size and time
+                logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
+                total_size = -1.0
+                last_modified_time = -1.0
 
-            # If no videos found, use the folder's modification time
-            if last_modified_time == 0.0:
-                stat = os.stat(directory_path)
-                last_modified_time = stat.st_mtime
-        except (OSError, Exception):
-            # If any error occurs (e.g., permission denied), log and return 0 size and time
-            logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
-
+        calculate_entry()
+        
         return total_size, last_modified_time
 
     # ============================================================

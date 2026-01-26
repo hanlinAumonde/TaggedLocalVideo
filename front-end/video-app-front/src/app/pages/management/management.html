@@ -168,12 +168,22 @@
 
                 <!-- Size -->
                 <td class="px-4 py-3 text-gray-600 truncate">
-                  {{ formatSize(item.node.size) }}
+                  @if(item.node.size > 0){
+                    {{ formatSize(item.node.size) }}
+                  }
+                  @else{
+                    <span class="text-gray-400">-</span>
+                  }
                 </td>
 
                 <!-- Last Update -->
                 <td class="px-4 py-3 text-gray-600 truncate">
-                  {{ formatDate(item.node.lastModifyTime) }}
+                  @if(item.node.lastModifyTime > 0){
+                    {{ formatDate(item.node.lastModifyTime) }}
+                  }
+                  @else{
+                    <span class="text-gray-400">-</span>
+                  }
                 </td>
 
                 <!-- Tags -->

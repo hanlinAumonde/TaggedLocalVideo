@@ -21,8 +21,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: video-app-backend
-    # ports:
-    #   - "12000:12000"
+    ports:
+      - "12000:12000"
     volumes:
       - ./logs:/app/logs
       # mount resource paths
