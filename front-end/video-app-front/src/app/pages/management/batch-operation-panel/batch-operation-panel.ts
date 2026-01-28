@@ -61,6 +61,11 @@ export class BatchOperationPanel {
   get authorInput() { return this.form.get('authorInput') as FormControl<string>; }
   get tagInput() { return this.form.get('tagInput') as FormControl<string>; }
 
+  newAuthor = toSignal(
+    this.authorInput.valueChanges.pipe(startWith(this.authorInput.value)), 
+    { initialValue: '' }
+  );
+
   tags = signal<string[]>([]);
   isSaving = signal<boolean>(false);
 
@@ -128,7 +133,7 @@ export class BatchOperationPanel {
   }
 
   handleSave() {
-    if (this.tags().length === 0 && this.authorInput.value.trim() === '' && this.isVideoMode) return;
+    if (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode) return;
     if (this.form.invalid || this.tagsError()) return;
 
     this.isSaving.set(true);
@@ -175,8 +180,8 @@ export class BatchOperationPanel {
   }
 
   saveButtonDisabled = computed(() => {
-    return this.isSaving() || this.form.invalid || this.tagsError() || 
-      (this.tags().length === 0 && this.authorInput.value.trim() === '' && this.isVideoMode)
+    return this.isSaving() || this.form.invalid || this.tagsError()? true : false || 
+      (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode)
   });
 
   handleCancel() {
