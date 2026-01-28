@@ -1,5 +1,5 @@
 <aside
-  class="h-full bg-gray-200 dark:bg-gray-800 flex flex-col py-4 transition-all duration-300"
+  class="h-full bg-gray-200 dark:bg-neutral-700 flex flex-col py-4 transition-all duration-300"
   [class.w-16]="!isExpanded()"
   [class.w-48]="isExpanded()"
 >
@@ -8,7 +8,7 @@
     <button
       mat-icon-button
       (click)="toggleSidebar()"
-      class="hover:bg-gray-300 dark:hover:bg-gray-700 rounded-lg"
+      class="hover:bg-gray-300 dark:hover:bg-neutral-500 rounded-lg"
       [matTooltip]="isExpanded() ? 'Collapse' : 'Expand'"
       matTooltipPosition="right"
     >
@@ -21,9 +21,9 @@
     @for (item of navItems; track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-gray-400 dark:bg-gray-600"
+        routerLinkActive="bg-gray-400 dark:bg-neutral-500"
         (click)="onNavItemClick()"
-        class="flex items-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+        class="flex items-center hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors cursor-pointer"
         [class.justify-center]="!isExpanded()"
         [class.px-4]="isExpanded()"
         [class.py-3]="true"

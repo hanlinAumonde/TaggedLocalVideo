@@ -2,14 +2,14 @@
   <!-- Header -->
   <div class="flex items-center justify-between mb-6 mr-16">
     <div class="flex items-center gap-4">
-      <span class="bg-gray-800 dark:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium">Current path:</span>
+      <span class="bg-gray-800 dark:bg-neutral-700 text-white px-4 py-2 rounded-lg font-medium">Current path:</span>
       <span class="text-gray-700 dark:text-gray-300 font-mono">{{ currentPathDisplay() }}</span>
     </div>
     <div class="flex gap-2">
       <button
         [disabled]="isAtRoot()"
         (click)="navigateBack()"
-        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 dark:bg-neutral-600 dark:hover:bg-neutral-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
       >
         Return
       </button>
@@ -21,10 +21,10 @@
   <!-- Table with Back to Top Button -->
   <div class="flex gap-4 items-end">
     <!-- Table Container -->
-    <div class="flex-1 min-w-0 bg-white dark:bg-gray-800 rounded-lg shadow-2xl">
+    <div class="flex-1 min-w-0 bg-white dark:bg-neutral-800 rounded-lg shadow-2xl">
       <table class="w-full table-fixed">
         <!-- Table Header -->
-        <thead class="bg-gray-200 dark:bg-gray-700 border-b dark:border-gray-600 font-medium text-gray-600 dark:text-gray-300 sticky top-0 z-10">
+        <thead class="bg-gray-200 dark:bg-neutral-700 border-b dark:border-neutral-600 font-medium text-gray-600 dark:text-gray-300 sticky top-0 z-10">
           <tr>
             <th class="w-[5%] px-4 py-3 text-left font-medium">
               <mat-checkbox
@@ -34,7 +34,7 @@
               />
             </th>
             <th class="w-[8%] px-4 py-3 text-left font-medium">Type</th>
-            <th class="w-[35%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            <th class="w-[35%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-neutral-600 transition-colors"
                 (click)="sortItemsBy(0)">
               <span class="flex items-center">
                 Name
@@ -45,7 +45,7 @@
                 }
               </span>
             </th>
-            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-neutral-600 transition-colors"
                 (click)="sortItemsBy(1)">
               <span class="flex items-center">
                 Size
@@ -56,7 +56,7 @@
                 }
               </span>
             </th>
-            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 dark:hover:bg-neutral-600 transition-colors"
                 (click)="sortItemsBy(2)">
               <span class="flex items-center">
                 Last update
@@ -138,9 +138,9 @@
                 }
               </mat-menu>
               <tr
-                class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                class="border-b dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-700"
                 [class.bg-blue-50]="isSelected(item.node.id)"
-                [class.dark:bg-blue-900/30]="isSelected(item.node.id)"
+                [class.dark:bg-neutral-600/30]="isSelected(item.node.id)"
                 [class.cursor-pointer]="item.node.isDir"
                 [matContextMenuTriggerFor]="operateMenu"
                 (click)="onClickFileBrowseNode(item)"
@@ -209,7 +209,7 @@
                       }
                       @if (getRemainingTagsCount(item.node) > 0) {
                         <span
-                          class="px-2 py-0.5 bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded text-sm cursor-help"
+                          class="px-2 py-0.5 bg-gray-200 dark:bg-neutral-600 text-gray-600 dark:text-gray-300 rounded text-sm cursor-help"
                           [matTooltip]="getAllRemainingTags(item.node)"
                         >
                           +{{ getRemainingTagsCount(item.node) }}
@@ -255,14 +255,14 @@
     </button>
     <button
       (click)="refreshDirectory()"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-gray-200 dark:bg-gray-700 hover:cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-gray-200 dark:bg-neutral-700 hover:cursor-pointer hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
     >
       <mat-icon fontIcon="refresh"></mat-icon>
       <span class="text-xs">Refresh</span>
     </button>
     <button
       (click)="scrollTo(0)"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 bg-gray-600 dark:bg-gray-700 hover:cursor-pointer hover:bg-gray-500 dark:hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 bg-gray-600 dark:bg-neutral-700 hover:cursor-pointer hover:bg-gray-500 dark:hover:bg-neutral-600 text-white rounded-lg font-medium transition-colors"
     >
       <mat-icon fontIcon="arrow_upward"></mat-icon>
       <span class="text-xs">Top</span>

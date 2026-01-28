@@ -9,7 +9,7 @@ cache_config:
   ttl: 300  # in seconds
 
 page_size_default:
-  homepage_videos: 5
+  homepage_videos: 10
   homepage_tags: 50
   searchpage: 15
 

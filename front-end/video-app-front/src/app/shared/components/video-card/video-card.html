@@ -1,53 +1,53 @@
 @if (video()) {
   <a [routerLink]="['/video', video()!.id]" target="_blank">
     <mat-card
-      class="video-card w-full hover:shadow-lg transition-shadow cursor-pointer m-3"
+      class="@container w-full hover:shadow-lg transition-shadow cursor-pointer m-3"
     >
       <!-- 16:9 -->
-      <div class="relative w-full pt-[56.25%] bg-gray-200 overflow-hidden">
+      <div class="relative w-full pt-[56.25%] rounded-t-md bg-gray-200 dark:bg-gray-700 overflow-hidden">
         <img
           [src]="thumbnailSrc()"
           [alt]="video()!.name"
-          class="absolute top-0 left-0 w-full h-full"
+          class="absolute top-0 left-0 w-full h-full rounded-b-none"
           [class.object-cover]="!isDefaultThumbnail()"
           [class.object-contain]="isDefaultThumbnail()"
           [class.p-4]="isDefaultThumbnail()"
         />
 
-        <mat-chip class="absolute bottom-2 left-2 bg-black/70!">
-          <p class="text-white! text-xs!">{{ views() }} Views</p>
-        </mat-chip>
+        <div class="absolute rounded-[6cqw] bottom-[3cqw] left-[3cqw] bg-black/70!">
+          <p class="text-white! p-[1cqw] text-[5cqw] ml-[2cqw] mr-[2cqw]"><strong>{{ views() }} Views</strong></p>
+        </div>
       </div>
 
-      <mat-card-content class="p-2! h-20 relative">
-        <div class="h-10 overflow-hidden">
-          <p class="text-sm font-semibold leading-tight line-clamp-2 m-1!">
+      <mat-card-content class="p-[1cqw]! h-fit relative">
+        <div class="h-[15cqw] overflow-hidden">
+          <p class="text-[5cqw] font-semibold leading-tight line-clamp-2 m-[1cqw] truncate">
             {{ video()!.name }}
           </p>
         </div>
-        <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center text-sm">
-          <span class="font-medium text-gray-700 truncate max-w-[60%] italic">{{ video()!.author }}</span>
-          <span class="text-gray-400">{{ formattedDate }}</span>
+        <div class="absolute bottom-[1cqw] left-[2cqw] right-[2cqw] flex justify-between items-center text-[4cqw]">
+          <span class="font-medium text-gray-700 dark:text-gray-300 truncate max-w-[60%]">{{ video()!.author }}</span>
+          <span class="text-gray-400 dark:text-gray-500">{{ formattedDate }}</span>
         </div>
       </mat-card-content>
     </mat-card>
   </a>
 } @else {
   <!-- Skeleton Card -->
-  <mat-card class="video-card w-full m-3">
+  <mat-card class="@container w-full m-3">
     <!-- 16:9 -->
     <div
-      class="relative w-full pt-[56.25%] bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 bg-size-[200%_100%] animate-[shimmer_1.5s_infinite]"
+      class="relative w-full pt-[56.25%] rounded-md bg-linear-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700 bg-size-[200%_100%] animate-[shimmer_1.5s_infinite]"
     ></div>
 
-    <mat-card-content class="p-2! h-18 relative">
-      <div class="h-10 space-y-1">
-        <div class="h-4 bg-gray-200 rounded animate-pulse"></div>
-        <div class="h-4 bg-gray-200 rounded w-4/5 animate-pulse"></div>
+    <mat-card-content class="p-[clamp(0.25rem,2cqi,0.5rem)]! h-[clamp(3rem,22cqi,4.5rem)] relative">
+      <div class="h-[clamp(1.5rem,12cqi,2.5rem)] space-y-1">
+        <div class="h-[clamp(0.625rem,3cqi,1rem)] bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+        <div class="h-[clamp(0.625rem,3cqi,1rem)] bg-gray-200 dark:bg-gray-700 rounded w-4/5 animate-pulse"></div>
       </div>
-      <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
-        <div class="h-3 bg-gray-200 rounded w-1/3 animate-pulse"></div>
-        <div class="h-3 bg-gray-200 rounded w-1/4 animate-pulse"></div>
+      <div class="absolute bottom-[clamp(0.25rem,2cqi,0.5rem)] left-[clamp(0.25rem,2cqi,0.5rem)] right-[clamp(0.25rem,2cqi,0.5rem)] flex justify-between items-center">
+        <div class="h-[clamp(0.375rem,2cqi,0.75rem)] bg-gray-200 dark:bg-gray-700 rounded w-1/3 animate-pulse"></div>
+        <div class="h-[clamp(0.375rem,2cqi,0.75rem)] bg-gray-200 dark:bg-gray-700 rounded w-1/4 animate-pulse"></div>
       </div>
     </mat-card-content>
   </mat-card>

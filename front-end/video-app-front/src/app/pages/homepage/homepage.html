@@ -1,20 +1,26 @@
 <div class="p-6 space-y-8 ml-5 mr-5">
   <!-- Loved Videos Section -->
-  <section>
+  <section class="@container">
     <div class="flex justify-between items-center mb-6 mt-10">
-      <h2 class="text-2xl font-bold text-pink-600">Loved Videos</h2>
+      <h2 class="text-[1.5cqw] font-semibold text-pink-600 dark:text-pink-200
+               bg-pink-200 dark:bg-pink-500 rounded-3xl px-5 py-1">Loved Videos</h2>
       @if(!lovedVideos().loading && lovedVideos().data && lovedVideos().data!.videos.length > 0){
-        <button matButton="tonal" color="primary" (click)="OnMoreClick('loved')"><strong>More</strong></button>
+        <button 
+          matButton="tonal" 
+          (click)="OnMoreClick('loved')"
+        >
+          <strong class="text-[1cqw]">More</strong>
+        </button>
       }
     </div>
     @if (lovedVideos().loading) {
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
       @for (item of [1,2,3,4,5]; track $index) {
         <app-video-card />
       }
     </div>
     } @else if(lovedVideos().data && lovedVideos().data!.videos.length > 0){
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
       @for (video of lovedVideos().data!.videos; track video.id) {
         <app-video-card [video]="video" />
       }
@@ -25,21 +31,27 @@
   </section>
 
   <!-- Latest Viewed Section -->
-  <section>
+  <section class="@container">
     <div class="flex justify-between items-center mb-6 mt-10">
-      <h2 class="text-2xl font-bold text-purple-600">Latest Viewed</h2>
+      <h2 class="text-[1.5cqw] font-semibold text-purple-600 dark:text-purple-200
+               bg-purple-200 dark:bg-purple-500 rounded-3xl px-5 py-1">Latest Viewed</h2>
       @if(!latestViewedVideos().loading && latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
-        <button matButton="tonal" color="primary" (click)="OnMoreClick('latest')"><strong>More</strong></button>
+        <button 
+          matButton="tonal" 
+          (click)="OnMoreClick('latest')"
+        >
+        <strong class="text-[1cqw]">More</strong>
+      </button>
       }
     </div>
     @if (latestViewedVideos().loading) {
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
       </div>
     } @else if(latestViewedVideos().data && latestViewedVideos().data!.videos.length > 0){
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
         @for (video of latestViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
@@ -50,21 +62,27 @@
   </section>
 
   <!-- Most Viewed Section -->
-  <section>
+  <section class="@container">
     <div class="flex justify-between items-center mb-6 mt-10">
-      <h2 class="text-2xl font-bold text-cyan-600">Most Viewed</h2>
+      <h2 class="text-[1.5cqw] font-semibold text-cyan-600 dark:text-cyan-200 
+               bg-cyan-200 dark:bg-cyan-600 rounded-3xl px-5 py-1">Most Viewed</h2>
       @if(!mostViewedVideos().loading && mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
-        <button matButton="tonal" color="primary" (click)="OnMoreClick('mostViewed')"><strong>More</strong></button>
+        <button 
+          matButton="tonal" 
+          (click)="OnMoreClick('mostViewed')"
+        >
+          <strong class="text-[1cqw]">More</strong>
+        </button>
       }
     </div>
     @if (mostViewedVideos().loading) {
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
         @for (item of [1,2,3,4,5]; track $index) {
           <app-video-card />
         }
       </div>
     } @else if(mostViewedVideos().data && mostViewedVideos().data!.videos.length > 0){
-      <div class="grid grid-cols-5 gap-4 mb-20">
+      <div class="grid @4xl:grid-cols-5 grid-cols-2 gap-4 mb-10">
         @for (video of mostViewedVideos().data!.videos; track video.id) {
           <app-video-card [video]="video" />
         }
@@ -75,8 +93,8 @@
   </section>
 
   <!-- Top Tags Section -->
-  <section>
-    <h2 class="text-xl font-bold mb-4 dark:text-gray-100">Top Tags</h2>
+  <section class="@container">
+    <h2 class="text-[1.5cqw] font-mono mb-4 dark:text-gray-100 bg-gray-200 dark:bg-gray-700 rounded-3xl px-5 py-1 w-fit">Top Tags</h2>
     <div class="flex flex-wrap gap-2">
       @if (topTags().loading) {
         @for (item of [1,2,3,4,5,6,7,8,9,10]; track $index) {
@@ -90,8 +108,9 @@
           [state]="tagState(tag.name)"
           target="_blank"
           (click)="onTagClick(tag.name)"
-          class="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-400 text-white cursor-pointer transition-colors">
-            <span class="font-bold">{{ tag.name }}</span>: <span class="italic">{{ tag.count }}</span>
+          class="px-3 py-1.5 rounded-full dark:bg-stone-800 hover:dark:bg-stone-500 text-white 
+                 bg-stone-500 hover:bg-stone-800 cursor-pointer text-[1cqw] transition-colors">
+            <span class="font-bold">{{ tag.name }}</span> (<span class="italic">{{ tag.count }}</span>)
         </a>
         }
       }
