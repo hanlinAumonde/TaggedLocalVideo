@@ -1,5 +1,5 @@
 <aside
-  class="h-full bg-gray-200 flex flex-col py-4 transition-all duration-300"
+  class="h-full bg-gray-200 dark:bg-gray-800 flex flex-col py-4 transition-all duration-300"
   [class.w-16]="!isExpanded()"
   [class.w-48]="isExpanded()"
 >
@@ -8,11 +8,11 @@
     <button
       mat-icon-button
       (click)="toggleSidebar()"
-      class="hover:bg-gray-300 rounded-lg"
+      class="hover:bg-gray-300 dark:hover:bg-gray-700 rounded-lg"
       [matTooltip]="isExpanded() ? 'Collapse' : 'Expand'"
       matTooltipPosition="right"
     >
-      <mat-icon class="text-gray-700">apps</mat-icon>
+      <mat-icon class="text-gray-700 dark:text-gray-200">apps</mat-icon>
     </button>
   </div>
 
@@ -21,18 +21,18 @@
     @for (item of navItems; track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-gray-400"
+        routerLinkActive="bg-gray-400 dark:bg-gray-600"
         (click)="onNavItemClick()"
-        class="flex items-center hover:bg-gray-300 transition-colors cursor-pointer"
+        class="flex items-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors cursor-pointer"
         [class.justify-center]="!isExpanded()"
         [class.px-4]="isExpanded()"
         [class.py-3]="true"
         [matTooltip]="!isExpanded() ? item.label : ''"
         matTooltipPosition="right"
       >
-        <mat-icon class="text-gray-700">{{ item.icon }}</mat-icon>
+        <mat-icon class="text-gray-700 dark:text-gray-200">{{ item.icon }}</mat-icon>
         @if (isExpanded()) {
-          <span class="ml-3 text-gray-700 font-medium">{{ item.label }}</span>
+          <span class="ml-3 text-gray-700 dark:text-gray-200 font-medium">{{ item.label }}</span>
         }
       </a>
     }

@@ -1,8 +1,8 @@
-<div class="flex h-screen w-screen overflow-hidden">
+<div class="flex h-screen w-screen overflow-hidden bg-white dark:bg-gray-900">
   <app-sidebar />
   <div class="flex-1 flex flex-col overflow-hidden">
     <app-header [title]="headerTitle()" />
-    <main [id]="rootMainContainerId" class="flex-1 overflow-y-auto bg-gray-50">
+    <main [id]="rootMainContainerId" class="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-900">
       <router-outlet />
     </main>
   </div>
@@ -13,7 +13,7 @@
   @for (toast of errorService.toasts(); track toast.id) {
     <div
       class="pointer-events-auto relative flex items-center gap-3 px-4 py-3 rounded-lg
-             bg-white border border-red-500/70 text-red-500/70 max-w-sm
+             bg-white dark:bg-gray-800 border border-red-500/70 text-red-500/70 max-w-sm
              transition-all duration-300"
       [class.animate-toast-enter]="!toast.removing"
       [class.animate-toast-exit]="toast.removing">

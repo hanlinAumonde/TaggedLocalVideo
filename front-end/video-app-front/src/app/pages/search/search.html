@@ -1,23 +1,23 @@
 <div class="p-6 min-h-[calc(100vh-5rem)]" [class.flex]="!hasSearched()" [class.flex-col]="!hasSearched()" [class.justify-center]="!hasSearched()">
   <!-- Search Bar -->
   <div class="flex justify-center transition-all duration-500 ease-out">
-    <div class="flex items-center border border-gray-300 rounded-full bg-white shadow-sm max-w-7xl w-full">
+    <div class="flex items-center border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 shadow-sm max-w-7xl w-full">
       <!-- Title input area -->
       <div class="flex-1 flex items-center px-4 py-2 min-w-0">
-        <span class="text-sm font-medium text-orange-500 bg-orange-100 px-2 py-0.5 rounded shrink-0">Title</span>
+        <span class="text-sm font-medium text-orange-500 bg-orange-100 dark:bg-orange-500/20 px-2 py-0.5 rounded shrink-0">Title</span>
         <input
           type="text"
           [formControl]="searchForm.controls.title"
           [matAutocomplete]="titleAuto"
           [class.border-red-500]="title.hasError('maxLength')"
-          class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
+          class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0 dark:text-gray-100"
           (keydown.enter)="onSearch()"
         />
         @if (title.value) {
           <button
             type="button"
             (click)="clearInput('title')"
-            class="text-gray-400 hover:text-gray-600 flex flex-col items-center"
+            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex flex-col items-center"
           >
             <mat-icon fontIcon="close"></mat-icon>
           </button>
@@ -37,7 +37,7 @@
           }@else if(titleSuggestions().data && titleSuggestions().data!.length > 0){
             @for (title of titleSuggestions().data; track title) {
               <mat-option [value]="title">
-                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm font-semibold truncate">{{ title }}</span>
+                <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm font-semibold truncate">{{ title }}</span>
               </mat-option>
             }
           }@else{
@@ -47,24 +47,24 @@
       </div>
 
       <!-- Divider -->
-      <div class="w-px h-8 bg-gray-300"></div>
+      <div class="w-px h-8 bg-gray-300 dark:bg-gray-600"></div>
 
       <!-- Creator input area -->
       <div class="flex-1 flex items-center px-4 py-2 min-w-0">
-        <span class="text-sm font-medium text-green-600 bg-green-100 px-2 py-0.5 rounded shrink-0">Creator</span>
+        <span class="text-sm font-medium text-green-600 bg-green-100 dark:bg-green-500/20 px-2 py-0.5 rounded shrink-0">Creator</span>
         <input
           type="text"
           [formControl]="searchForm.controls.author"
           [matAutocomplete]="authorAuto"
           [class.border-red-500]="author.hasError('maxLength')"
-          class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0"
+          class="flex-1 px-3 py-1 outline-none bg-transparent min-w-0 dark:text-gray-100"
           (keydown.enter)="onSearch()"
         />
         @if (author.value) {
           <button
             type="button"
             (click)="clearInput('author')"
-            class="text-gray-400 hover:text-gray-600 flex flex-col items-center"
+            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex flex-col items-center"
           >
             <mat-icon fontIcon="close"></mat-icon>
           </button>
@@ -83,7 +83,7 @@
           }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
             @for (author of authorSuggestions().data; track author) {
               <mat-option [value]="author">
-                <span class="px-3 py-1 bg-gray-200 rounded-full text-sm font-semibold truncate">{{ author }}</span>
+                <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm font-semibold truncate">{{ author }}</span>
               </mat-option>
             }
           }@else{
@@ -96,12 +96,12 @@
       <button
         (click)="onSearch()"
         [disabled]="searchForm.invalid"
-        class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white flex items-center justify-center mr-1 shrink-0"
+        class="w-10 h-10 rounded-full bg-gray-800 hover:bg-gray-700 dark:bg-gray-600 dark:hover:bg-gray-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white flex items-center justify-center mr-1 shrink-0"
       >
         <mat-icon fontIcon="search"></mat-icon>
       </button>
     </div>
-    
+
   </div>
 
   <div class="flex justify-center gap-3 mt-6" [class.mb-15]="hasSearched()">
@@ -112,7 +112,7 @@
       matBadgeColor="warn"
       matBadgeSize="small"
       (click)="openTagFilter()"
-      class="h-10 px-4 rounded-md bg-gray-700 hover:bg-gray-600 text-white font-medium"
+      class="h-10 px-4 rounded-md bg-gray-700 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-500 text-white font-medium"
     >
       Tag filter
     </button>
@@ -121,7 +121,7 @@
     <select
       [ngModel]="searchParams().sortBy"
       (ngModelChange)="onSortChange($event)"
-      class="h-10 px-4 rounded-md bg-gray-700 text-white font-medium cursor-pointer outline-none"
+      class="h-10 px-4 rounded-md bg-gray-700 dark:bg-gray-600 text-white font-medium cursor-pointer outline-none"
     >
       @for (option of sortOptions; track option.value) {
         <option [ngValue]="option.value">{{ option.label }}</option>
@@ -145,7 +145,7 @@
       } @else if (searchResults().error) {
         <div class="text-center py-12">
           <mat-icon fontIcon="error_outline"></mat-icon>
-          <p class="mt-4 text-gray-600">Failed to load search results</p>
+          <p class="mt-4 text-gray-600 dark:text-gray-400">Failed to load search results</p>
         </div>
       } @else if (searchResults().data && searchResults().data!.videos.length > 0) {
         <!-- Pagination -->
@@ -165,7 +165,7 @@
       } @else {
         <div class="text-center py-12">
           <mat-icon fontIcon="search_off"></mat-icon>
-          <p class="mt-4 text-gray-600">No videos found. Try adjusting your search criteria.</p>
+          <p class="mt-4 text-gray-600 dark:text-gray-400">No videos found. Try adjusting your search criteria.</p>
         </div>
       }
     </div>

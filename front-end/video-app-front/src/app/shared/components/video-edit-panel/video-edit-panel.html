@@ -6,7 +6,7 @@
     @if (isFullMode()) {
       <!-- Title -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
           Title:
         </label>
         <mat-form-field appearance="outline" class="w-full">
@@ -21,7 +21,7 @@
 
       <!-- Loved -->
       <div class="flex items-center gap-4">
-        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
+        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full">
           Loved:
         </label>
         <mat-checkbox formControlName="loved"></mat-checkbox>
@@ -29,7 +29,7 @@
 
       <!-- Creator -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
           Creator:
         </label>
         <mat-form-field appearance="outline" class="w-full">
@@ -56,7 +56,7 @@
             }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
               @for (author of authorSuggestions().data; track author) {
                 <mat-option [value]="author">
-                  <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ author }}</span>
+                  <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ author }}</span>
                 </mat-option>
               }
             }@else{
@@ -68,7 +68,7 @@
 
       <!-- Introduction -->
       <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
           Introduction:
         </label>
         <mat-form-field appearance="outline" class="w-full">
@@ -86,7 +86,7 @@
 
     <!-- Tags Section -->
     <div class="flex flex-col gap-3">
-      <label class="text-sm font-semibold text-blue-700 bg-blue-100 px-3 py-1 rounded-full inline-block w-fit">
+      <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
         Tags:
       </label>
 
@@ -95,9 +95,9 @@
         <div class="text-red-500 text-sm">{{ tagsError() }}</div>
       }
       @if (tags().length > 0) {
-        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
+        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
           @for (tag of tags(); track tag) {
-            <mat-chip class="bg-white! border! border-gray-300!">
+            <mat-chip class="bg-white! dark:bg-gray-600! border! border-gray-300! dark:border-gray-500!">
               <span class="font-medium">{{ tag }}</span>
               <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
                 <mat-icon class="text-base!">cancel</mat-icon>
@@ -133,7 +133,7 @@
           }@else if(tagSuggestions().data && tagSuggestions().data!.length > 0){
             @for (tag of tagSuggestions().data; track tag) {
             <mat-option [value]="tag">
-              <span class="px-3 py-1 bg-gray-200 rounded-full text-sm">{{ tag }}</span>
+              <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ tag }}</span>
             </mat-option>
             }
           }@else{

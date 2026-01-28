@@ -1,6 +1,7 @@
 @import "tailwindcss";
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
 @import 'video.js/dist/video-js.css';
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* Global styles */
 html,
@@ -8,6 +9,12 @@ body {
   height: 100%;
   margin: 0;
   font-family: Roboto, 'Helvetica Neue', sans-serif;
+  color-scheme: light;
+}
+
+html.dark,
+html.dark body {
+  color-scheme: dark;
 }
 
 /* Skeleton loading animation */

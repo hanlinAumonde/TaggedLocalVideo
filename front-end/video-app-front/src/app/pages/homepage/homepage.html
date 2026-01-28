@@ -20,7 +20,7 @@
       }
     </div>
     } @else {
-      <p class="text-gray-500 italic">No loved videos yet. Show some love to your favorite videos!</p>
+      <p class="text-gray-500 dark:text-gray-400 italic">No loved videos yet. Show some love to your favorite videos!</p>
     }
   </section>
 
@@ -45,7 +45,7 @@
         }
     </div>
     } @else{
-      <p class="text-gray-500 italic">No viewed videos yet. Start watching some videos!</p>
+      <p class="text-gray-500 dark:text-gray-400 italic">No viewed videos yet. Start watching some videos!</p>
     }
   </section>
 
@@ -70,21 +70,21 @@
         }
       </div>
     } @else{
-      <p class="text-gray-500 italic">No videos available. Check back later!</p>
+      <p class="text-gray-500 dark:text-gray-400 italic">No videos available. Check back later!</p>
     }
   </section>
 
   <!-- Top Tags Section -->
   <section>
-    <h2 class="text-xl font-bold mb-4">Top Tags</h2>
+    <h2 class="text-xl font-bold mb-4 dark:text-gray-100">Top Tags</h2>
     <div class="flex flex-wrap gap-2">
       @if (topTags().loading) {
         @for (item of [1,2,3,4,5,6,7,8,9,10]; track $index) {
-          <div class="h-8 w-20 bg-gray-300 rounded-full animate-pulse"></div>
+          <div class="h-8 w-20 bg-gray-300 dark:bg-gray-700 rounded-full animate-pulse"></div>
         }
       } @else {
         @for (tag of topTags().data; track tag.name) {
-        <a 
+        <a
           [routerLink]="[searchPageApi]"
           [queryParams]="{ currentPageNumber: 1 }"
           [state]="tagState(tag.name)"
