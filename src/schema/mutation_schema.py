@@ -10,6 +10,8 @@ class Mutation:
 
     batchUpdate: VideosBatchOperationResult = strawberry.mutation(MutationResolver.resolve_batch_update)
 
+    batchUpdateDirectory: VideosBatchOperationResult = strawberry.mutation(MutationResolver.resolve_directory_batch_update)
+
     recordVideoView: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_record_video_view)
 
     deleteVideo: VideoMutationResult = strawberry.mutation(MutationResolver.resolve_delete_video)

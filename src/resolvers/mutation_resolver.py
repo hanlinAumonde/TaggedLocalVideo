@@ -1,11 +1,15 @@
 import os
+from fastapi.concurrency import run_in_threadpool
+from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 import strawberry
 from bson import ObjectId
 import time
 
 from src.logger import get_logger
 from src.resolvers.resolver_utils import resolver_utils
-from src.schema.types.fileBrowse_type import VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
+from src.schema.types.fileBrowse_type import BatchResultType, DirectoryVideosBatchOperationInput, TagsOperationMappingInput, VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
+from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
@@ -34,8 +38,16 @@ class MutationResolver:
             if not video_model:
                 raise VideoNotFoundError(str(validated_input.videoId))
 
+            update_tags: dict[str, tuple[int, bool]] = {}
+
             old_tags = set(video_model.tags or [])
-            new_tags = set(validated_input.tags)
+            new_tags = set(validated_input.tags or [])
+
+            # determine tag changes
+            for tag in new_tags - old_tags:
+                update_tags[tag] = (1, True)
+            for tag in old_tags - new_tags:
+                update_tags[tag] = (1, False)
 
             # update fields if provided
             if validated_input.name is not None:
@@ -50,7 +62,7 @@ class MutationResolver:
             video_model.tags = validated_input.tags
 
             await video_model.save()
-            await _update_tag_counts(old_tags, new_tags)
+            await _update_tag_counts(update_tags=update_tags)
 
             updated_video = await Video.from_mongoDB(video_model)
             return VideoMutationResult(success=True, video=updated_video)
@@ -76,43 +88,47 @@ class MutationResolver:
         except Exception as e:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
+        
+        successful_updates = await _batch_update(
+            videoIDs=validated_input.videoIds,
+            fileEntries=None,
+            author=validated_input.author, 
+            tagsOperation=validated_input.tagsOperation
+        )
+        success_status = BatchResultType.Success if successful_updates == len(validated_input.videoIds) else \
+                         BatchResultType.PartialSuccess if successful_updates > 0 else \
+                         BatchResultType.Failure
 
-        successful_updates = []
-
-        for video_id_str in validated_input.videoIds:
-            try:
-                video_model = await VideoModel.get(ObjectId(str(video_id_str)))
-                if not video_model:
-                    continue
-
-                # Update Author if provided
-                if validated_input.author is not None:
-                    video_model.author = validated_input.author
-
-                # Update Tags if operation provided
-                if validated_input.tagsOperation is not None:
-                    old_tags = set(video_model.tags or [])
-                    tags_to_update = set(validated_input.tagsOperation.tags)
-
-                    if validated_input.tagsOperation.append:
-                        new_tags = old_tags.union(tags_to_update)
-                    else:
-                        new_tags = old_tags - tags_to_update
-
-                    video_model.tags = list(new_tags)
-                    await _update_tag_counts(old_tags, new_tags)
-
-                await video_model.save()
-                successful_updates.append(video_id_str)
-
-            except Exception as e:
-                logger.error(f"Error updating video {video_id_str}: {e}")
-                continue # skip failures for individual videos
+        return VideosBatchOperationResult(
+            resultType = success_status,
+            #successfulUpdatesMappings = successful_updates
+        )
+    
+    async def resolve_directory_batch_update(self,input: DirectoryVideosBatchOperationInput) -> VideosBatchOperationResult:
+        try:
+            validated_input = input.to_pydantic()
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
+            raise InputValidationError(field="DirectoryVideosBatchOperationInput", issue="Invalid input data for batch updating directory videos")
+        
+        dir_path = resolver_utils().get_absolute_resource_path(validated_input.relativePath)
+        entries = await run_in_threadpool(resolver_utils().get_all_video_entries_in_directory, dir_path)
+        
+        successful_updates = await _batch_update(
+            None,
+            entries,
+            validated_input.author,
+            validated_input.tagsOperation
+        )
+        success_status = BatchResultType.Success if successful_updates == len(entries) else \
+                         BatchResultType.PartialSuccess if successful_updates > 0 else \
+                         BatchResultType.Failure
         
         return VideosBatchOperationResult(
-            success = len(successful_updates) > 0,
-            successfulUpdatesMappings = successful_updates
+            resultType = success_status,    
+            #successfulUpdatesMappings = successful_updates
         )
+
 
     async def resolve_record_video_view(self,videoId: strawberry.ID) -> VideoMutationResult:
         """
@@ -161,7 +177,7 @@ class MutationResolver:
 
             await video_model.delete()
 
-            await _update_tag_counts(old_tags, set())
+            await _update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
             logger.info(f"Updated tag counts after deleting video {videoId}")
 
             os.remove(resolver_utils().to_mounted_path(video_path))
@@ -176,35 +192,163 @@ class MutationResolver:
             logger.error(f"Database operation error during delete video: {e}")
             raise DatabaseOperationError("delete_video", f"videoId-{videoId}")
         
-
-async def _update_tag_counts(old_tags: set[str], new_tags: set[str]) -> None:
+async def _batch_update(videoIDs: list[str] | None,
+                        fileEntries: list[os.DirEntry[str]] | None,
+                        author: str | None,
+                        tagsOperation: TagsOperationMappingInputModel) -> int:
     """
-    update the tag counts in the database based on the changes in tags.
+    Batch update videos' metadata based on provided video IDs or paths.
+    Uses upsert for path-based queries to create new documents if they don't exist.
 
-    :param old_tags: Set of old tag names.
-    :param new_tags: Set of new tag names.
-    :type old_tags: set[str]
-    :type new_tags: set[str]
+    :param videoIDs: List of video IDs to update.
+    :param fileEntries: List of file entries to update.
+    :param author: New author name to set (if provided).
+    :param tagsOperation: Tags operation to append or remove.
+    :param findById: If True, treat videos as IDs; if False, treat as paths (with upsert).
+    :return: Number of documents modified or upserted.
+    """
+    if not videoIDs and not fileEntries:
+        return 0
+
+    successful_updates = 0
+    operations = []
+    update_tags: dict[str, tuple[int, bool]] = {}
+    no_need_update_flag = False
+
+    def track_tag_change(tags: set[str], is_increment: bool):
+        for tag in tags:
+            tag_record: tuple[int, bool] | None = update_tags.get(tag)
+            update_tags[tag] = (tag_record[0] + 1, is_increment) if tag_record else (1, is_increment)
+
+    def update_existing_videos_operations(video_models: list[VideoModel], findById: bool):
+        for video_model in video_models:
+            old_tags = set(video_model.tags or [])
+            filter_query = {"_id": video_model.id} if findById else {"path": video_model.path}
+            update_query = {}
+
+            if author is not None:
+                update_query["author"] = author
+
+            if tagsOperation is not None:
+                tags_set = set(tagsOperation.tags)
+                if tagsOperation.append:
+                    new_tags = old_tags.union(tags_set)
+                    track_tag_change(new_tags - old_tags, True)
+                else:
+                    new_tags = old_tags - tags_set
+                    track_tag_change(old_tags.intersection(tags_set), False)
+
+                update_query["tags"] = list(new_tags)
+
+            if update_query:
+                operations.append(UpdateOne(filter_query, {"$set": update_query}))
+        
+        if len(operations) == 0 and len(video_models) > 0:
+            nonlocal no_need_update_flag
+            no_need_update_flag = True
+
+    try:
+        if videoIDs is not None:
+            # find by IDs
+            video_models = await VideoModel.find_many(
+                {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIDs]}}
+            ).to_list()
+            update_existing_videos_operations(video_models, findById=True)
+        else:
+            # find by paths with upsert
+            paths = [resolver_utils().to_host_path(fe.path) for fe in fileEntries]
+            video_models = await VideoModel.find_many(
+                {"path": {"$in": paths}}
+            ).to_list()
+            existing_paths = {vm.path for vm in video_models}
+
+            # process existing documents
+            update_existing_videos_operations(video_models, findById=False)
+
+            # process new documents
+            for entry in fileEntries:
+                if resolver_utils().to_host_path(entry.path) in existing_paths:
+                    continue  # already processed
+
+                filter_query = {"path": resolver_utils().to_host_path(entry.path)}
+
+                set_on_insert = VideoModel(
+                    name=entry.name,
+                    path=resolver_utils().to_host_path(entry.path),
+                    isDir=False,
+                    lastModifyTime=entry.stat().st_mtime,
+                    size=entry.stat().st_size,
+                    tags=[]
+                ).model_dump()
+
+                if author is not None:
+                    set_on_insert["author"] = author
+
+                if tagsOperation is not None:
+                    tags_set = set(tagsOperation.tags)
+                    if tagsOperation.append:
+                        set_on_insert["tags"] = list(tags_set)
+                        track_tag_change(tags_set, True)
+                
+                update_doc = {"$setOnInsert": set_on_insert}
+                
+                operations.append(UpdateOne(filter_query, update_doc, upsert=True))
+
+        if operations:
+            result = await VideoModel.get_pymongo_collection().bulk_write(operations)
+            successful_updates = result.modified_count + result.upserted_count
+
+            await _update_tag_counts(update_tags=update_tags)
+        elif no_need_update_flag:
+            successful_updates = len(videoIDs) if videoIDs is not None else len(fileEntries)
+
+    except BulkWriteError as bwe:
+        logger.error(f"Bulk write error during bulk write operation: {bwe.details}")
+        raise DatabaseOperationError("batch_update", "bulk_write_failure")
+    except Exception as e:
+        logger.error(f"Error during batch update: {e}")
+        raise DatabaseOperationError("batch_update", "general_failure")
+
+    return successful_updates
+
+async def _update_tag_counts(update_tags: dict[str, tuple[int,bool]]) -> None:
+    """
+    update the tag counts in the database based on the changes in tags using bulk write.
+
+    :param update_tags: Dictionary mapping tag names to a tuple of (count change, is_increment).
+    :type update_tags: dict[str, tuple[int,bool]]
     :return: None
     :rtype: None
     """
-    tags_to_increment = new_tags - old_tags
-    tags_to_decrement = old_tags - new_tags
+    operations = []
 
-    for tag_name in tags_to_increment:
-        tag_model = await VideoTagModel.find_one({"name": tag_name})
-        if tag_model:
-            tag_model.tag_count += 1
-            await tag_model.save()
+    for tag_name, (count_change, is_increment) in update_tags.items():
+        if is_increment:
+            operations.append(
+                UpdateOne(
+                    {"name": tag_name},
+                    {"$inc": {"count": count_change}},
+                    upsert=True
+                )
+            )
         else:
-            new_tag = VideoTagModel(name=tag_name, tag_count=1)
-            await new_tag.insert()
+            operations.append(
+                UpdateOne(
+                    {"name": tag_name},
+                    {"$inc": {"count": -count_change}}
+                )
+            )
 
-    for tag_name in tags_to_decrement:
-        tag_model = await VideoTagModel.find_one({"name": tag_name})
-        if tag_model:
-            tag_model.tag_count = max(0, tag_model.tag_count - 1)
-            if tag_model.tag_count == 0:
-                await tag_model.delete()
-            else:
-                await tag_model.save()
+    try:
+        if operations:
+            await VideoTagModel.get_pymongo_collection().bulk_write(operations)
+
+        # delete tags with non-positive counts
+        decremented_tags = [tag for tag, (_, is_inc) in update_tags.items() if not is_inc]
+        if decremented_tags:
+            await VideoTagModel.find({"count": {"$lte": 0}}).delete()
+    
+    except BulkWriteError as bwe:
+        logger.error(f"Bulk write error during tag counts update: {bwe.details}")
+    except Exception as e:
+        logger.error(f"Error during bulk update of tag counts: {e}")

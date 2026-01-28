@@ -21,8 +21,7 @@ export const UPDATE_VIDEO_METADATA = gql`
 export const BATCH_UPDATE_VIDEOS = gql`
   mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
     batchUpdate(input: $input) {
-      success
-      successfulUpdatesMappings
+      resultType
     }
   }
 `;
@@ -47,6 +46,14 @@ export const DELETE_VIDEO = gql`
       video {
         id
       }
+    }
+  }
+`;
+
+export const BATCH_UPDATE_DIRECTORY = gql`
+  mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
+    batchUpdateDirectory(input: $input) {
+      resultType
     }
   }
 `;

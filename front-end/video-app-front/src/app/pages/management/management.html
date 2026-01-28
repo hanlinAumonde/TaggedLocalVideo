@@ -56,7 +56,7 @@
                 }
               </span>
             </th>
-            <th class="w-[20%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 transition-colors"
+            <th class="w-[12%] px-4 py-3 text-left font-medium cursor-pointer select-none hover:bg-gray-200 transition-colors"
                 (click)="sortItemsBy(2)">
               <span class="flex items-center">
                 Last update
@@ -68,6 +68,7 @@
               </span>
             </th>
             <th class="w-[25%] px-4 py-3 text-left font-medium">Tags</th>
+            <th class="w-[8%] px-4 py-3 text-left font-medium"></th>
           </tr>
         </thead>
 
@@ -75,7 +76,7 @@
           <!-- Loading State -->
           @if (directoryContents().loading) {
             <tr>
-              <td colspan="6" class="p-8 text-center">
+              <td colspan="7" class="p-8 text-center">
                 <mat-icon class="text-4xl text-gray-400 animate-spin" fontIcon="sync"></mat-icon>
                 <p class="mt-2 text-gray-500">Loading...</p>
               </td>
@@ -85,7 +86,7 @@
           <!-- Error State -->
           @else if (directoryContents().error) {
             <tr>
-              <td colspan="6" class="p-8 text-center">
+              <td colspan="7" class="p-8 text-center">
                 <mat-icon class="text-4xl text-red-400" fontIcon="error_outlined"></mat-icon>
                 <p class="mt-2 text-gray-500">Failed to load directory</p>
               </td>
@@ -95,7 +96,7 @@
           <!-- Empty State -->
           @else if (!directoryContents().data || directoryContents().data!.length === 0) {
             <tr>
-              <td colspan="6" class="p-8 text-center">
+              <td colspan="7" class="p-8 text-center">
                 <mat-icon class="text-4xl text-gray-400" fontIcon="folder_open"></mat-icon>
                 <p class="mt-2 text-gray-500">No items in this directory</p>
               </td>
@@ -106,31 +107,41 @@
           @else {
             @for (item of directoryContents().data; track item.node.id) {
               <mat-menu #operateMenu="matMenu">
-                <button mat-menu-item>
-                  <a
-                    [routerLink]="videoPage(item.node)"
-                    target="_blank"
-                    class="flex items-center"
-                  >
-                    <mat-icon fontIcon="play_circle"></mat-icon>
-                    <span>Play Video</span>
-                  </a>
-                </button>
-                <button mat-menu-item (click)="openEditPanel(item.node)">
-                  <mat-icon fontIcon="edit"></mat-icon>
-                  <span>Edit</span>
-                </button>
-                <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
-                  <mat-icon fontIcon="delete"></mat-icon>
-                  <span>Delete</span>
-                </button>
+                @if(item.node.isDir){
+                  <button mat-menu-item (click)="openBatchOperationPanel('directory', item.node.name)">
+                    <mat-icon fontIcon="backup"></mat-icon>
+                    <span>Sync videos</span>
+                  </button>
+                  <button mat-menu-item (click)="refreshSelectedDirectory(item)">
+                    <mat-icon fontIcon="refresh"></mat-icon>
+                    <span>Refresh Metadata</span>
+                  </button>
+                }@else{
+                  <button mat-menu-item>
+                    <a
+                      [routerLink]="videoPage(item.node)"
+                      target="_blank"
+                      class="flex items-center"
+                    >
+                      <mat-icon fontIcon="play_circle"></mat-icon>
+                      <span>Play Video</span>
+                    </a>
+                  </button>
+                  <button mat-menu-item (click)="openEditPanel(item.node)">
+                    <mat-icon fontIcon="edit"></mat-icon>
+                    <span>Edit</span>
+                  </button>
+                  <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
+                    <mat-icon fontIcon="delete"></mat-icon>
+                    <span>Delete</span>
+                  </button>
+                }
               </mat-menu>
               <tr
                 class="border-b hover:bg-gray-50"
                 [class.bg-blue-50]="isSelected(item.node.id)"
                 [class.cursor-pointer]="item.node.isDir"
                 [matContextMenuTriggerFor]="operateMenu"
-                [matContextMenuTriggerDisabled]="item.node.isDir"
                 (click)="onClickFileBrowseNode(item)"
               >
                 <!-- Checkbox -->
@@ -211,6 +222,17 @@
                     }
                   </div>
                 </td>
+
+                <!-- Operations Placeholder -->
+                <td class="px-4 py-3">
+                  <button 
+                    mat-icon-button
+                    [matMenuTriggerFor]="operateMenu"
+                    (click)="$event.stopPropagation()"
+                  >
+                    <mat-icon fontIcon="more_vert"></mat-icon>
+                  </button>
+                </td>
               </tr>
             }
           }
@@ -220,10 +242,10 @@
     <!-- placeholder for back to top button-->
     <div class="w-16"></div>
   </div>
-  <!-- Back to Top Button -->
+  <!-- Buttons group -->
   <div class="fixed bottom-1 right-6 self-end pb-2">
     <button
-      (click)="openBatchTagsPanel()"
+      (click)="openBatchOperationPanel('videos')"
       [disabled]="!hasSelection()"
       class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
     >

@@ -82,3 +82,12 @@ export const BROWSE_DIRECTORY = gql`
     }
   }
 `;
+
+export const GET_DIRECTORY_METADATA = gql`
+  query GetDirectoryMetadata($path: RelativePathInput!) {
+    getDirectoryMetadata(path: $path) {
+      totalSize
+      lastModifiedTime
+    }
+  }
+`;

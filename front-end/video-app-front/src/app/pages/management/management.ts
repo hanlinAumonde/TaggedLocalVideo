@@ -7,15 +7,21 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 
 import { GqlService } from '../../services/GQL-service/GQL-service';
-import { BrowseDirectoryDetail, BrowsedVideo, FileBrowseNode, VideoMutationDetail } from '../../shared/models/GQL-result.model';
+import { 
+  BrowseDirectoryDetail, 
+  BrowsedVideo, 
+  FileBrowseNode, 
+  VideoMutationDetail 
+} from '../../shared/models/GQL-result.model';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/video-edit-panel.model';
-import { BatchTagsPanel } from './batch-tags-panel/batch-tags-panel';
+import { BatchOperationPanel } from './batch-operation-panel/batch-operation-panel';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
 import { ItemsSortOption, ManagementState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
 import { DeleteCheckPanel } from './delete-check-panel/delete-check-panel';
+import { ErrorHandlerService } from '../../services/errorHandler-service/error-handler-service';
 
 @Component({
   selector: 'app-management',
@@ -33,6 +39,7 @@ export class Management {
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
   private statService = inject(PageStateService);
+  private errorHandlerService = inject(ErrorHandlerService);
 
   SORT_OPTIONS = ItemsSortOption;
   // true for ascending, false for descending
@@ -268,13 +275,47 @@ export class Management {
     });
   }
 
-  openBatchTagsPanel() {
-    const selectedVideos = this.getSelectedVideos();
-    if (selectedVideos.length === 0) return;
+  refreshSelectedDirectory(item: FileBrowseNode) {
+    this.gqlService.getDirectoryMetadataQuery(
+      this.currentPath().join('/') + '/' + item.node.name
+    ).subscribe({
+      next: (result) => {
+        if (result.data) {
+          this.directoryContents.update(contents => {
+            const updatedData = contents.data!.map(entry => {
+              if (entry.node.id === item.node.id && entry.node.isDir && result.data) {
+                return {
+                  ...entry,
+                  node: {
+                    ...entry.node,
+                    size: result.data.totalSize,
+                    lastModifyTime: result.data.lastModifiedTime
+                  }
+                };
+              }
+              return entry;
+            });
+            return { ...contents, data: updatedData };
+          });
+        }
+      },
+      error: (err) => {
+        this.errorHandlerService.emitError('Failed to refresh directory metadata: ' + err.message);
+      }
+    });
+  }
 
-    const dialogRef = this.dialog.open(BatchTagsPanel, {
+  openBatchOperationPanel(mode: 'videos' | 'directory', dirName?:string) {
+    const selectedVideos = this.getSelectedVideos();
+    if (selectedVideos.length === 0 && mode === 'videos') return;
+    if(mode === 'directory' && !dirName) return;
+
+    const data = mode === 'videos' ? { mode: mode, videos: selectedVideos }
+    : { mode: mode, selectedDirectoryPath: this.currentPath().join('/') + '/' + dirName! };
+
+    const dialogRef = this.dialog.open(BatchOperationPanel, {
       width: '500px',
-      data: { videos: selectedVideos }
+      data: data
     });
 
     dialogRef.afterClosed().subscribe(result => {

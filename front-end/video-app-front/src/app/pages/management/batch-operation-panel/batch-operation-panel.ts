@@ -11,15 +11,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-import { SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
+import { BatchResultType, DirectoryVideosBatchOperationInput, SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
 import { startWith } from 'rxjs';
 import { ErrorHandlerService } from '../../../services/errorHandler-service/error-handler-service';
 
-export interface BatchTagsPanelData {
-  videos: BrowsedVideo[];
+export interface BatchPanelData {
+  mode: 'videos' | 'directory';
+  videos?: BrowsedVideo[];
+  selectedDirectoryPath?: string;
 }
 
 @Component({
@@ -36,17 +38,19 @@ export interface BatchTagsPanelData {
     MatRadioModule,
     MatProgressSpinnerModule
   ],
-  templateUrl: './batch-tags-panel.html'
+  templateUrl: './batch-operation-panel.html'
 })
-export class BatchTagsPanel {
-  private dialogRef = inject(MatDialogRef<BatchTagsPanel>);
-  private data = inject<BatchTagsPanelData>(MAT_DIALOG_DATA);
+export class BatchOperationPanel {
+  private dialogRef = inject(MatDialogRef<BatchOperationPanel>);
+  private data = inject<BatchPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
   private errorHandlerService = inject(ErrorHandlerService);
 
-  videos = this.data.videos;
+  readonly isVideoMode = this.data.mode === 'videos';
+  readonly videos = this.data.videos ?? [];
+  readonly directoryPath = this.data.selectedDirectoryPath ?? '';
 
   form = this.formBuilder.group({
     authorInput: ['', [this.validationService.authorValidator()]],
@@ -124,35 +128,56 @@ export class BatchTagsPanel {
   }
 
   handleSave() {
-    if (this.tags().length === 0 && this.authorInput.value.trim() === '') return;
+    if (this.tags().length === 0 && this.authorInput.value.trim() === '' && this.isVideoMode) return;
     if (this.form.invalid || this.tagsError()) return;
 
     this.isSaving.set(true);
 
-    const input: VideosBatchOperationInput = {
-      videoIds: this.videos.map(video => video.id),
-      tagsOperation: this.tags().length > 0 ? {
-        tags: this.tags(),
-        append: this.form.value.mode === 'append'
-      } : undefined,
-      author: this.form.value.authorInput && this.form.value.authorInput.trim() !== '' ? 
-              this.form.value.authorInput.trim() : undefined
-    };
+    const tagsOperation = this.tags().length > 0 ? {
+      tags: this.tags(),
+      append: this.form.value.mode === 'append'
+    } : undefined;
 
-    this.gqlService.batchUpdateVideosMutation(input).subscribe({
+    const author = this.form.value.authorInput && this.form.value.authorInput.trim() !== ''
+      ? this.form.value.authorInput.trim()
+      : undefined;
+
+    const mutation$ = this.isVideoMode
+      ? this.gqlService.batchUpdateVideosMutation({
+          videoIds: this.videos.map(video => video.id),
+          tagsOperation,
+          author
+        } as VideosBatchOperationInput)
+      : this.gqlService.batchUpdateDirectoryMutation({
+          relativePath: { relativePath: this.directoryPath },
+          tagsOperation,
+          author
+        } as DirectoryVideosBatchOperationInput);
+
+    mutation$.subscribe({
       next: (result) => {
         this.isSaving.set(false);
-        if (result.data?.success) {
+        if (result.data?.resultType === BatchResultType.Success) {
           this.dialogRef.close(true);
+        } else if (result.data?.resultType === BatchResultType.PartialSuccess) {
+          this.errorHandlerService.emitError('Batch update completed with partial success. Some videos may not have been updated.');
+          this.dialogRef.close(true);
+        } else {
+          this.errorHandlerService.emitError('Batch update failed. No videos were updated.');
         }
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.errorHandlerService.emitError('Error performing batch update on videos: ' + err.message);
-        console.error('Error performing batch update on videos:', err);
+        this.errorHandlerService.emitError('Error performing batch update: ' + err.message);
+        console.error('Error performing batch update:', err);
       }
     });
   }
+
+  saveButtonDisabled = computed(() => {
+    return this.isSaving() || this.form.invalid || this.tagsError() || 
+      (this.tags().length === 0 && this.authorInput.value.trim() === '' && this.isVideoMode)
+  });
 
   handleCancel() {
     this.dialogRef.close();

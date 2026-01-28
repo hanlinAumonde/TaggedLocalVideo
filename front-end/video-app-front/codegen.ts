@@ -1,5 +1,5 @@
 import type { CodegenConfig } from '@graphql-codegen/cli';
-import { environment } from './src/environments/environment'
+import { environment } from './src/environments/environment.development'
 
 const config: CodegenConfig = {
   schema: environment.backend_api + "/graphql",

@@ -15,7 +15,10 @@ import {
   BrowseDirectoryGQL,
   DeleteVideoGQL,
   BatchUpdateVideosGQL,
-  VideosBatchOperationInput
+  BatchUpdateDirectoryGQL,
+  VideosBatchOperationInput,
+  DirectoryVideosBatchOperationInput,
+  GetDirectoryMetadataGQL
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -32,6 +35,7 @@ import {
   BatchUpdateVideosDetail,
   BrowseDirectoryDetail,
   DeleteVideoDetail,
+  DirectoryMetadataDetail,
   GetTopTagsDetail,
   ResultState,
   SearchVideosDetail,
@@ -56,6 +60,8 @@ export class GqlService {
   private browseDirectoryGQL = inject(BrowseDirectoryGQL)
   private deleteVideoGQL = inject(DeleteVideoGQL)
   private batchUpdateVideosGQL = inject(BatchUpdateVideosGQL)
+  private batchUpdateDirectoryGQL = inject(BatchUpdateDirectoryGQL)
+  private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
 
   private validationService = inject(ValidationService);
   private errorHandlerService = inject(ErrorHandlerService);
@@ -234,7 +240,7 @@ export class GqlService {
     return this.toResultStateObservable(
       this.batchUpdateVideosGQL.mutate({
         variables: {
-          input: { 
+          input: {
             videoIds: input.videoIds,
             tagsOperation: input.tagsOperation ?? undefined,
             author: input.author ?? undefined,
@@ -242,9 +248,39 @@ export class GqlService {
         }
       }),
       (data) => ({
-        success: data.batchUpdate?.success ?? false,
-        successfulUpdatesMappings: data.batchUpdate?.successfulUpdatesMappings ?? []
+        resultType: data.batchUpdate?.resultType ?? false
       } as BatchUpdateVideosDetail)
+    )
+  }
+
+  batchUpdateDirectoryMutation(input: DirectoryVideosBatchOperationInput): Observable<ResultState<BatchUpdateVideosDetail>> {
+    return this.toResultStateObservable(
+      this.batchUpdateDirectoryGQL.mutate({
+        variables: {
+          input: {
+            relativePath: input.relativePath,
+            tagsOperation: input.tagsOperation ?? undefined,
+            author: input.author ?? undefined,
+          }
+        }
+      }),
+      (data) => ({
+        resultType: data.batchUpdateDirectory?.resultType ?? false
+      } as BatchUpdateVideosDetail)
+    )
+  }
+
+  getDirectoryMetadataQuery(relativePath?: string): Observable<ResultState<DirectoryMetadataDetail>> {
+    return this.toResultStateObservable(
+      this.getDirectoryMetadataGQL.watch({
+        variables: { path: { 
+          relativePath: relativePath
+        } }
+      }).valueChanges,
+      (data) => ({
+        totalSize: data.getDirectoryMetadata?.totalSize ?? 0,
+        lastModifiedTime: data.getDirectoryMetadata?.lastModifiedTime ?? ''
+      } as DirectoryMetadataDetail)
     )
   }
 }

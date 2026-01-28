@@ -61,3 +61,7 @@ class VideoSearchResult:
     pagination: Pagination
     videos: list[Video]
 
+@strawberry.type
+class DirectoryMetadataResult:
+    totalSize: float
+    lastModifiedTime: float

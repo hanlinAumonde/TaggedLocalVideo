@@ -2,6 +2,7 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 from src.config import get_settings
+from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 
 
 class TagsOperationMappingInputModel(BaseModel):
@@ -24,8 +25,7 @@ class TagsOperationMappingInputModel(BaseModel):
         return v
 
 
-class VideosBatchOperationInputModel(BaseModel):
-    videoIds: list[str]
+class BatchOperationInputModel(BaseModel):
     tagsOperation: Optional[TagsOperationMappingInputModel] = None
     author: Optional[str] = None
 
@@ -39,3 +39,9 @@ class VideosBatchOperationInputModel(BaseModel):
         if len(v) > max_length:
             raise ValueError(f"Author too long (max {max_length})")
         return v
+    
+class VideosBatchOperationInputModel(BatchOperationInputModel):
+    videoIds: list[str]
+
+class DirectoryVideosBatchOperationInputModel(BatchOperationInputModel):
+    relativePath: RelativePathInputModel

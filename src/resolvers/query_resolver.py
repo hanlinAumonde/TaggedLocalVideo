@@ -1,3 +1,4 @@
+from fastapi.concurrency import run_in_threadpool
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
@@ -5,6 +6,7 @@ from src.logger import get_logger
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
 from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.search_type import (
+    DirectoryMetadataResult,
     SearchFrom,
     SuggestionInput,
     VideoSearchInput,
@@ -205,17 +207,35 @@ class QueryResolver:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
+        abs_path = resolver_utils().get_absolute_resource_path(relativePathInputModel)
 
-        if relativePathInputModel.parsedPath is None:
-            abs_path = None  # Browse root directories
-        else:
-            pseudo_root_dir_name, sub_path = relativePathInputModel.parsedPath
-            abs_resource_path = resolver_utils().get_absolute_resource_path(pseudo_root_dir_name)
-            
-            if sub_path is None:
-                abs_path = abs_resource_path
-            else:
-                abs_path = abs_resource_path + sub_path
-
-        logger.info(f"Browsing directory at absolute path: {abs_path}")
         return await resolver_utils().get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)
+    
+
+    async def resolve_directory_metadata(self,path: RelativePathInput) -> DirectoryMetadataResult:
+        """
+        Resolve function to get metadata of a directory specified by a relative path.
+
+        :param path: The relative path of the directory.
+        :type path: RelativePathInput
+        :return: Directory metadata result containing total size and last modified time.
+        :rtype: DirectoryMetadataResult
+        """
+        try:
+            relativePathInputModel = path.to_pydantic()
+        except Exception as e:
+            logger.error(f"Input validation error: {e}")
+            raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
+        
+        abs_path = resolver_utils().get_absolute_resource_path(relativePathInputModel)
+
+        size, last_update_time = await run_in_threadpool(
+            resolver_utils().get_total_size_and_last_modified_time, 
+            abs_path,
+            True
+        )
+
+        return DirectoryMetadataResult(
+            totalSize=size,
+            lastModifiedTime=last_update_time
+        )

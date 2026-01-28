@@ -1,12 +1,20 @@
+from enum import Enum
 from typing import Optional
 import strawberry
 
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.pydantic_types.batch_operation_type import (
+    DirectoryVideosBatchOperationInputModel,
     TagsOperationMappingInputModel,
     VideosBatchOperationInputModel
 )
 from src.schema.types.video_type import Video
+
+@strawberry.enum
+class BatchResultType(Enum):
+    Success = "Success"
+    PartialSuccess = "PartialSuccess"
+    Failure = "Failure"
 
 @strawberry.type
 class FileBrowseNode:
@@ -31,10 +39,16 @@ class VideosBatchOperationInput:
     tagsOperation: Optional[TagsOperationMappingInput] = None
     author: strawberry.auto
 
+@strawberry.experimental.pydantic.input(model=DirectoryVideosBatchOperationInputModel)
+class DirectoryVideosBatchOperationInput:
+    relativePath: RelativePathInput
+    tagsOperation: Optional[TagsOperationMappingInput] = None
+    author: strawberry.auto
+
 @strawberry.type
 class VideosBatchOperationResult:
-    success: bool
-    successfulUpdatesMappings: list[strawberry.ID] 
+    #successfulUpdatesMappings: list[strawberry.ID] 
+    resultType: BatchResultType
 
 @strawberry.type
 class VideoMutationResult:

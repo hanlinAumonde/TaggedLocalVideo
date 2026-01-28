@@ -1,12 +1,18 @@
-<h2 mat-dialog-title>Batch Tag Operation</h2>
+<h2 mat-dialog-title>Batch Operation</h2>
 
 <mat-dialog-content>
   <form [formGroup]="form" class="space-y-6">
-    <!-- Selected videos info -->
+    <!-- Selected target info -->
     <div class="bg-gray-100 rounded-lg p-3">
-      <p class="text-sm text-gray-600">
-        <strong>{{ videos.length }}</strong> video(s) selected
-      </p>
+      @if (isVideoMode) {
+        <p class="text-sm text-gray-600">
+          <strong>{{ videos.length }}</strong> video(s) selected
+        </p>
+      } @else {
+        <p class="text-sm text-gray-600">
+          Directory: <strong>{{ directoryPath }}</strong>
+        </p>
+      }
     </div>
 
     <!-- Creator -->
@@ -131,7 +137,7 @@
     mat-raised-button
     type="button"
     (click)="handleSave()"
-    [disabled]="isSaving() || form.invalid || tagsError() || (tags().length === 0 && authorInput.value.trim() === '')"
+    [disabled]="saveButtonDisabled()"
     color="primary">
     @if (isSaving()) {
       Saving...

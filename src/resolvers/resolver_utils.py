@@ -10,6 +10,7 @@ from src.config import get_settings
 from src.db.models.Video_model import VideoModel, VideoTagModel
 from src.errors import DatabaseOperationError, FileBrowseError
 from src.schema.types.fileBrowse_type import FileBrowseNode
+from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.video_type import Video
 from src.logger import get_logger
 
@@ -34,14 +35,13 @@ class ResolverUtils:
         try:
             if abs_path is None:
                 for name in resource_paths.keys():
-                    abs_resource_path = self.get_absolute_resource_path(name)
-                    await self._get_directory_node(abs_resource_path, name, fileBrowse_nodes, refreshFlag)
+                    abs_root_resource_path = self.get_absolute_root_resource_path(name)
+                    await self._get_directory_node(abs_root_resource_path, name, fileBrowse_nodes, refreshFlag)
             else:
                 with os.scandir(abs_path) as entries:
                     while True:
                         try:
                             entry = next(entries)
-                            logger.info(f"Processing entry: {entry.path}")
                             if entry.is_dir():
                                 await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, refreshFlag)
                             elif entry.is_file() and self.is_video_file(entry.name):
@@ -68,7 +68,6 @@ class ResolverUtils:
                             break
                         except OSError as e:
                             logger.error(f"Error processing file {entry.path}: {e}")
-                            # Skip this entry if any error occurs
                             continue
 
         except (OSError, Exception) as e:
@@ -98,6 +97,25 @@ class ResolverUtils:
                     )
                 )
             )
+    
+    def get_all_video_entries_in_directory(self, directory_path: str) -> list[os.DirEntry[str]]:
+        """Get all video file entries under the given directory and its subdirectories."""
+        video_entries: list[os.DirEntry[str]] = []
+        try:
+            with os.scandir(directory_path) as entries:
+                for entry in entries:
+                    if entry.is_file() and self.is_video_file(entry.name):
+                        video_entries.append(entry)
+                    elif entry.is_dir():
+                        video_entries.extend(
+                            self.get_all_video_entries_in_directory(
+                                self.get_path_standard_format(entry.path)
+                            )
+                        )
+        except (OSError, Exception):
+            logger.error(f"Error accessing directory {directory_path} to get video entries.")
+        
+        return video_entries
 
     def is_video_file(self, filename: str) -> bool:
         """Helper function to check if a file is a video based on its extension."""
@@ -174,7 +192,7 @@ class ResolverUtils:
         """Standardize path format"""
         return os.path.normpath(path).replace("\\", "/")
     
-    def get_absolute_resource_path(self, pseudo_root_dir_name: str) -> str:
+    def get_absolute_root_resource_path(self, pseudo_root_dir_name: str) -> str:
         """Get the absolute resource path from pseudo root dir name and sub path"""
         settings = get_settings()
         resource_paths = settings.resource_paths
@@ -190,6 +208,20 @@ class ResolverUtils:
             abs_path = resource_paths[pseudo_root_dir_name]
 
         return self.get_path_standard_format(abs_path)
+    
+    def get_absolute_resource_path(self, relativePathInputModel: RelativePathInputModel) -> str:
+        if relativePathInputModel.parsedPath is None:
+            abs_path = None  # Browse root directories
+        else:
+            pseudo_root_dir_name, sub_path = relativePathInputModel.parsedPath
+            abs_resource_path = resolver_utils().get_absolute_root_resource_path(pseudo_root_dir_name)
+            
+            if sub_path is None:
+                abs_path = abs_resource_path
+            else:
+                abs_path = abs_resource_path + sub_path
+
+        return abs_path
 
     def to_mounted_path(self, local_path: str) -> str:
         """Convert absolute path to mounted path in container if root_path is set"""

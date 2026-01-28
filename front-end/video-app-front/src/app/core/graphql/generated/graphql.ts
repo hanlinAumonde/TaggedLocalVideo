@@ -17,6 +17,24 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export enum BatchResultType {
+  Failure = 'Failure',
+  PartialSuccess = 'PartialSuccess',
+  Success = 'Success'
+}
+
+export type DirectoryMetadataResult = {
+  __typename?: 'DirectoryMetadataResult';
+  lastModifiedTime: Scalars['Float']['output'];
+  totalSize: Scalars['Float']['output'];
+};
+
+export type DirectoryVideosBatchOperationInput = {
+  author?: InputMaybe<Scalars['String']['input']>;
+  relativePath: RelativePathInput;
+  tagsOperation?: InputMaybe<TagsOperationMappingInput>;
+};
+
 export type FileBrowseNode = {
   __typename?: 'FileBrowseNode';
   node: Video;
@@ -25,6 +43,7 @@ export type FileBrowseNode = {
 export type Mutation = {
   __typename?: 'Mutation';
   batchUpdate: VideosBatchOperationResult;
+  batchUpdateDirectory: VideosBatchOperationResult;
   deleteVideo: VideoMutationResult;
   recordVideoView: VideoMutationResult;
   updateVideoMetadata: VideoMutationResult;
@@ -33,6 +52,11 @@ export type Mutation = {
 
 export type MutationBatchUpdateArgs = {
   input: VideosBatchOperationInput;
+};
+
+
+export type MutationBatchUpdateDirectoryArgs = {
+  input: DirectoryVideosBatchOperationInput;
 };
 
 
@@ -61,6 +85,7 @@ export type Query = {
   __typename?: 'Query';
   SearchVideos: VideoSearchResult;
   browseDirectory: Array<FileBrowseNode>;
+  getDirectoryMetadata: DirectoryMetadataResult;
   getSuggestions: Array<Scalars['String']['output']>;
   getTopTags: Array<VideoTag>;
   getVideoById: Video;
@@ -73,6 +98,11 @@ export type QuerySearchVideosArgs = {
 
 
 export type QueryBrowseDirectoryArgs = {
+  path: RelativePathInput;
+};
+
+
+export type QueryGetDirectoryMetadataArgs = {
   path: RelativePathInput;
 };
 
@@ -183,8 +213,7 @@ export type VideosBatchOperationInput = {
 
 export type VideosBatchOperationResult = {
   __typename?: 'VideosBatchOperationResult';
-  success: Scalars['Boolean']['output'];
-  successfulUpdatesMappings: Array<Scalars['ID']['output']>;
+  resultType: BatchResultType;
 };
 
 export type UpdateVideoMetadataMutationVariables = Exact<{
@@ -199,7 +228,7 @@ export type BatchUpdateVideosMutationVariables = Exact<{
 }>;
 
 
-export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', success: boolean, successfulUpdatesMappings: Array<string> } };
+export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType } };
 
 export type RecordVideoViewMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
@@ -214,6 +243,13 @@ export type DeleteVideoMutationVariables = Exact<{
 
 
 export type DeleteVideoMutation = { __typename?: 'Mutation', deleteVideo: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string } | null } };
+
+export type BatchUpdateDirectoryMutationVariables = Exact<{
+  input: DirectoryVideosBatchOperationInput;
+}>;
+
+
+export type BatchUpdateDirectoryMutation = { __typename?: 'Mutation', batchUpdateDirectory: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType } };
 
 export type SearchVideosQueryVariables = Exact<{
   input: VideoSearchInput;
@@ -253,6 +289,13 @@ export type BrowseDirectoryQueryVariables = Exact<{
 
 export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
 
+export type GetDirectoryMetadataQueryVariables = Exact<{
+  path: RelativePathInput;
+}>;
+
+
+export type GetDirectoryMetadataQuery = { __typename?: 'Query', getDirectoryMetadata: { __typename?: 'DirectoryMetadataResult', totalSize: number, lastModifiedTime: number } };
+
 export const UpdateVideoMetadataDocument = gql`
     mutation UpdateVideoMetadata($input: UpdateVideoMetadataInput!) {
   updateVideoMetadata(input: $input) {
@@ -284,8 +327,7 @@ export const UpdateVideoMetadataDocument = gql`
 export const BatchUpdateVideosDocument = gql`
     mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
   batchUpdate(input: $input) {
-    success
-    successfulUpdatesMappings
+    resultType
   }
 }
     `;
@@ -339,6 +381,24 @@ export const DeleteVideoDocument = gql`
   })
   export class DeleteVideoGQL extends Apollo.Mutation<DeleteVideoMutation, DeleteVideoMutationVariables> {
     override document = DeleteVideoDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const BatchUpdateDirectoryDocument = gql`
+    mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
+  batchUpdateDirectory(input: $input) {
+    resultType
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class BatchUpdateDirectoryGQL extends Apollo.Mutation<BatchUpdateDirectoryMutation, BatchUpdateDirectoryMutationVariables> {
+    override document = BatchUpdateDirectoryDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
@@ -482,6 +542,25 @@ export const BrowseDirectoryDocument = gql`
   })
   export class BrowseDirectoryGQL extends Apollo.Query<BrowseDirectoryQuery, BrowseDirectoryQueryVariables> {
     override document = BrowseDirectoryDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const GetDirectoryMetadataDocument = gql`
+    query GetDirectoryMetadata($path: RelativePathInput!) {
+  getDirectoryMetadata(path: $path) {
+    totalSize
+    lastModifiedTime
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class GetDirectoryMetadataGQL extends Apollo.Query<GetDirectoryMetadataQuery, GetDirectoryMetadataQueryVariables> {
+    override document = GetDirectoryMetadataDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
