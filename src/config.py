@@ -9,7 +9,7 @@ class CacheConfig(BaseModel):
     ttl: int = 300  # in seconds
 
 class PageSize(BaseModel):
-    homepage_videos: int = 5
+    homepage_videos: int = 10
     homepage_tags: int = 20
     searchpage: int = 15
 

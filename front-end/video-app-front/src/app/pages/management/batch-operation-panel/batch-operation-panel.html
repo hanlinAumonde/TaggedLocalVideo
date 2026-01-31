@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Batch Operation</h2>
+<h2 mat-dialog-title><strong class="font-mono">Batch Operation</strong></h2>
 
 <mat-dialog-content>
   <form [formGroup]="form" class="space-y-6">
@@ -10,7 +10,7 @@
         </p>
       } @else {
         <p class="text-sm text-gray-600 dark:text-gray-300">
-          Directory: <strong>{{ directoryPath }}</strong>
+          All videos in Directory: <strong>{{ directoryPath }}</strong>
         </p>
       }
     </div>
@@ -126,15 +126,15 @@
   </form>
 </mat-dialog-content>
 
-<mat-dialog-actions align="end">
+<mat-dialog-actions [align]="'end'">
   <button
-    mat-button
+    matButton="outlined"
     type="button"
     (click)="handleCancel()">
     Cancel
   </button>
   <button
-    mat-raised-button
+    matButton="tonal"
     type="button"
     (click)="handleSave()"
     [disabled]="saveButtonDisabled()"

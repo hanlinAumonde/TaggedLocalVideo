@@ -140,7 +140,7 @@
               <tr
                 class="border-b dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-700"
                 [class.bg-blue-50]="isSelected(item.node.id)"
-                [class.dark:bg-neutral-600/30]="isSelected(item.node.id)"
+                [class.dark:bg-neutral-600]="isSelected(item.node.id)"
                 [class.cursor-pointer]="item.node.isDir"
                 [matContextMenuTriggerFor]="operateMenu"
                 (click)="onClickFileBrowseNode(item)"
@@ -161,27 +161,33 @@
                 <!-- Type Icon -->
                 <td class="px-4 py-3">
                   @if (item.node.isDir) {
-                    <img src="foldericon.png" alt="folder" class="w-8 h-8" />
+                    <img src="foldericon.png" alt="folder" class="max-w-6 max-h-6" />
                   } @else {
-                    <img src="videoicon.png" alt="video" class="w-8 h-8" />
+                    <img src="videoicon.png" alt="video" class="max-w-6 max-h-6" />
                   }
                 </td>
 
                 <!-- Name -->
                 <td class="px-4 py-3 truncate">
                   @if (item.node.isDir) {
-                    <span class="text-blue-600 dark:text-blue-400 font-medium hover:underline hover:text-blue-700 dark:hover:text-blue-300">
+                    <span 
+                      class="text-blue-600 dark:text-blue-400 font-medium hover:underline hover:text-blue-700 dark:hover:text-blue-300"
+                      [matTooltip]="item.node.name"
+                      >
                       {{ item.node.name }}
                     </span>
                   } @else {
-                    <span class="font-medium">{{ item.node.name }}</span>
+                    <span class="font-medium" [matTooltip]="item.node.name">{{ item.node.name }}</span>
                   }
                 </td>
 
                 <!-- Size -->
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400 truncate">
                   @if(item.node.size > 0){
-                    {{ formatSize(item.node.size) }}
+                    <span
+                      [matTooltip]="formatSize(item.node.size)">
+                      {{ formatSize(item.node.size) }}
+                    </span>
                   }
                   @else{
                     <span class="text-gray-400 dark:text-gray-500">-</span>
@@ -191,7 +197,10 @@
                 <!-- Last Update -->
                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400 truncate">
                   @if(item.node.lastModifyTime > 0){
-                    {{ formatDate(item.node.lastModifyTime) }}
+                    <span
+                      [matTooltip]="formatDate(item.node.lastModifyTime)">
+                      {{ formatDate(item.node.lastModifyTime) }}
+                    </span>
                   }
                   @else{
                     <span class="text-gray-400 dark:text-gray-500">-</span>
