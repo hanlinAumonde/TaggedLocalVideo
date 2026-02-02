@@ -125,6 +125,11 @@ export class VideoEditPanel implements OnInit {
     this.editForm.patchValue({ author });
   }
 
+  toggleLoved() {
+    const currentLoved = this.editForm.get('loved')?.value;
+    this.editForm.patchValue({ loved: !currentLoved });
+  }
+
   addTag(tagValue?: string) {
     const value = tagValue || this.editForm.get('tagInput')?.value;
 

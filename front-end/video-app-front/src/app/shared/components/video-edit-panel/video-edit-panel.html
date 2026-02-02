@@ -20,11 +20,14 @@
       </div>
 
       <!-- Loved -->
-      <div class="flex items-center gap-4">
+      <div id="edit-loved" class="flex items-center gap-4">
         <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full">
           Loved:
         </label>
-        <mat-checkbox formControlName="loved"></mat-checkbox>
+        <!-- <mat-checkbox formControlName="loved"></mat-checkbox> -->
+        <mat-icon (click)="toggleLoved()" class="cursor-pointer">
+          {{ editForm.get('loved')?.value ? 'favorite' : 'favorite_border' }}
+        </mat-icon>
       </div>
 
       <!-- Creator -->

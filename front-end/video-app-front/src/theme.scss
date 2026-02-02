@@ -7,3 +7,9 @@ html {
     density: 0,
   ));
 }
+
+#love-icon, #edit-loved {
+  @include mat.icon-overrides((
+    color: rgb(255, 79, 108),
+  ));
+}

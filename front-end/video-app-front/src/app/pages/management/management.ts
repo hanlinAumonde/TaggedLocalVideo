@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, ViewChild, viewChild } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -22,6 +22,7 @@ import { ItemsSortOption, ManagementState, comparatorBySortOption } from '../../
 import { RouterLink } from '@angular/router';
 import { DeleteCheckPanel } from './delete-check-panel/delete-check-panel';
 import { ErrorHandlerService } from '../../services/errorHandler-service/error-handler-service';
+import { CdkAriaLive } from "../../../../node_modules/@angular/cdk/types/_a11y-module-chunk";
 
 @Component({
   selector: 'app-management',
@@ -32,7 +33,7 @@ import { ErrorHandlerService } from '../../services/errorHandler-service/error-h
     MatMenuModule,
     MatTooltipModule,
     RouterLink
-],
+  ],
   templateUrl: './management.html'
 })
 export class Management {
@@ -53,6 +54,8 @@ export class Management {
 
   // Selected items for batch operations
   selectedIds = signal<Set<string>>(new Set());
+
+  visibleTagsCount = signal<number>(3);
 
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
@@ -225,18 +228,17 @@ export class Management {
     return new Date(timestamp * 1000).toLocaleDateString('zh-CN');
   }
 
-  // Get visible tags (first 4) and remaining count
   getVisibleTags(video: BrowsedVideo): string[] {
-    return video.tags?.slice(0, 4).map(t => t.name) ?? [];
+    return video.tags?.slice(0, this.visibleTagsCount()).map(t => t.name) ?? [];
   }
 
   getRemainingTagsCount(video: BrowsedVideo): number {
     const total = video.tags?.length ?? 0;
-    return Math.max(0, total - 4);
+    return Math.max(0, total - this.visibleTagsCount());
   }
 
   getAllRemainingTags(video: BrowsedVideo): string {
-    return video.tags?.slice(4).map(t => t.name).join(', ') ?? '';
+    return video.tags?.slice(this.visibleTagsCount()).map(t => t.name).join(',  ') ?? '';
   }
 
   videoPage(video: BrowsedVideo) {
