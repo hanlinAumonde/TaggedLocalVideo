@@ -1,3 +1,4 @@
+import io
 import os
 from typing import Annotated
 import aiofiles
@@ -99,30 +100,57 @@ class VideoResolver:
                 while chunk := await video_file.read(chunk_size):
                     yield chunk          
     
-    async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> Response:
-        if thumbnail_id:
-            pass  # TODO: find jpeg thumbnail from file system (or object storage) using thumbnail-id
-
+    async def get_thumbnail_and_duration(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
         if not video_id:
             raise HTTPException(status_code=400, detail="Cannot find thumbnail without video-id")
+        else:
+            # 1- fetch video metadata from database
+            video = await VideoModel.get(video_id) 
+            if not video:
+                logger.warning(f"Video metadata not found for video_id: {video_id}")
+                raise HTTPException(status_code=404, detail="Video not found")
 
-        # video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
-        video = await VideoModel.get(video_id)
-        if not video:
-            logger.warning(f"Video metadata not found for video_id: {video_id}")
-            raise HTTPException(status_code=404, detail="Video not found")
+            video_path = resolver_utils().to_mounted_path(video.path)
+            if not os.path.exists(video_path):
+                logger.warning(f"Video file not found at path: {video_path}")
+                raise HTTPException(status_code=404, detail="Video file doesn't exist")
+            
+            no_duration_in_model = video.duration == 0.0 or video.duration is None
+                    
+            # 2- TODO: find jpeg thumbnail from object storage using thumbnail-id
+            if thumbnail_id:
+                # get thumbnail data from object storage
+                pass
+                # get duration if not exists in model
+                if no_duration_in_model:
+                    video.duration = await run_in_threadpool(
+                        self.thumbnailResolver.get_video_duration,
+                        video_path
+                    )
+                    await video.save()
 
-        video_path = resolver_utils().to_mounted_path(video.path)
-        if not os.path.exists(video_path):
-            logger.warning(f"Video file not found at path: {video_path}")
-            raise HTTPException(status_code=404, detail="Video file doesn't exist")
+            # 3- video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
+            else:
+                thumbnail_bytes, duration = await run_in_threadpool(
+                    self.thumbnailResolver.generate_thumbnail_and_duration, 
+                    video_path, 
+                    with_duration=no_duration_in_model
+                )
 
-        thumbnail_bytes = await run_in_threadpool(self.thumbnailResolver.generate_thumbnail, video_path)
-        return Response(
-            content=thumbnail_bytes,
-            media_type="image/jpeg",
-            headers={"Cache-Control": "public, max-age=3600"}
-        )
+                if duration and no_duration_in_model:
+                    video.duration = duration
+                    await video.save()
+                
+            headers = {
+                "X-Video-Duration": str(video.duration or duration or 0.0),
+                "Cache-Control": "public, max-age=3600"
+            }
+
+            return StreamingResponse(
+                content=io.BytesIO(thumbnail_bytes),
+                media_type="image/jpeg",
+                headers=headers
+            )
 
 def get_video_resolver(thumbnailResolver: ThumbnailResolverDep):
     return VideoResolver(thumbnailResolver)

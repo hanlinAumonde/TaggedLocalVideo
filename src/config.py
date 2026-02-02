@@ -10,7 +10,7 @@ class CacheConfig(BaseModel):
 
 class PageSize(BaseModel):
     homepage_videos: int = 10
-    homepage_tags: int = 20
+    homepage_tags: int = 50
     searchpage: int = 15
 
 

@@ -6,6 +6,7 @@ export const environment = {
     searchpage_api: "/search",
     management_api: "/management",
     videopage_api: "/video",
+    videopage_thumbnail_api: "/video/thumbnail_duration",
     pageListSize: 5,
     refreshKey: "_refresh_key",
     scrollKey: "_scroll_position",
@@ -23,5 +24,6 @@ export const environment = {
         MAX_TOASTS: 4,
         AUTO_DISMISS_MS: 10000,
         EXIT_ANIMATION_MS: 300,
-    }
+    },
+    VIDEO_DURATION_HEADER: "X-Video-Duration",
 } as const;

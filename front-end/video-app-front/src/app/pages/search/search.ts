@@ -80,7 +80,8 @@ export class Search {
   readonly sortOptions = [
     { value: VideoSortOption.Latest, label: 'Latest' },
     { value: VideoSortOption.MostViewed, label: 'Most Viewed' },
-    { value: VideoSortOption.Loved, label: 'Loved' }
+    { value: VideoSortOption.Longest, label: 'Longest' },
+    { value: VideoSortOption.Loved, label: 'Loved' },
   ];
 
   skeletonArray = [...Array(15).keys()];

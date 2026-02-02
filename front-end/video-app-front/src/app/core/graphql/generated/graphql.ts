@@ -195,6 +195,7 @@ export type VideoSearchResult = {
 
 export enum VideoSortOption {
   Latest = 'Latest',
+  Longest = 'Longest',
   Loved = 'Loved',
   MostViewed = 'MostViewed'
 }

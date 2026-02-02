@@ -43,9 +43,10 @@ def create_app():
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Video-Duration"],
     )
 
     graphql_app = GraphQLRouter(schema=schema)

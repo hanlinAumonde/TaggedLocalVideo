@@ -13,6 +13,7 @@ class VideoSortOption(Enum):
     Latest = "Latest"
     MostViewed = "MostViewed"
     Loved = "Loved"
+    Longest = "Longest"
 
 
 @strawberry.enum

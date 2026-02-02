@@ -17,24 +17,21 @@ class VideoModel(Document):
     viewCount: Optional[int] = 0
     lastViewTime: Optional[float] = 0.0
     thumbnail: Optional[str] = None
+    duration: Optional[float] = 0.0
 
     class Settings:
         name = "videos"
         indexes = [
-            # tag index
             [("tags", pymongo.ASCENDING)],
-            # video name index (for title keyword search)
             [("viewCount", pymongo.DESCENDING)],
-            # last modified time index
             [("lastViewTime", pymongo.DESCENDING)],
-            # loved index
             [("loved", pymongo.DESCENDING)],
-            # author index
             [("author", pymongo.ASCENDING)],
             # compound index: loved + lastViewTime (used for loved videos)
             [("loved", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
             # compound index: viewCount + lastViewTime (used for popular videos)
             [("viewCount", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
+            [("duration", pymongo.DESCENDING)],
         ]
 
 class VideoTagModel(Document):

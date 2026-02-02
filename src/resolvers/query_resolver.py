@@ -54,7 +54,8 @@ class QueryResolver:
         sort_mapping = {
             VideoSortOption.Latest.value: [("lastViewTime", -1)],
             VideoSortOption.MostViewed.value: [("viewCount", -1), ("lastViewTime", -1)],
-            VideoSortOption.Loved.value: [("loved", -1), ("lastViewTime", -1)]
+            VideoSortOption.Loved.value: [("loved", -1), ("lastViewTime", -1)],
+            VideoSortOption.Longest.value: [("duration", -1)],
         }
         sort_criteria = sort_mapping.get(validated_input.sortBy, [("lastModifyTime", -1)])
 

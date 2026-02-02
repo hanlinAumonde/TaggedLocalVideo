@@ -8,11 +8,6 @@ cache_config:
   max_size: 2048
   ttl: 300  # in seconds
 
-page_size_default:
-  homepage_videos: 10
-  homepage_tags: 50
-  searchpage: 15
-
 suggestion_limit:
   name: 10
   author: 10
