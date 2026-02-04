@@ -16,113 +16,129 @@
     </div>
 
     <!-- Creator -->
-    <div class="flex flex-col gap-2">
-      <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
-        Creator:
-      </label>
-      <mat-form-field appearance="outline" class="w-full">
-        <input
-          matInput
-          formControlName="authorInput"
-          placeholder="search"
-          [matAutocomplete]="authorAuto" />
-        @if (form.get('authorInput')?.hasError('maxLength')) {
-          <mat-error>Author too long (max {{ form.get('authorInput')?.errors?.['maxLength']?.max }})</mat-error>
+    <mat-accordion>
+      <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <label 
+                class="text-sm font-semibold text-blue-700 dark:text-blue-300 
+                  bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
+                Creator
+              </label>
+            </mat-panel-title>
+            <mat-panel-description>(Optional)</mat-panel-description>
+          </mat-expansion-panel-header>
+          <mat-form-field appearance="outline" class="w-full pt-5">
+            <input
+              matInput
+              formControlName="authorInput"
+              placeholder="search"
+              [matAutocomplete]="authorAuto" />
+            @if (form.get('authorInput')?.hasError('maxLength')) {
+              <mat-error>Author too long (max {{ form.get('authorInput')?.errors?.['maxLength']?.max }})</mat-error>
+            }
+            <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
+            <mat-autocomplete
+              #authorAuto="matAutocomplete"
+              (optionSelected)="selectAuthorSuggestion($event.option.value)">
+              @if(authorSuggestions().loading && authorInput.value !== '') {
+                <mat-option disabled>
+                  <mat-progress-spinner
+                    diameter="20"
+                    mode="indeterminate">
+                  </mat-progress-spinner>
+                  <span class="ml-2">Loading...</span>
+                </mat-option>
+              }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
+                @for (author of authorSuggestions().data; track author) {
+                  <mat-option [value]="author">
+                    <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ author }}</span>
+                  </mat-option>
+                }
+              }@else{
+                <mat-option disabled>No author-suggestions available</mat-option>
+              }
+            </mat-autocomplete>
+          </mat-form-field>
+      </mat-expansion-panel>
+
+      <!-- Tags Section -->
+      <mat-expansion-panel>
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <label 
+              class="text-sm font-semibold text-blue-700 dark:text-blue-300 
+                   bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
+              Tags
+            </label>
+          </mat-panel-title>
+          <mat-panel-description>(Optional)</mat-panel-description>
+        </mat-expansion-panel-header>
+        <mat-radio-group formControlName="mode" class="flex gap-6">
+          <mat-radio-button value="append" class="text-green-700">
+            <span class="font-medium">Add Tags</span>
+          </mat-radio-button>
+          <mat-radio-button value="remove" class="text-red-700">
+            <span class="font-medium">Remove Tags</span>
+          </mat-radio-button>
+        </mat-radio-group>
+
+        <!-- Selected tags -->
+        @if (tagsError()) {
+          <div class="text-red-500 text-sm">{{ tagsError() }}</div>
         }
-        <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
-        <mat-autocomplete
-          #authorAuto="matAutocomplete"
-          (optionSelected)="selectAuthorSuggestion($event.option.value)">
-          @if(authorSuggestions().loading && authorInput.value !== '') {
-            <mat-option disabled>
-              <mat-progress-spinner
-                diameter="20"
-                mode="indeterminate">
-              </mat-progress-spinner>
-              <span class="ml-2">Loading...</span>
-            </mat-option>
-          }@else if(authorSuggestions().data && authorSuggestions().data!.length > 0){
-            @for (author of authorSuggestions().data; track author) {
-              <mat-option [value]="author">
-                <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ author }}</span>
+        @if (tags().length > 0) {
+          <div class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            @for (tag of tags(); track tag) {
+              <mat-chip class="bg-white! dark:bg-gray-600! border! border-gray-300! dark:border-gray-500!">
+                <span class="font-medium">{{ tag }}</span>
+                <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
+                  <mat-icon class="text-base!" fontIcon="cancel"></mat-icon>
+                </button>
+              </mat-chip>
+            }
+          </div>
+        }
+
+        <!-- Tag input and suggestions -->
+        <mat-form-field appearance="outline" class="w-full">
+          <input
+            matInput
+            formControlName="tagInput"
+            placeholder="Enter tag name"
+            [matAutocomplete]="tagAuto"
+            (keydown.enter)="onTagInputEnter($event)" />
+          @if (form.get('tagInput')?.hasError('maxLength')) {
+            <mat-error>Tag too long (max {{ form.get('tagInput')?.errors?.['maxLength']?.max }})</mat-error>
+          }
+          <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
+          <mat-autocomplete
+            #tagAuto="matAutocomplete"
+            (optionSelected)="selectTagSuggestion($event.option.value)">
+            @if(tagSuggestions().loading) {
+              <mat-option disabled>
+                <mat-progress-spinner
+                  diameter="20"
+                  mode="indeterminate">
+                </mat-progress-spinner>
+                <span class="ml-2">Loading...</span>
+              </mat-option>
+            }@else if(tagSuggestions().data && tagSuggestions().data!.length > 0){
+              @for (tag of tagSuggestions().data; track tag) {
+                <mat-option [value]="tag">
+                  <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ tag }}</span>
+                </mat-option>
+              }
+            }@else{
+              <mat-option disabled>
+                No tag suggestions available, type Enter to add as new tag
               </mat-option>
             }
-          }@else{
-            <mat-option disabled>No author-suggestions available</mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
-    </div>
-
-    <!-- Tags Section -->
-    <div class="flex flex-col gap-3">
-      <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
-        Tags:
-      </label>
-
-      <mat-radio-group formControlName="mode" class="flex gap-6">
-        <mat-radio-button value="append" class="text-green-700">
-          <span class="font-medium">Add Tags</span>
-        </mat-radio-button>
-        <mat-radio-button value="remove" class="text-red-700">
-          <span class="font-medium">Remove Tags</span>
-        </mat-radio-button>
-      </mat-radio-group>
-
-      <!-- Selected tags -->
-      @if (tagsError()) {
-        <div class="text-red-500 text-sm">{{ tagsError() }}</div>
-      }
-      @if (tags().length > 0) {
-        <div class="flex flex-wrap gap-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          @for (tag of tags(); track tag) {
-            <mat-chip class="bg-white! dark:bg-gray-600! border! border-gray-300! dark:border-gray-500!">
-              <span class="font-medium">{{ tag }}</span>
-              <button matChipRemove (click)="removeTag(tag)" aria-label="Remove tag">
-                <mat-icon class="text-base!" fontIcon="cancel"></mat-icon>
-              </button>
-            </mat-chip>
-          }
-        </div>
-      }
-
-      <!-- Tag input and suggestions -->
-      <mat-form-field appearance="outline" class="w-full">
-        <input
-          matInput
-          formControlName="tagInput"
-          placeholder="Enter tag name"
-          [matAutocomplete]="tagAuto"
-          (keydown.enter)="onTagInputEnter($event)" />
-        @if (form.get('tagInput')?.hasError('maxLength')) {
-          <mat-error>Tag too long (max {{ form.get('tagInput')?.errors?.['maxLength']?.max }})</mat-error>
-        }
-        <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
-        <mat-autocomplete
-          #tagAuto="matAutocomplete"
-          (optionSelected)="selectTagSuggestion($event.option.value)">
-          @if(tagSuggestions().loading) {
-            <mat-option disabled>
-              <mat-progress-spinner
-                diameter="20"
-                mode="indeterminate">
-              </mat-progress-spinner>
-              <span class="ml-2">Loading...</span>
-            </mat-option>
-          }@else if(tagSuggestions().data && tagSuggestions().data!.length > 0){
-            @for (tag of tagSuggestions().data; track tag) {
-              <mat-option [value]="tag">
-                <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ tag }}</span>
-              </mat-option>
-            }
-          }@else{
-            <mat-option disabled>
-              No tag suggestions available, type Enter to add as new tag
-            </mat-option>
-          }
-        </mat-autocomplete>
-      </mat-form-field>
-    </div>
+          </mat-autocomplete>
+        </mat-form-field>
+      </mat-expansion-panel>
+    </mat-accordion>
+    <br/>
   </form>
 </mat-dialog-content>
 
@@ -140,9 +156,12 @@
     [disabled]="saveButtonDisabled()"
     color="primary">
     @if (isSaving()) {
-      Saving...
+      <span class="flex">
+        <mat-spinner [diameter]="20"></mat-spinner>
+        <span class="mx-2">{{isVideoMode? 'Editing...' : 'Syncing...'}}</span>
+      </span>
     } @else {
-      Save
+      {{isVideoMode? 'Edit' : 'Sync Directory'}}
     }
   </button>
 </mat-dialog-actions>

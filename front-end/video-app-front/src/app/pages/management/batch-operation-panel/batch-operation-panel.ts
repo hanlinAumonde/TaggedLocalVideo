@@ -9,6 +9,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { BatchResultType, DirectoryVideosBatchOperationInput, SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
@@ -36,7 +37,8 @@ export interface BatchPanelData {
     MatAutocompleteModule,
     MatIconModule,
     MatRadioModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatExpansionModule
   ],
   templateUrl: './batch-operation-panel.html'
 })

@@ -3,7 +3,6 @@ import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { SearchedVideo } from '../../models/GQL-result.model';
-import { environment } from '../../../../environments/environment';
 import { HttpClientService } from '../../../services/Http-client-service/Http-client-service';
 
 @Component({

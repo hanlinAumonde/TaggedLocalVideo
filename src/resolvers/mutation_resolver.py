@@ -98,15 +98,12 @@ class MutationResolver:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
         
-        successful_updates = await _batch_update(
+        success_status = await _batch_update(
             videoIDs=validated_input.videoIds,
             fileEntries=None,
             author=validated_input.author, 
             tagsOperation=validated_input.tagsOperation
         )
-        success_status = BatchResultType.Success if successful_updates == len(validated_input.videoIds) else \
-                         BatchResultType.PartialSuccess if successful_updates > 0 else \
-                         BatchResultType.Failure
 
         return VideosBatchOperationResult(
             resultType = success_status,
@@ -122,15 +119,13 @@ class MutationResolver:
         dir_path = resolver_utils().get_absolute_resource_path(validated_input.relativePath)
         entries = await run_in_threadpool(resolver_utils().get_all_video_entries_in_directory, dir_path)
         
-        successful_updates = await _batch_update(
+        success_status = await _batch_update(
             None,
             entries,
             validated_input.author,
             validated_input.tagsOperation
         )
-        success_status = BatchResultType.Success if successful_updates == len(entries) else \
-                         BatchResultType.PartialSuccess if successful_updates > 0 else \
-                         BatchResultType.Failure
+        
         
         return VideosBatchOperationResult(
             resultType = success_status,    
@@ -199,7 +194,7 @@ class MutationResolver:
 async def _batch_update(videoIDs: list[str] | None,
                         fileEntries: list[os.DirEntry[str]] | None,
                         author: str | None,
-                        tagsOperation: TagsOperationMappingInputModel) -> int:
+                        tagsOperation: TagsOperationMappingInputModel) -> BatchResultType:
     """
     Batch update videos' metadata based on provided video IDs or paths.
     Uses upsert for path-based queries to create new documents if they don't exist.
@@ -294,8 +289,13 @@ async def _batch_update(videoIDs: list[str] | None,
             successful_updates = result.modified_count + result.upserted_count
 
             await resolver_utils().update_tag_counts(update_tags=update_tags)
+
+            return BatchResultType.Success if successful_updates == len(operations) else \
+                   BatchResultType.PartialSuccess if successful_updates > 0 else \
+                   BatchResultType.Failure
+
         elif no_need_update_flag:
-            successful_updates = len(videoIDs) if videoIDs is not None else len(fileEntries)
+            return BatchResultType.Success
 
     except BulkWriteError as bwe:
         logger.error(f"Bulk write error during bulk write operation: {bwe.details}")
@@ -304,4 +304,4 @@ async def _batch_update(videoIDs: list[str] | None,
         logger.error(f"Error during batch update: {e}")
         raise DatabaseOperationError("batch_update", "general_failure")
 
-    return successful_updates
+    return BatchResultType.Success

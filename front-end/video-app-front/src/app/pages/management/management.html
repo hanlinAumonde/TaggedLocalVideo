@@ -63,6 +63,11 @@
               }
             </th>
             <th 
+              class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium"
+            >
+              Author
+            </th>
+            <th 
               class="flex-3 min-w-0 px-4 py-3 flex items-center font-medium">
               Tags
             </th>
@@ -205,12 +210,26 @@
                   }
                 </td>
 
+                <!-- Author -->
+                <td class="flex-2 min-w-0 px-4 py-3 flex items-center">
+                  @if(!item.node.isDir && item.node.author){
+                    <span 
+                      class="truncate bg-neutral-200 dark:bg-neutral-600 rounded-lg px-2" 
+                      [matTooltip]="item.node.author">
+                      {{ item.node.author }}
+                    </span>
+                  } @else {
+                    <span class="text-gray-400 dark:text-gray-500">-</span>
+                  }
+                </td>
+
                 <!-- Tags -->
                 <td class="flex-3 min-w-0 px-4 py-3 flex items-center">
                   <div class="flex gap-1 flex-wrap overflow-hidden">
                     @if (!item.node.isDir) {
                       @for (tag of getVisibleTags(item.node); track tag) {
-                        <span class="px-2 py-0.5 bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded text-sm whitespace-nowrap">
+                        <span 
+                          class="px-2 py-0.5 truncate bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded text-sm whitespace-nowrap">
                           {{ tag }}
                         </span>
                       }

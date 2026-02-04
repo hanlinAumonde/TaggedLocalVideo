@@ -13,3 +13,9 @@ html {
     color: rgb(255, 79, 108),
   ));
 }
+
+:root {
+  @include mat.expansion-overrides((
+    header-indicator-color: rgb(40, 140, 255),
+  ));
+}
