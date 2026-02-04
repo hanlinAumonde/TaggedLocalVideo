@@ -8,7 +8,7 @@ import { environment } from "../../../environments/environment";
 export class HttpClientService {
     private httpClient = inject(HttpClient); 
 
-    getThumbnailAndDurationUrl(videoId: string, thumbnailId?: string) {
+    getThumbnailUrl(videoId: string, thumbnailId?: string) {
         return this.httpClient.get(environment.backend_api + environment.videopage_thumbnail_api, {
             responseType: 'blob',
             observe: 'response',

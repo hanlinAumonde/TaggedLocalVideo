@@ -159,6 +159,7 @@ export type UpdateVideoMetadataInput = {
 export type Video = {
   __typename?: 'Video';
   author: Scalars['String']['output'];
+  duration: Scalars['Float']['output'];
   id: Scalars['ID']['output'];
   introduction: Scalars['String']['output'];
   isDir: Scalars['Boolean']['output'];
@@ -257,7 +258,7 @@ export type SearchVideosQueryVariables = Exact<{
 }>;
 
 
-export type SearchVideosQuery = { __typename?: 'Query', SearchVideos: { __typename?: 'VideoSearchResult', pagination: { __typename?: 'Pagination', size: number, totalCount: number, currentPageNumber: number }, videos: Array<{ __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, thumbnail?: string | null }> } };
+export type SearchVideosQuery = { __typename?: 'Query', SearchVideos: { __typename?: 'VideoSearchResult', pagination: { __typename?: 'Pagination', size: number, totalCount: number, currentPageNumber: number }, videos: Array<{ __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, thumbnail?: string | null, duration: number }> } };
 
 export type GetTopTagsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -274,7 +275,7 @@ export type GetVideoByIdQueryVariables = Exact<{
 }>;
 
 
-export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
+export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, duration: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
 
 export type GetSuggestionsQueryVariables = Exact<{
   input: SuggestionInput;
@@ -288,7 +289,7 @@ export type BrowseDirectoryQueryVariables = Exact<{
 }>;
 
 
-export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
+export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
 
 export type GetDirectoryMetadataQueryVariables = Exact<{
   path: RelativePathInput;
@@ -422,6 +423,7 @@ export const SearchVideosDocument = gql`
       lastViewTime
       lastModifyTime
       thumbnail
+      duration
     }
   }
 }
@@ -488,6 +490,7 @@ export const GetVideoByIdDocument = gql`
     lastViewTime
     lastModifyTime
     introduction
+    duration
   }
 }
     `;
@@ -533,6 +536,7 @@ export const BrowseDirectoryDocument = gql`
       lastModifyTime
       introduction
       size
+      duration
     }
   }
 }

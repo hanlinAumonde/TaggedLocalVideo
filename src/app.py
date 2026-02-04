@@ -46,7 +46,6 @@ def create_app():
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["X-Video-Duration"],
     )
 
     graphql_app = GraphQLRouter(schema=schema)

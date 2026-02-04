@@ -2,22 +2,20 @@ import io
 import os
 from typing import Annotated
 import aiofiles
-from fastapi.concurrency import run_in_threadpool
 from fastapi import Depends, HTTPException, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
 from src.resolvers.resolver_utils import resolver_utils
-from src.resolvers.thumbnail_resolver import ThumbnailResolverDep
+from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
 
 logger = get_logger("video_stream_resolver")
 
 class VideoResolver:
     def __init__(
         self,
-        thumbnailResolver: ThumbnailResolverDep
     ):
-        self.thumbnailResolver = thumbnailResolver
+        self.thumbnailResolver = get_thumbnail_resolver()
 
     async def video_stream_resolver(self,video_id: str, request: Request) -> StreamingResponse:
         """
@@ -100,7 +98,7 @@ class VideoResolver:
                 while chunk := await video_file.read(chunk_size):
                     yield chunk          
     
-    async def get_thumbnail_and_duration(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
+    async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
         if not video_id:
             raise HTTPException(status_code=400, detail="Cannot find thumbnail without video-id")
         else:
@@ -123,36 +121,22 @@ class VideoResolver:
                 pass
                 # get duration if not exists in model
                 if no_duration_in_model:
-                    video.duration = await run_in_threadpool(
-                        self.thumbnailResolver.get_video_duration,
-                        video_path
-                    )
+                    video.duration = await self.thumbnailResolver.get_video_duration(video_path)
                     await video.save()
 
             # 3- video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
             else:
-                thumbnail_bytes, duration = await run_in_threadpool(
-                    self.thumbnailResolver.generate_thumbnail_and_duration, 
-                    video_path, 
-                    with_duration=no_duration_in_model
-                )
-
-                if duration and no_duration_in_model:
-                    video.duration = duration
-                    await video.save()
+                thumbnail_bytes = await self.thumbnailResolver.generate_thumbnail(video_path)
                 
-            headers = {
-                "X-Video-Duration": str(video.duration or duration or 0.0),
-                "Cache-Control": "public, max-age=3600"
-            }
-
             return StreamingResponse(
                 content=io.BytesIO(thumbnail_bytes),
                 media_type="image/jpeg",
-                headers=headers
+                headers={
+                    "Cache-Control": "public, max-age=3600"
+                }
             )
 
-def get_video_resolver(thumbnailResolver: ThumbnailResolverDep):
-    return VideoResolver(thumbnailResolver)
+def get_video_resolver():
+    return VideoResolver()
 
 VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]

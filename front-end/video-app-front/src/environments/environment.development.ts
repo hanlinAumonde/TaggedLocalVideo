@@ -6,7 +6,7 @@ export const environment = {
     searchpage_api: "/search",
     management_api: "/management",
     videopage_api: "/video",
-    videopage_thumbnail_api: "/video/thumbnail_duration",
+    videopage_thumbnail_api: "/video/thumbnail",
     pageListSize: 5,
     refreshKey: "_refresh_key",
     scrollKey: "_scroll_position",

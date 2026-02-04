@@ -4,12 +4,15 @@ import os
 from bson import ObjectId
 from cachetools import TTLCache
 from fastapi.concurrency import run_in_threadpool
-from pymongo.errors import DuplicateKeyError
+from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 import strawberry
 from src.config import get_settings
 from src.db.models.Video_model import VideoModel, VideoTagModel
-from src.errors import DatabaseOperationError, FileBrowseError
+from src.errors import FileBrowseError
+from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
 from src.schema.types.fileBrowse_type import FileBrowseNode
+from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.video_type import Video
 from src.logger import get_logger
@@ -50,7 +53,7 @@ class ResolverUtils:
                                         {"path": self.to_host_path(entry.path)},
                                         {"$setOnInsert": VideoModel(
                                             path=self.to_host_path(entry.path),
-                                            name=entry.name,
+                                            name=os.path.basename(entry.path),
                                             isDir=False,
                                             lastModifyTime=stat.st_mtime,
                                             size=stat.st_size,
@@ -123,13 +126,100 @@ class ResolverUtils:
         return ext in get_settings().video_extensions
 
     # ============================================================
-    # Execute tags query
+    # Create and/or execute queries
     # ============================================================
 
     async def get_top_tag_docs(self, limit: int, findQuery=None) -> list[VideoTagModel]:
         if not findQuery:
             findQuery = VideoTagModel.find()
         return await findQuery.sort([("count", -1)]).limit(limit).to_list()
+    
+    async def update_tag_counts(self, update_tags: dict[str, tuple[int,bool]]) -> None:
+        """
+        update the tag counts in the database based on the changes in tags using bulk write.
+
+        :param update_tags: Dictionary mapping tag names to a tuple of (count change, is_increment).
+        :type update_tags: dict[str, tuple[int,bool]]
+        :return: None
+        :rtype: None
+        """
+        operations = []
+
+        for tag_name, (count_change, is_increment) in update_tags.items():
+            if is_increment:
+                operations.append(
+                    UpdateOne(
+                        {"name": tag_name},
+                        {"$inc": {"count": count_change}},
+                        upsert=True
+                    )
+                )
+            else:
+                operations.append(
+                    UpdateOne(
+                        {"name": tag_name},
+                        {"$inc": {"count": -count_change}}
+                    )
+                )
+
+        try:
+            if operations:
+                await VideoTagModel.get_pymongo_collection().bulk_write(operations)
+
+            # delete tags with non-positive counts
+            decremented_tags = [tag for tag, (_, is_inc) in update_tags.items() if not is_inc]
+            if decremented_tags:
+                await VideoTagModel.find({"count": {"$lte": 0}}).delete()
+        
+        except BulkWriteError as bwe:
+            logger.error(f"Bulk write error during tag counts update: {bwe.details}")
+        except Exception as e:
+            logger.error(f"Error during bulk update of tag counts: {e}")
+
+
+    async def process_new_video_entry(
+        self,
+        entry: os.DirEntry[str],
+        author: str | None,
+        tagsOperation: TagsOperationMappingInputModel | None,
+        track_tag_change: callable
+    ) -> UpdateOne:
+        """
+        Process a single new video entry: get duration via ffprobe and build upsert operation.
+
+        :param entry: Directory entry for the video file
+        :param author: Author name to set (if provided)
+        :param tagsOperation: Tags operation to apply
+        :param track_tag_change: Callback to track tag changes
+        :return: UpdateOne operation for bulk write
+        """
+        host_path = resolver_utils().to_host_path(entry.path)
+        filter_query = {"path": host_path}
+
+        # Get video duration with semaphore to limit concurrent ffprobe processes
+        duration = await get_thumbnail_resolver().get_video_duration(entry.path) or 0.0
+
+        stat = entry.stat()
+        set_on_insert = VideoModel(
+            name=entry.name,
+            path=host_path,
+            isDir=False,
+            lastModifyTime=stat.st_mtime,
+            size=stat.st_size,
+            duration=duration,
+            tags=[]
+        ).model_dump()
+
+        if author is not None:
+            set_on_insert["author"] = author
+
+        if tagsOperation is not None:
+            tags_set = set(tagsOperation.tags)
+            if tagsOperation.append:
+                set_on_insert["tags"] = list(tags_set)
+                track_tag_change(tags_set, True)
+
+        return UpdateOne(filter_query, {"$setOnInsert": set_on_insert}, upsert=True)
 
     # ============================================================
     # Calculate directory size and last modified time with caching

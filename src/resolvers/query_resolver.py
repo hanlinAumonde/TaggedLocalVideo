@@ -3,6 +3,7 @@ import strawberry
 from bson import ObjectId
 from src.config import get_settings
 from src.logger import get_logger
+from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
 from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.search_type import (
@@ -72,8 +73,16 @@ class QueryResolver:
             total_count = await query.count()
             video_models = await query.sort(sort_criteria).skip(skip).limit(page_size).to_list()
 
+            async def get_video(video_model: VideoModel):
+                if video_model.duration is None or video_model.duration == 0.0:
+                    video_path = resolver_utils().to_mounted_path(video_model.path)
+                    duration = await get_thumbnail_resolver().get_video_duration(video_path)
+                    video_model.duration = duration
+                    await video_model.save()
+                return await Video.from_mongoDB(video_model)
+            
             # build results
-            videos = [await Video.from_mongoDB(vm) for vm in video_models]
+            videos = [await get_video(vm) for vm in video_models]
             pagination = Pagination(
                 size=page_size,
                 totalCount=total_count,

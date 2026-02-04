@@ -17,6 +17,7 @@ export const SEARCH_VIDEOS = gql`
         lastViewTime
         lastModifyTime
         thumbnail
+        duration
       }
     }
   }
@@ -53,6 +54,7 @@ export const GET_VIDEO_BY_ID = gql`
       lastViewTime
       lastModifyTime
       introduction
+      duration
     }
   }
 `;
@@ -78,6 +80,7 @@ export const BROWSE_DIRECTORY = gql`
         lastModifyTime
         introduction
         size
+        duration
       }
     }
   }

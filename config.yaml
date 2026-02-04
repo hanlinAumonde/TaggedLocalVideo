@@ -8,6 +8,8 @@ cache_config:
   max_size: 2048
   ttl: 300  # in seconds
 
+ffmpeg_semaphore_limit: 4
+
 suggestion_limit:
   name: 10
   author: 10

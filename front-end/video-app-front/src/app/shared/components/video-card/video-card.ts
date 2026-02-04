@@ -20,10 +20,9 @@ export class VideoCard {
 
   thumbnailSrc = signal(this.defaultThumbnail);
   isDefaultThumbnail = signal(true);
-  duration = signal<number>(0);
 
   formattedDuration = computed(() => {
-    const totalSeconds = this.duration();
+    const totalSeconds = this.video()?.duration ?? 0.0;
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = Math.floor(totalSeconds % 60);
@@ -51,20 +50,13 @@ export class VideoCard {
         return;
       }
 
-      this.httpClientService.getThumbnailAndDurationUrl(video.id, video.thumbnail ?? '')
+      this.httpClientService.getThumbnailUrl(video.id, video.thumbnail ?? '')
         .subscribe(response => {
           const blob = response.body;
           if (blob) {
             const url = URL.createObjectURL(blob);
             this.thumbnailSrc.set(url);
             this.isDefaultThumbnail.set(false);
-            const durationHeader = response.headers.get(environment.VIDEO_DURATION_HEADER);
-            if (durationHeader) {
-              const durationSeconds = Math.floor(parseFloat(durationHeader));
-              if (!isNaN(durationSeconds)) {
-                this.duration.set(durationSeconds);
-              }
-            }
           } else {
             this.thumbnailSrc.set(this.defaultThumbnail);
             this.isDefaultThumbnail.set(true);

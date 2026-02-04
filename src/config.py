@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     resource_paths: dict[str, str] = Field(default_factory=dict)
     root_path: Optional[str] = None
     cache_config: CacheConfig = CacheConfig()
+    ffmpeg_semaphore_limit: int = 4
     page_size_default: PageSize = PageSize()
     suggestion_limit: SuggestionLimit = SuggestionLimit()
     video_extensions: list[str] = Field(default_factory=lambda: [".mp4"])

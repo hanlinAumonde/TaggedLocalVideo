@@ -1,3 +1,4 @@
+import asyncio
 import os
 from fastapi.concurrency import run_in_threadpool
 from pymongo import UpdateOne
@@ -8,13 +9,21 @@ import time
 
 from src.logger import get_logger
 from src.resolvers.resolver_utils import resolver_utils
-from src.schema.types.fileBrowse_type import BatchResultType, DirectoryVideosBatchOperationInput, TagsOperationMappingInput, VideoMutationResult, VideosBatchOperationInput, VideosBatchOperationResult
+from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
+from src.schema.types.fileBrowse_type import (
+    BatchResultType, 
+    DirectoryVideosBatchOperationInput, 
+    VideoMutationResult,
+    VideosBatchOperationInput, 
+    VideosBatchOperationResult
+)
 from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
-from src.db.models.Video_model import VideoModel, VideoTagModel
+from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
 
 logger = get_logger("mutation_resolver")
+
 
 class MutationResolver:
 
@@ -62,7 +71,7 @@ class MutationResolver:
             video_model.tags = validated_input.tags
 
             await video_model.save()
-            await _update_tag_counts(update_tags=update_tags)
+            await resolver_utils().update_tag_counts(update_tags=update_tags)
 
             updated_video = await Video.from_mongoDB(video_model)
             return VideoMutationResult(success=True, video=updated_video)
@@ -101,7 +110,6 @@ class MutationResolver:
 
         return VideosBatchOperationResult(
             resultType = success_status,
-            #successfulUpdatesMappings = successful_updates
         )
     
     async def resolve_directory_batch_update(self,input: DirectoryVideosBatchOperationInput) -> VideosBatchOperationResult:
@@ -126,9 +134,7 @@ class MutationResolver:
         
         return VideosBatchOperationResult(
             resultType = success_status,    
-            #successfulUpdatesMappings = successful_updates
         )
-
 
     async def resolve_record_video_view(self,videoId: strawberry.ID) -> VideoMutationResult:
         """
@@ -176,9 +182,7 @@ class MutationResolver:
             video_path = video_model.path
 
             await video_model.delete()
-
-            await _update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
-            logger.info(f"Updated tag counts after deleting video {videoId}")
+            await resolver_utils().update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
             os.remove(resolver_utils().to_mounted_path(video_path))
             logger.info(f"Deleted video file at path: {video_path}")
@@ -220,7 +224,7 @@ async def _batch_update(videoIDs: list[str] | None,
             tag_record: tuple[int, bool] | None = update_tags.get(tag)
             update_tags[tag] = (tag_record[0] + 1, is_increment) if tag_record else (1, is_increment)
 
-    def update_existing_videos_operations(video_models: list[VideoModel], findById: bool):
+    async def update_existing_videos_operations(video_models: list[VideoModel], findById: bool):
         for video_model in video_models:
             old_tags = set(video_model.tags or [])
             filter_query = {"_id": video_model.id} if findById else {"path": video_model.path}
@@ -240,6 +244,13 @@ async def _batch_update(videoIDs: list[str] | None,
 
                 update_query["tags"] = list(new_tags)
 
+            if video_model.duration is None or video_model.duration == 0.0:
+                duration = await get_thumbnail_resolver().get_video_duration(
+                    resolver_utils().to_mounted_path(video_model.path)
+                )     
+                if duration is not None and duration > 0.0:
+                    update_query["duration"] = duration
+
             if update_query:
                 operations.append(UpdateOne(filter_query, {"$set": update_query}))
         
@@ -253,7 +264,7 @@ async def _batch_update(videoIDs: list[str] | None,
             video_models = await VideoModel.find_many(
                 {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIDs]}}
             ).to_list()
-            update_existing_videos_operations(video_models, findById=True)
+            await update_existing_videos_operations(video_models, findById=True)
         else:
             # find by paths with upsert
             paths = [resolver_utils().to_host_path(fe.path) for fe in fileEntries]
@@ -263,42 +274,26 @@ async def _batch_update(videoIDs: list[str] | None,
             existing_paths = {vm.path for vm in video_models}
 
             # process existing documents
-            update_existing_videos_operations(video_models, findById=False)
+            await update_existing_videos_operations(video_models, findById=False)
 
-            # process new documents
-            for entry in fileEntries:
-                if resolver_utils().to_host_path(entry.path) in existing_paths:
-                    continue  # already processed
+            # process new documents in parallel with ffprobe duration extraction
+            new_entries = [
+                entry for entry in fileEntries
+                if resolver_utils().to_host_path(entry.path) not in existing_paths
+            ]
 
-                filter_query = {"path": resolver_utils().to_host_path(entry.path)}
-
-                set_on_insert = VideoModel(
-                    name=entry.name,
-                    path=resolver_utils().to_host_path(entry.path),
-                    isDir=False,
-                    lastModifyTime=entry.stat().st_mtime,
-                    size=entry.stat().st_size,
-                    tags=[]
-                ).model_dump()
-
-                if author is not None:
-                    set_on_insert["author"] = author
-
-                if tagsOperation is not None:
-                    tags_set = set(tagsOperation.tags)
-                    if tagsOperation.append:
-                        set_on_insert["tags"] = list(tags_set)
-                        track_tag_change(tags_set, True)
-                
-                update_doc = {"$setOnInsert": set_on_insert}
-                
-                operations.append(UpdateOne(filter_query, update_doc, upsert=True))
+            if new_entries:
+                new_operations = await asyncio.gather(*[
+                    resolver_utils().process_new_video_entry(entry, author, tagsOperation, track_tag_change)
+                    for entry in new_entries
+                ])
+                operations.extend(new_operations)
 
         if operations:
             result = await VideoModel.get_pymongo_collection().bulk_write(operations)
             successful_updates = result.modified_count + result.upserted_count
 
-            await _update_tag_counts(update_tags=update_tags)
+            await resolver_utils().update_tag_counts(update_tags=update_tags)
         elif no_need_update_flag:
             successful_updates = len(videoIDs) if videoIDs is not None else len(fileEntries)
 
@@ -310,45 +305,3 @@ async def _batch_update(videoIDs: list[str] | None,
         raise DatabaseOperationError("batch_update", "general_failure")
 
     return successful_updates
-
-async def _update_tag_counts(update_tags: dict[str, tuple[int,bool]]) -> None:
-    """
-    update the tag counts in the database based on the changes in tags using bulk write.
-
-    :param update_tags: Dictionary mapping tag names to a tuple of (count change, is_increment).
-    :type update_tags: dict[str, tuple[int,bool]]
-    :return: None
-    :rtype: None
-    """
-    operations = []
-
-    for tag_name, (count_change, is_increment) in update_tags.items():
-        if is_increment:
-            operations.append(
-                UpdateOne(
-                    {"name": tag_name},
-                    {"$inc": {"count": count_change}},
-                    upsert=True
-                )
-            )
-        else:
-            operations.append(
-                UpdateOne(
-                    {"name": tag_name},
-                    {"$inc": {"count": -count_change}}
-                )
-            )
-
-    try:
-        if operations:
-            await VideoTagModel.get_pymongo_collection().bulk_write(operations)
-
-        # delete tags with non-positive counts
-        decremented_tags = [tag for tag, (_, is_inc) in update_tags.items() if not is_inc]
-        if decremented_tags:
-            await VideoTagModel.find({"count": {"$lte": 0}}).delete()
-    
-    except BulkWriteError as bwe:
-        logger.error(f"Bulk write error during tag counts update: {bwe.details}")
-    except Exception as e:
-        logger.error(f"Error during bulk update of tag counts: {e}")

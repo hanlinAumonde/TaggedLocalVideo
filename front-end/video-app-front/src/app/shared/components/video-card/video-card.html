@@ -13,7 +13,7 @@
           [class.object-contain]="isDefaultThumbnail()"
           [class.p-4]="isDefaultThumbnail()"
         />
-        @if(duration() > 0){
+        @if(video()?.duration && video()!.duration > 0){
           <div
             class="absolute rounded-[6cqw] bottom-[3cqw] right-[3cqw] bg-black/70!">
             <p class="text-white! p-[1cqw] text-[5cqw] ml-[2cqw] mr-[2cqw]">

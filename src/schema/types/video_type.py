@@ -22,6 +22,7 @@ class Video:
     loved: bool
     size: float
     tags: list[VideoTag]
+    duration: float
 
     # if None use default thumbnail in public/static/default_thumbnail.jpg
     # TODO: determine how to handle video thumbnails
@@ -55,11 +56,12 @@ class Video:
                 VideoTag(name=tag_name, count=tag_dict.get(tag_name, 0))
                 for tag_name in tag_names
             ],
-            thumbnail=videoModel.thumbnail
+            thumbnail=videoModel.thumbnail,
+            duration=videoModel.duration or 0.0
         )
     
     @classmethod
-    def create_new(cls, id: strawberry.ID, name: str, isDir: bool, lastModifyTime: float, size: float) -> "Video":
+    def create_new(cls, id: strawberry.ID, name: str, isDir: bool, lastModifyTime: float, size: float, duration: float = 0.0) -> "Video":
         """
         Create a new Video instance with default values.
         """
@@ -75,7 +77,8 @@ class Video:
             loved=False,
             size=size,
             tags=[],
-            thumbnail=None
+            thumbnail=None,
+            duration=duration
         )
     
 @strawberry.experimental.pydantic.input(model=UpdateVideoMetadataInputModel)
