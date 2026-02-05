@@ -67,6 +67,7 @@ class ResolverUtils:
                                             node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
                                         )
                                     )
+
                         except StopIteration:
                             break
                         except OSError as e:

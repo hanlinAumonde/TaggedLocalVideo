@@ -17,6 +17,12 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type BatchOperationStatus = {
+  __typename?: 'BatchOperationStatus';
+  result?: Maybe<VideosBatchOperationResult>;
+  status?: Maybe<Scalars['String']['output']>;
+};
+
 export enum BatchResultType {
   AlreadyUpToDate = 'AlreadyUpToDate',
   Failure = 'Failure',
@@ -43,21 +49,9 @@ export type FileBrowseNode = {
 
 export type Mutation = {
   __typename?: 'Mutation';
-  batchUpdate: VideosBatchOperationResult;
-  batchUpdateDirectory: VideosBatchOperationResult;
   deleteVideo: VideoMutationResult;
   recordVideoView: VideoMutationResult;
   updateVideoMetadata: VideoMutationResult;
-};
-
-
-export type MutationBatchUpdateArgs = {
-  input: VideosBatchOperationInput;
-};
-
-
-export type MutationBatchUpdateDirectoryArgs = {
-  input: DirectoryVideosBatchOperationInput;
 };
 
 
@@ -136,6 +130,22 @@ export enum SearchFrom {
 
 export type SerachKeyword = {
   keyWord?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type Subscription = {
+  __typename?: 'Subscription';
+  batchUpdateDirectorySubscription: BatchOperationStatus;
+  batchUpdateSubscription: BatchOperationStatus;
+};
+
+
+export type SubscriptionBatchUpdateDirectorySubscriptionArgs = {
+  input: DirectoryVideosBatchOperationInput;
+};
+
+
+export type SubscriptionBatchUpdateSubscriptionArgs = {
+  input: VideosBatchOperationInput;
 };
 
 export type SuggestionInput = {
@@ -227,13 +237,6 @@ export type UpdateVideoMetadataMutationVariables = Exact<{
 
 export type UpdateVideoMetadataMutation = { __typename?: 'Mutation', updateVideoMetadata: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string, name: string, author: string, loved: boolean, introduction: string, tags: Array<{ __typename?: 'VideoTag', name: string }> } | null } };
 
-export type BatchUpdateVideosMutationVariables = Exact<{
-  input: VideosBatchOperationInput;
-}>;
-
-
-export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } };
-
 export type RecordVideoViewMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
 }>;
@@ -247,13 +250,6 @@ export type DeleteVideoMutationVariables = Exact<{
 
 
 export type DeleteVideoMutation = { __typename?: 'Mutation', deleteVideo: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string } | null } };
-
-export type BatchUpdateDirectoryMutationVariables = Exact<{
-  input: DirectoryVideosBatchOperationInput;
-}>;
-
-
-export type BatchUpdateDirectoryMutation = { __typename?: 'Mutation', batchUpdateDirectory: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } };
 
 export type SearchVideosQueryVariables = Exact<{
   input: VideoSearchInput;
@@ -300,6 +296,20 @@ export type GetDirectoryMetadataQueryVariables = Exact<{
 
 export type GetDirectoryMetadataQuery = { __typename?: 'Query', getDirectoryMetadata: { __typename?: 'DirectoryMetadataResult', totalSize: number, lastModifiedTime: number } };
 
+export type BatchUpdateSubscriptionSubscriptionVariables = Exact<{
+  input: VideosBatchOperationInput;
+}>;
+
+
+export type BatchUpdateSubscriptionSubscription = { __typename?: 'Subscription', batchUpdateSubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
+
+export type BatchUpdateDirectorySubscriptionSubscriptionVariables = Exact<{
+  input: DirectoryVideosBatchOperationInput;
+}>;
+
+
+export type BatchUpdateDirectorySubscriptionSubscription = { __typename?: 'Subscription', batchUpdateDirectorySubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
+
 export const UpdateVideoMetadataDocument = gql`
     mutation UpdateVideoMetadata($input: UpdateVideoMetadataInput!) {
   updateVideoMetadata(input: $input) {
@@ -323,25 +333,6 @@ export const UpdateVideoMetadataDocument = gql`
   })
   export class UpdateVideoMetadataGQL extends Apollo.Mutation<UpdateVideoMetadataMutation, UpdateVideoMetadataMutationVariables> {
     override document = UpdateVideoMetadataDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }
-export const BatchUpdateVideosDocument = gql`
-    mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
-  batchUpdate(input: $input) {
-    resultType
-    message
-  }
-}
-    `;
-
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class BatchUpdateVideosGQL extends Apollo.Mutation<BatchUpdateVideosMutation, BatchUpdateVideosMutationVariables> {
-    override document = BatchUpdateVideosDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
@@ -386,25 +377,6 @@ export const DeleteVideoDocument = gql`
   })
   export class DeleteVideoGQL extends Apollo.Mutation<DeleteVideoMutation, DeleteVideoMutationVariables> {
     override document = DeleteVideoDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }
-export const BatchUpdateDirectoryDocument = gql`
-    mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
-  batchUpdateDirectory(input: $input) {
-    resultType
-    message
-  }
-}
-    `;
-
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class BatchUpdateDirectoryGQL extends Apollo.Mutation<BatchUpdateDirectoryMutation, BatchUpdateDirectoryMutationVariables> {
-    override document = BatchUpdateDirectoryDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
@@ -570,6 +542,50 @@ export const GetDirectoryMetadataDocument = gql`
   })
   export class GetDirectoryMetadataGQL extends Apollo.Query<GetDirectoryMetadataQuery, GetDirectoryMetadataQueryVariables> {
     override document = GetDirectoryMetadataDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const BatchUpdateSubscriptionDocument = gql`
+    subscription BatchUpdateSubscription($input: VideosBatchOperationInput!) {
+  batchUpdateSubscription(input: $input) {
+    result {
+      resultType
+      message
+    }
+    status
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class BatchUpdateSubscriptionGQL extends Apollo.Subscription<BatchUpdateSubscriptionSubscription, BatchUpdateSubscriptionSubscriptionVariables> {
+    override document = BatchUpdateSubscriptionDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const BatchUpdateDirectorySubscriptionDocument = gql`
+    subscription BatchUpdateDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
+  batchUpdateDirectorySubscription(input: $input) {
+    result {
+      resultType
+      message
+    }
+    status
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class BatchUpdateDirectorySubscriptionGQL extends Apollo.Subscription<BatchUpdateDirectorySubscriptionSubscription, BatchUpdateDirectorySubscriptionSubscriptionVariables> {
+    override document = BatchUpdateDirectorySubscriptionDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

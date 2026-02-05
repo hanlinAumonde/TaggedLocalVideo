@@ -188,9 +188,9 @@ export class VideoEditPanel implements OnInit {
           this.video()!.id,
           formValue.loved ?? false,
           this.tags(),
-          formValue.name ?? '',
-          formValue.introduction ?? '',
-          formValue.author ?? ''
+          formValue.name ?? undefined,
+          formValue.introduction ?? undefined,
+          formValue.author ?? 'Unknown',
         ).subscribe({
           next: (result) => {
             this.isSaving.set(false);

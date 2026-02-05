@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -11,12 +11,13 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { BatchResultType, DirectoryVideosBatchOperationInput, SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
-import { startWith } from 'rxjs';
+import { startWith, Subject, takeUntil, takeWhile } from 'rxjs';
 import { ToastService } from '../../../services/toast-service/toast-service';
 import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
 
@@ -40,11 +41,12 @@ export interface BatchPanelData {
     MatRadioModule,
     MatProgressSpinnerModule,
     MatExpansionModule,
+    MatProgressBarModule,
     ToastDisplayer
 ],
   templateUrl: './batch-operation-panel.html'
 })
-export class BatchOperationPanel {
+export class BatchOperationPanel implements OnDestroy {
   private dialogRef = inject(MatDialogRef<BatchOperationPanel>);
   private data = inject<BatchPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
@@ -90,6 +92,9 @@ export class BatchOperationPanel {
     const result = this.validationService.validateTagsArray(this.tags());
     return result.valid ? null : result.error;
   });
+
+  processingMessage = signal<string>('');
+  private destroy$ = new Subject<void>();
 
   addTag(tagValue?: string) {
     const value = tagValue ?? this.tagInput.value;
@@ -151,40 +156,55 @@ export class BatchOperationPanel {
       ? this.form.value.authorInput.trim()
       : undefined;
 
-    const mutation$ = this.isVideoMode
-      ? this.gqlService.batchUpdateVideosMutation({
+    const subscription$ = this.isVideoMode
+      ? this.gqlService.batchUpdateVideosSubscription({
           videoIds: this.videos.map(video => video.id),
           tagsOperation,
           author
         } as VideosBatchOperationInput)
-      : this.gqlService.batchUpdateDirectoryMutation({
+      : this.gqlService.batchUpdateDirectorySubscription({
           relativePath: { relativePath: this.directoryPath },
           tagsOperation,
           author
         } as DirectoryVideosBatchOperationInput);
 
-    mutation$.subscribe({
+    subscription$.pipe(
+      takeWhile(result => result.data?.result?.resultType === undefined, true),
+      takeUntil(this.destroy$)
+    )
+    .subscribe({
       next: (result) => {
-        this.isSaving.set(false);
-        if (result.data?.resultType === BatchResultType.Success) {
-          this.dialogRef.close(true);
-        } else if (result.data?.resultType === BatchResultType.PartialSuccess) {
-          this.toastService.emitErrorOrWarning(
-            `Batch update partially success. Some videos may not have been updated.
-            \nMessage: ${result.data.message ?? 'No additional information provided.'}`, 
-            'warning'
-          );
-          this.dialogRef.close(true);
-        } else if(result.data?.resultType === BatchResultType.AlreadyUpToDate) {
-          this.toastService.emitErrorOrWarning(
-            'All selected videos are already up to date. No changes were made.', 
-            'warning'
-          );
+        if(result.data?.result?.resultType === undefined && result.data?.status){
+          this.processingMessage.set(result.data.status);
+        }else if(result.data?.result?.resultType){
+          this.isSaving.set(false);
+          this.processingMessage.set('');
+          const resultType = result.data.result.resultType;
+          switch(resultType) {
+            case BatchResultType.Success:
+              this.dialogRef.close(true);
+              break;
+            case BatchResultType.PartialSuccess:
+              this.toastService.emitErrorOrWarning(
+                `Batch update partially success. Some videos may not have been updated.
+                \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`, 
+                'warning'
+              );
+              this.dialogRef.close(true);
+              break;
+            case BatchResultType.AlreadyUpToDate:
+              this.toastService.emitErrorOrWarning(
+                'All selected videos are already up to date. No changes were made.', 
+                'warning'
+              );
+              break;
+          }
         } else {
           this.toastService.emitErrorOrWarning(
             'Batch update failed. Please try again.', 
             'error'
           );
+          this.processingMessage.set('');
         }
       },
       error: (err) => {
@@ -197,7 +217,12 @@ export class BatchOperationPanel {
     });
   }
 
-  saveButtonDisabled = computed(() => {
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  onProcessing = computed(() => {
     return this.isSaving() || this.form.invalid || this.tagsError()? true : false || 
       (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode)
   });

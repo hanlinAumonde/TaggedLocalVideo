@@ -14,11 +14,11 @@ import {
   VideoSortOption,
   BrowseDirectoryGQL,
   DeleteVideoGQL,
-  BatchUpdateVideosGQL,
-  BatchUpdateDirectoryGQL,
   VideosBatchOperationInput,
   DirectoryVideosBatchOperationInput,
-  GetDirectoryMetadataGQL
+  GetDirectoryMetadataGQL,
+  BatchUpdateDirectorySubscriptionGQL,
+  BatchUpdateSubscriptionGQL
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -59,10 +59,9 @@ export class GqlService {
   private updateVideoMetadataGQL = inject(UpdateVideoMetadataGQL)
   private browseDirectoryGQL = inject(BrowseDirectoryGQL)
   private deleteVideoGQL = inject(DeleteVideoGQL)
-  private batchUpdateVideosGQL = inject(BatchUpdateVideosGQL)
-  private batchUpdateDirectoryGQL = inject(BatchUpdateDirectoryGQL)
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
-
+  private batchUpdateVideosSubscriptionGQL = inject(BatchUpdateSubscriptionGQL)
+  private batchUpdateDirectorySubscriptionGQL = inject(BatchUpdateDirectorySubscriptionGQL)
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
 
@@ -152,7 +151,7 @@ export class GqlService {
               introduction: description,
               tags: tags ?? [],
               author: author,
-              loved: loved
+              loved: loved,
             }
           }
         }
@@ -235,40 +234,6 @@ export class GqlService {
     )
   }
 
-  batchUpdateVideosMutation(input: VideosBatchOperationInput): Observable<ResultState<BatchUpdateVideosDetail>> {
-    return this.toResultStateObservable(
-      this.batchUpdateVideosGQL.mutate({
-        variables: {
-          input: {
-            videoIds: input.videoIds,
-            tagsOperation: input.tagsOperation ?? undefined,
-            author: input.author ?? undefined,
-          }
-        }
-      }),
-      (data) => ({
-        resultType: data.batchUpdate?.resultType ?? false
-      } as BatchUpdateVideosDetail)
-    )
-  }
-
-  batchUpdateDirectoryMutation(input: DirectoryVideosBatchOperationInput): Observable<ResultState<BatchUpdateVideosDetail>> {
-    return this.toResultStateObservable(
-      this.batchUpdateDirectoryGQL.mutate({
-        variables: {
-          input: {
-            relativePath: input.relativePath,
-            tagsOperation: input.tagsOperation ?? undefined,
-            author: input.author ?? undefined,
-          }
-        }
-      }),
-      (data) => ({
-        resultType: data.batchUpdateDirectory?.resultType ?? false
-      } as BatchUpdateVideosDetail)
-    )
-  }
-
   getDirectoryMetadataQuery(relativePath?: string): Observable<ResultState<DirectoryMetadataDetail>> {
     return this.toResultStateObservable(
       this.getDirectoryMetadataGQL.watch({
@@ -282,5 +247,46 @@ export class GqlService {
       } as DirectoryMetadataDetail)
     )
   }
-}
 
+  batchUpdateVideosSubscription(input: VideosBatchOperationInput){
+    return this.toResultStateObservable(
+      this.batchUpdateVideosSubscriptionGQL.subscribe({
+        variables: {
+            input: {
+              videoIds: input.videoIds,
+              tagsOperation: input.tagsOperation ?? undefined,
+              author: input.author ?? undefined,
+            }
+          }
+      }),
+      (data) => ({
+        result: {
+          resultType: data.batchUpdateSubscription?.result?.resultType ?? undefined,
+          message: data.batchUpdateSubscription?.result?.message ?? undefined
+        },
+        status: data.batchUpdateSubscription?.status ?? undefined
+      } as BatchUpdateVideosDetail)
+    )
+  }
+
+  batchUpdateDirectorySubscription(input: DirectoryVideosBatchOperationInput){
+    return this.toResultStateObservable(
+      this.batchUpdateDirectorySubscriptionGQL.subscribe({
+        variables: {
+          input: {
+            relativePath: input.relativePath,
+            tagsOperation: input.tagsOperation ?? undefined,
+            author: input.author ?? undefined,
+          }
+        }
+      }),
+      (data) => ({
+        result: {
+          resultType: data.batchUpdateDirectorySubscription?.result?.resultType ?? undefined,
+          message: data.batchUpdateDirectorySubscription?.result?.message ?? undefined
+        },
+        status: data.batchUpdateDirectorySubscription?.status ?? undefined
+      } as BatchUpdateVideosDetail)
+    )
+  }
+}

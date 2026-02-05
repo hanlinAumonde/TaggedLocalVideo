@@ -5,8 +5,12 @@ import { provideApollo } from 'apollo-angular';
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
 import { HttpLink } from 'apollo-angular/http';
-import { InMemoryCache } from '@apollo/client';
+import { ApolloLink, InMemoryCache } from '@apollo/client';
 import { ImageRequestInterceptor } from './shared/interceptor/ImageRequest.interceptor';
+import { createClient } from 'graphql-ws';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { getMainDefinition } from '@apollo/client/utilities';
+import { Kind, OperationTypeNode } from 'graphql';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -24,8 +28,23 @@ export const appConfig: ApplicationConfig = {
     },
     provideApollo(() => {
       const httpLink = inject(HttpLink)
+      const http = httpLink.create({ uri: environment.backend_api + "/graphql" });
+      const ws = new GraphQLWsLink(
+        createClient({
+          url: environment.backend_ws_api + window.location.host + "/graphql",
+        }),
+      );
+      const link = ApolloLink.split(
+        ({ query }) => {
+          const definition = getMainDefinition(query);
+          return (
+            definition.kind === Kind.OPERATION_DEFINITION &&
+            definition.operation === OperationTypeNode.SUBSCRIPTION
+          );
+        }, ws, http
+      )
       return {
-        link: httpLink.create({ uri: environment.backend_api + "/graphql" }),
+        link: link,
         cache: new InMemoryCache({
           typePolicies: {
             Query: {
@@ -53,6 +72,9 @@ export const appConfig: ApplicationConfig = {
           mutate: {
             errorPolicy: 'all',
           },
+          subscribe: {
+            errorPolicy: 'all',
+          }
         },
       };
     }),

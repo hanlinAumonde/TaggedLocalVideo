@@ -38,6 +38,7 @@
     "@types/video.js": "^7.3.58",
     "apollo-angular": "^13.0.0",
     "graphql": "^16.12.0",
+    "graphql-ws": "^6.0.7",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "video.js": "^8.23.4"

@@ -143,27 +143,35 @@
 </mat-dialog-content>
 
 <mat-dialog-actions [align]="'end'">
-  <button
-    matButton="outlined"
-    type="button"
-    (click)="handleCancel()">
-    Cancel
-  </button>
-  <button
-    matButton="tonal"
-    type="button"
-    (click)="handleSave()"
-    [disabled]="saveButtonDisabled()"
-    color="primary">
-    @if (isSaving()) {
-      <span class="flex">
-        <mat-spinner [diameter]="20"></mat-spinner>
-        <span class="mx-2">{{isVideoMode? 'Editing...' : 'Syncing...'}}</span>
-      </span>
-    } @else {
-      {{isVideoMode? 'Edit' : 'Sync Directory'}}
-    }
-  </button>
+  @if(onProcessing()){
+    <p class="text-sm text-gray-600 dark:text-gray-300">{{processingMessage()}}</p>
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  }
+  <span class="mt-2">
+    <button
+      matButton="outlined"
+      type="button"
+      (click)="handleCancel()"
+      [disabled]="onProcessing()"  
+    >
+      Cancel
+    </button>
+    <button
+      matButton="tonal"
+      type="button"
+      (click)="handleSave()"
+      [disabled]="onProcessing()"
+      color="primary">
+      @if (onProcessing()) {
+        <span class="flex">
+          <mat-spinner [diameter]="20"></mat-spinner>
+          <span class="mx-2">{{isVideoMode? 'Editing...' : 'Syncing...'}}</span>
+        </span>
+      } @else {
+        {{isVideoMode? 'Edit' : 'Sync Directory'}}
+      }
+    </button>
+  </span>
 </mat-dialog-actions>
 
 <app-toast-displayer />

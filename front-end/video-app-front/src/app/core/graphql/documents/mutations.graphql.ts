@@ -18,15 +18,6 @@ export const UPDATE_VIDEO_METADATA = gql`
   }
 `;
 
-export const BATCH_UPDATE_VIDEOS = gql`
-  mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
-    batchUpdate(input: $input) {
-      resultType
-      message
-    }
-  }
-`;
-
 export const RECORD_VIDEO_VIEW = gql`
   mutation RecordVideoView($videoId: ID!) {
     recordVideoView(videoId: $videoId) {
@@ -47,15 +38,6 @@ export const DELETE_VIDEO = gql`
       video {
         id
       }
-    }
-  }
-`;
-
-export const BATCH_UPDATE_DIRECTORY = gql`
-  mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
-    batchUpdateDirectory(input: $input) {
-      resultType
-      message
     }
   }
 `;

@@ -200,8 +200,7 @@ class QueryResolver:
             logger.error(f"Video not found: {videoId}")
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
-
-
+    
     async def resolve_browse_directory(self,path: RelativePathInput) -> list[FileBrowseNode]:
         """
         Resolve function to browse videos in a directory specified by a relative path.
@@ -220,7 +219,6 @@ class QueryResolver:
         abs_path = resolver_utils().get_absolute_resource_path(relativePathInputModel)
 
         return await resolver_utils().get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)
-    
 
     async def resolve_directory_metadata(self,path: RelativePathInput) -> DirectoryMetadataResult:
         """

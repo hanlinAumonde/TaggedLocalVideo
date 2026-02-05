@@ -52,6 +52,11 @@ class VideosBatchOperationResult:
     message: Optional[str] = None
 
 @strawberry.type
+class BatchOperationStatus:
+    result: Optional[VideosBatchOperationResult]
+    status: Optional[str] = None
+
+@strawberry.type
 class VideoMutationResult:
     success: bool
     video: Optional[Video] = None

@@ -1,6 +1,7 @@
 export const environment = {
     production: false,
     backend_api: "http://localhost:12000",
+    backend_ws_api: "ws://localhost:12000",
     video_stream_api: "/video/stream/",
     homepage_api: "/home",
     searchpage_api: "/search",

@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import JSONResponse
 from strawberry.fastapi import GraphQLRouter
+from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL
 from src.schema.strawberry_schema import schema
 from src.db.setup_mongo import setup_mongo
 from src.router import video_router
@@ -48,7 +49,13 @@ def create_app():
         allow_headers=["*"],
     )
 
-    graphql_app = GraphQLRouter(schema=schema)
+    graphql_app = GraphQLRouter(
+        schema,
+        subscription_protocols=[
+            GRAPHQL_TRANSPORT_WS_PROTOCOL,
+            GRAPHQL_WS_PROTOCOL,
+        ],
+    )
     app.include_router(graphql_app, prefix="/graphql")
     app.include_router(video_router.router)
 
