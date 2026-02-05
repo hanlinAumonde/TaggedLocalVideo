@@ -2,8 +2,6 @@ resource_paths:
   Resource-1: path1
   Resource-2: path2
 
-root_path: /app/resources
-
 cache_config:
   max_size: 2048
   ttl: 300  # in seconds

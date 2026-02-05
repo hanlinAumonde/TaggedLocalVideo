@@ -17,7 +17,8 @@ import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
 import { startWith } from 'rxjs';
-import { ErrorHandlerService } from '../../../services/errorHandler-service/error-handler-service';
+import { ToastService } from '../../../services/toast-service/toast-service';
+import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
 
 export interface BatchPanelData {
   mode: 'videos' | 'directory';
@@ -38,8 +39,9 @@ export interface BatchPanelData {
     MatIconModule,
     MatRadioModule,
     MatProgressSpinnerModule,
-    MatExpansionModule
-  ],
+    MatExpansionModule,
+    ToastDisplayer
+],
   templateUrl: './batch-operation-panel.html'
 })
 export class BatchOperationPanel {
@@ -48,7 +50,7 @@ export class BatchOperationPanel {
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
-  private errorHandlerService = inject(ErrorHandlerService);
+  private toastService = inject(ToastService);
 
   readonly isVideoMode = this.data.mode === 'videos';
   readonly videos = this.data.videos ?? [];
@@ -167,16 +169,30 @@ export class BatchOperationPanel {
         if (result.data?.resultType === BatchResultType.Success) {
           this.dialogRef.close(true);
         } else if (result.data?.resultType === BatchResultType.PartialSuccess) {
-          this.errorHandlerService.emitError('Batch update completed with partial success. Some videos may not have been updated.');
+          this.toastService.emitErrorOrWarning(
+            `Batch update partially success. Some videos may not have been updated.
+            \nMessage: ${result.data.message ?? 'No additional information provided.'}`, 
+            'warning'
+          );
           this.dialogRef.close(true);
+        } else if(result.data?.resultType === BatchResultType.AlreadyUpToDate) {
+          this.toastService.emitErrorOrWarning(
+            'All selected videos are already up to date. No changes were made.', 
+            'warning'
+          );
         } else {
-          this.errorHandlerService.emitError('Batch update failed. No videos were updated.');
+          this.toastService.emitErrorOrWarning(
+            'Batch update failed. Please try again.', 
+            'error'
+          );
         }
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.errorHandlerService.emitError('Error performing batch update: ' + err.message);
-        console.error('Error performing batch update:', err);
+        this.toastService.emitErrorOrWarning(
+          'Error performing batch update: ' + err.message, 
+          'error'
+        );
       }
     });
   }

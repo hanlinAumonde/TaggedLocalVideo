@@ -1,21 +1,25 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { ErrorToast } from '../../shared/models/error-toast.model';
+import { Toast } from '../../shared/models/toast.model';
+import { Overlay } from '@angular/cdk/overlay';
+import { ToastDisplayer } from '../../shared/components/toast-displayer/toast-displayer';
+import { ComponentPortal } from '@angular/cdk/portal';
 
 @Injectable({
   providedIn: 'root',
 })
-export class ErrorHandlerService {
+export class ToastService {
+  private overlay = inject(Overlay);
   private counter = 0;
 
-  private _toasts = signal<ErrorToast[]>([]);
+  private _toasts = signal<Toast[]>([]);
   toasts = this._toasts.asReadonly();
 
-  emitError(message: string) {
+  emitErrorOrWarning(message: string, type: 'error' | 'warning' = 'error') {
     const id = ++this.counter;
 
     this._toasts.update(list => {
-      const newList = [...list, { id, message }];
+      const newList = [...list, { id, message, type }];
       // when exceeding max toasts, remove the oldest one
       if (newList.length > environment.ERROR_TOAST_SETTINGS.MAX_TOASTS) {
         const oldest = newList.find(t => !t.removing);

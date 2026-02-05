@@ -33,7 +33,8 @@ import {
 import { GqlService } from '../../../services/GQL-service/GQL-service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation-service';
-import { ErrorHandlerService } from '../../../services/errorHandler-service/error-handler-service';
+import { ToastService } from '../../../services/toast-service/toast-service';
+import { ToastDisplayer } from "../toast-displayer/toast-displayer";
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -47,8 +48,9 @@ import { ErrorHandlerService } from '../../../services/errorHandler-service/erro
     MatChipsModule,
     MatAutocompleteModule,
     MatIconModule,
-    MatProgressSpinnerModule
-  ],
+    MatProgressSpinnerModule,
+    ToastDisplayer
+],
   templateUrl: './video-edit-panel.html'
 })
 export class VideoEditPanel implements OnInit {
@@ -57,7 +59,7 @@ export class VideoEditPanel implements OnInit {
   private formBuilder = inject(FormBuilder);
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
-  private errorHandlerService = inject(ErrorHandlerService);
+  private toastService = inject(ToastService);
 
   mode: VideoEditPanelMode = this.data.mode;
   video = signal<EditableVideo | undefined>(this.data.video);
@@ -196,14 +198,12 @@ export class VideoEditPanel implements OnInit {
               this.dialogRef.close(result.data);
             } else {
               // update failed, keep the dialog open for user to retry
-              this.errorHandlerService.emitError('Failed to update video metadata');
-              console.error('Failed to update video metadata');
+              this.toastService.emitErrorOrWarning('Failed to update video metadata', 'error');
             }
           },
           error: (err) => {
             this.isSaving.set(false);
-            this.errorHandlerService.emitError('Error updating video metadata: ' + err.message);
-            console.error('Error updating video metadata:', err);
+            this.toastService.emitErrorOrWarning('Error updating video metadata: ' + err.message, 'error');
           }
         });
       }

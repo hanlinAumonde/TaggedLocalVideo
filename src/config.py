@@ -46,7 +46,7 @@ class LoggingConfig(BaseModel):
 
 class Settings(BaseSettings):
     resource_paths: dict[str, str] = Field(default_factory=dict)
-    root_path: Optional[str] = None
+    ROOT_PATH: Optional[str] = None
     cache_config: CacheConfig = CacheConfig()
     ffmpeg_semaphore_limit: int = 4
     page_size_default: PageSize = PageSize()
@@ -63,7 +63,10 @@ def get_settings() -> Settings:
     with open("config.yaml", "r", encoding="utf-8") as file:
         config: dict = yaml.safe_load(file) or {}
 
-    # override mongo settings with environment variables if they exist
+    # override settings with environment variables if they exist
+    if "ROOT_PATH" in os.environ:
+        config["ROOT_PATH"] = os.getenv("ROOT_PATH")
+        
     if "mongo" not in config:
         config["mongo"] = {}
     if os.getenv("MONGO_HOST"):

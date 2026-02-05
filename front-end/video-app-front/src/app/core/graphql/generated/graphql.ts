@@ -18,6 +18,7 @@ export type Scalars = {
 };
 
 export enum BatchResultType {
+  AlreadyUpToDate = 'AlreadyUpToDate',
   Failure = 'Failure',
   PartialSuccess = 'PartialSuccess',
   Success = 'Success'
@@ -215,6 +216,7 @@ export type VideosBatchOperationInput = {
 
 export type VideosBatchOperationResult = {
   __typename?: 'VideosBatchOperationResult';
+  message?: Maybe<Scalars['String']['output']>;
   resultType: BatchResultType;
 };
 
@@ -230,7 +232,7 @@ export type BatchUpdateVideosMutationVariables = Exact<{
 }>;
 
 
-export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType } };
+export type BatchUpdateVideosMutation = { __typename?: 'Mutation', batchUpdate: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } };
 
 export type RecordVideoViewMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
@@ -251,7 +253,7 @@ export type BatchUpdateDirectoryMutationVariables = Exact<{
 }>;
 
 
-export type BatchUpdateDirectoryMutation = { __typename?: 'Mutation', batchUpdateDirectory: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType } };
+export type BatchUpdateDirectoryMutation = { __typename?: 'Mutation', batchUpdateDirectory: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } };
 
 export type SearchVideosQueryVariables = Exact<{
   input: VideoSearchInput;
@@ -330,6 +332,7 @@ export const BatchUpdateVideosDocument = gql`
     mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
   batchUpdate(input: $input) {
     resultType
+    message
   }
 }
     `;
@@ -392,6 +395,7 @@ export const BatchUpdateDirectoryDocument = gql`
     mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
   batchUpdateDirectory(input: $input) {
     resultType
+    message
   }
 }
     `;

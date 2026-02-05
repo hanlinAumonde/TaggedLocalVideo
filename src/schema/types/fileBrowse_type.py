@@ -15,6 +15,7 @@ class BatchResultType(Enum):
     Success = "Success"
     PartialSuccess = "PartialSuccess"
     Failure = "Failure"
+    AlreadyUpToDate = "AlreadyUpToDate"
 
 @strawberry.type
 class FileBrowseNode:
@@ -47,8 +48,8 @@ class DirectoryVideosBatchOperationInput:
 
 @strawberry.type
 class VideosBatchOperationResult:
-    #successfulUpdatesMappings: list[strawberry.ID] 
     resultType: BatchResultType
+    message: Optional[str] = None
 
 @strawberry.type
 class VideoMutationResult:

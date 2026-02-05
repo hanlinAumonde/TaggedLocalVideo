@@ -44,7 +44,7 @@ import {
   VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 import { ValidationService } from '../validation-service/validation-service';
-import { ErrorHandlerService } from '../errorHandler-service/error-handler-service';
+import { ToastService } from '../toast-service/toast-service';
 
 @Injectable({
   providedIn: 'root',
@@ -64,7 +64,7 @@ export class GqlService {
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
 
   private validationService = inject(ValidationService);
-  private errorHandlerService = inject(ErrorHandlerService);
+  private toastService = inject(ToastService);
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
@@ -89,8 +89,7 @@ export class GqlService {
         }),
         tap(result => {
           if(result.error){
-            //window.alert(`Failed GraphQL request: ${result.error}`)
-            this.errorHandlerService.emitError(`Failed GraphQL request: ${result.error}`);
+            this.toastService.emitErrorOrWarning(`Failed GraphQL request: ${result.error}`, 'error');
           }
         })
         

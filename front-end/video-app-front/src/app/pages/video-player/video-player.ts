@@ -9,7 +9,7 @@ import {
   effect,
   viewChild,
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { take } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
@@ -27,7 +27,7 @@ import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } 
 import { environment } from '../../../environments/environment';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { Title } from '@angular/platform-browser';
-import { ErrorHandlerService } from '../../services/errorHandler-service/error-handler-service';
+import { ToastService } from '../../services/toast-service/toast-service';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 
 @Component({
@@ -46,13 +46,11 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   videoTarget = viewChild<ElementRef<HTMLVideoElement>>('videoTarget');
 
   private route = inject(ActivatedRoute);
-  private router = inject(Router);
   private gqlService = inject(GqlService);
-  private errorHandlerService = inject(ErrorHandlerService);
   private stateService = inject(PageStateService);
   private dialog = inject(MatDialog);
   private title = inject(Title);
-
+  private toastService = inject(ToastService);
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
   private videoDataLoaded = toSignal(this.route.data)
@@ -156,9 +154,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       .subscribe({
         next: (result) => {
           if (!result.data?.success) {
-            //window.alert('Failed to record video view');
-            this.errorHandlerService.emitError('Failed to record video view');
-            console.error('Failed to record video view');
+            this.toastService.emitErrorOrWarning('Failed to record video view', 'error');
           }else if(result.data.video){
             this.video.update(current => {
               if (!current.data) return current;
@@ -185,9 +181,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
             return this.toVideoDetailResultState(result.data!, current);
           })
         }else{
-          //window.alert('Failed to update loved status');
-          this.errorHandlerService.emitError('Failed to update loved status');
-          console.error('Failed to update loved status');
+          this.toastService.emitErrorOrWarning('Failed to update loved status', 'error');
         }
       }
     });

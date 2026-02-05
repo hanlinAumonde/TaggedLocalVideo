@@ -290,9 +290,9 @@ class ResolverUtils:
         if pseudo_root_dir_name not in resource_paths:
             raise FileBrowseError(f"Pseudo root dir name '{pseudo_root_dir_name}' not found in resource paths.")
 
-        if settings.root_path:
-            # Use root_path as base path when provided (run in container)
-            abs_path = os.path.join(settings.root_path, pseudo_root_dir_name)
+        if settings.ROOT_PATH:
+            # Use ROOT_PATH as base path when provided (run in container)
+            abs_path = os.path.join(settings.ROOT_PATH, pseudo_root_dir_name)
         else:
             # Use configured resource path directly (run locally)
             abs_path = resource_paths[pseudo_root_dir_name]
@@ -314,25 +314,25 @@ class ResolverUtils:
         return abs_path
 
     def to_mounted_path(self, local_path: str) -> str:
-        """Convert absolute path to mounted path in container if root_path is set"""
+        """Convert absolute path to mounted path in container if ROOT_PATH is set"""
         settings = get_settings()
         mounted_path = local_path
-        if settings.root_path:
+        if settings.ROOT_PATH:
             for pseudo_name, resource_path in settings.resource_paths.items():
                 if mounted_path.startswith(resource_path):
                     relative_sub_path = mounted_path[len(resource_path):]
-                    return self.get_path_standard_format(os.path.join(settings.root_path, pseudo_name, relative_sub_path.lstrip("/")))
+                    return self.get_path_standard_format(os.path.join(settings.ROOT_PATH, pseudo_name, relative_sub_path.lstrip("/")))
         return self.get_path_standard_format(mounted_path)
 
     def to_host_path(self, mounted_path: str) -> str:
-        """Convert mounted path in container to local absolute path if root_path is set"""
+        """Convert mounted path in container to local absolute path if ROOT_PATH is set"""
         settings = get_settings()
         local_path = mounted_path
-        if settings.root_path:
+        if settings.ROOT_PATH:
             for pseudo_name, resource_path in settings.resource_paths.items():
-                mounted_root_path = self.get_path_standard_format(os.path.join(settings.root_path, pseudo_name))
-                if local_path.startswith(mounted_root_path):
-                    relative_sub_path = local_path[len(mounted_root_path):]
+                mounted_ROOT_PATH = self.get_path_standard_format(os.path.join(settings.ROOT_PATH, pseudo_name))
+                if local_path.startswith(mounted_ROOT_PATH):
+                    relative_sub_path = local_path[len(mounted_ROOT_PATH):]
                     return self.get_path_standard_format(os.path.join(resource_path, relative_sub_path.lstrip("/")))
         return self.get_path_standard_format(local_path)
 

@@ -5,19 +5,16 @@ import { Header } from './shared/components/header/header';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { environment } from '../environments/environment';
-import { ErrorHandlerService } from './services/errorHandler-service/error-handler-service';
-import { MatIcon } from "@angular/material/icon";
+import { ToastDisplayer } from "./shared/components/toast-displayer/toast-displayer";
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Sidebar, Header, MatIcon],
+  imports: [RouterOutlet, Sidebar, Header, ToastDisplayer],
   templateUrl: './app.html'
 })
 export class App {
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
-
-  public errorService = inject(ErrorHandlerService);
 
   rootMainContainerId = environment.rootMainContainerId;
 

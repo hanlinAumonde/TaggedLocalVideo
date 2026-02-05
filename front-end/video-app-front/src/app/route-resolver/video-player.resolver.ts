@@ -8,7 +8,7 @@ import { inject } from "@angular/core";
 import { GqlService } from "../services/GQL-service/GQL-service";
 import { of, switchMap, filter } from "rxjs";
 import { environment } from "../../environments/environment";
-import { ErrorHandlerService } from "../services/errorHandler-service/error-handler-service";
+import { ToastService } from "../services/toast-service/toast-service";
 
 export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | RedirectCommand> = (
     route: ActivatedRouteSnapshot,
@@ -16,13 +16,12 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
 ) => {
     const gqlService = inject(GqlService);
     const router = inject(Router);
-    const errorHandlerService = inject(ErrorHandlerService);
+    const toastService = inject(ToastService);
 
     const videoId = route.paramMap.get('id') ?? '';
     console.log('Resolving video metadata for video ID:', videoId);
     if(!videoId){
-        //window.alert('Null video ID');
-        errorHandlerService.emitError('Null video ID');
+        toastService.emitErrorOrWarning('Null video ID', 'error');
         return new RedirectCommand(router.parseUrl(environment.homepage_api));
     }
     return gqlService.getVideoByIdQuery(videoId).pipe(
@@ -30,7 +29,10 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
         //first(),
         switchMap(result => {
             if (result.error) {
-                errorHandlerService.emitError(`Failed to resolve video metadata: ${result.error}`);
+                toastService.emitErrorOrWarning(
+                    `Failed to resolve video metadata: ${result.error}`, 
+                    'error'
+                );
                 return of(new RedirectCommand(router.parseUrl(environment.homepage_api)));
             }
             console.log('Resolved video metadata:', result);

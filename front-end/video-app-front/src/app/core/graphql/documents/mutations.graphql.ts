@@ -22,6 +22,7 @@ export const BATCH_UPDATE_VIDEOS = gql`
   mutation BatchUpdateVideos($input: VideosBatchOperationInput!) {
     batchUpdate(input: $input) {
       resultType
+      message
     }
   }
 `;
@@ -54,6 +55,7 @@ export const BATCH_UPDATE_DIRECTORY = gql`
   mutation BatchUpdateDirectory($input: DirectoryVideosBatchOperationInput!) {
     batchUpdateDirectory(input: $input) {
       resultType
+      message
     }
   }
 `;

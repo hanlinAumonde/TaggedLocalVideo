@@ -32,6 +32,7 @@ services:
       # /path/on/host:/app/resources/Resource-1
       # /another/path/on/host:/app/resources/Resource-2
     environment:
+      - ROOT_PATH=/app/resources
       - MONGO_HOST=mongodb
       - MONGO_PORT=27017
     depends_on:

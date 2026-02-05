@@ -21,8 +21,7 @@ import { environment } from '../../../environments/environment';
 import { ItemsSortOption, ManagementState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
 import { DeleteCheckPanel } from './delete-check-panel/delete-check-panel';
-import { ErrorHandlerService } from '../../services/errorHandler-service/error-handler-service';
-import { CdkAriaLive } from "../../../../node_modules/@angular/cdk/types/_a11y-module-chunk";
+import { ToastService } from '../../services/toast-service/toast-service';
 
 @Component({
   selector: 'app-management',
@@ -40,7 +39,7 @@ export class Management {
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
   private statService = inject(PageStateService);
-  private errorHandlerService = inject(ErrorHandlerService);
+  private toastService = inject(ToastService);
 
   SORT_OPTIONS = ItemsSortOption;
   // true for ascending, false for descending
@@ -302,7 +301,7 @@ export class Management {
         }
       },
       error: (err) => {
-        this.errorHandlerService.emitError('Failed to refresh directory metadata: ' + err.message);
+        this.toastService.emitErrorOrWarning('Failed to refresh directory metadata: ' + err.message, 'error');
       }
     });
   }
