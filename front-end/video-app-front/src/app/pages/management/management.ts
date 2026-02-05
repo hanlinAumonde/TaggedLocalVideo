@@ -114,9 +114,14 @@ export class Management {
   }
 
   private loadDirectory(relativePath?: string, refreshCache: boolean = false) {
-    this.gqlService.browseDirectoryQuery(relativePath, refreshCache).subscribe(result => {
-      this.directoryContents.set(result);
-      this.selectedIds.set(new Set());
+    this.gqlService.browseDirectoryQuery(relativePath, refreshCache).subscribe({
+      next: (result) => {
+        this.directoryContents.set({ ...result, loading: result.data? false : true});
+        this.selectedIds.set(new Set());
+      },
+      error: (err) => {
+        this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, 'error');
+      }
     });
   }
 
@@ -314,15 +319,19 @@ export class Management {
     const data = mode === 'videos' ? { mode: mode, videos: selectedVideos }
     : { mode: mode, selectedDirectoryPath: this.currentPath().join('/') + '/' + dirName! };
 
+    this.toastService.clearAllToasts();
+
     const dialogRef = this.dialog.open(BatchOperationPanel, {
       width: '500px',
-      data: data
+      data: data,
+      disableClose: true,
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         this.refreshDirectory();
         this.selectedIds.set(new Set());
+        this.toastService.clearAllToastsBeyondDialog();
       }
     });
   }
