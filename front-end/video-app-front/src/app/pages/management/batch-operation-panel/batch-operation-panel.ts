@@ -222,10 +222,10 @@ export class BatchOperationPanel implements OnDestroy {
     this.destroy$.complete();
   }
 
-  onProcessing = computed(() => {
-    return this.isSaving() || this.form.invalid || this.tagsError()? true : false || 
-      (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode)
-  });
+  isInvalid = computed(() => 
+    this.form.invalid || this.tagsError() ? true : false 
+    || (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode)
+  );
 
   handleCancel() {
     this.dialogRef.close();

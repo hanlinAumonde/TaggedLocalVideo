@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { ToastService } from '../../../services/toast-service/toast-service';
 import { MatIconModule } from "@angular/material/icon";
 
@@ -9,4 +9,7 @@ import { MatIconModule } from "@angular/material/icon";
 })
 export class ToastDisplayer {
   readonly toastService = inject(ToastService);
+  readonly beyondDialog = input(false);
+
+  toasts = this.beyondDialog() ? this.toastService.toastBeyondDialog : this.toastService.toasts;
 }

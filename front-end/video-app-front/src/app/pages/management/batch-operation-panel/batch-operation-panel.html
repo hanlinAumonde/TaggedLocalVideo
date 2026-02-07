@@ -143,7 +143,7 @@
 </mat-dialog-content>
 
 <mat-dialog-actions [align]="'end'">
-  @if(onProcessing()){
+  @if(isSaving()){
     <p class="text-sm text-gray-600 dark:text-gray-300">{{processingMessage()}}</p>
     <mat-progress-bar mode="indeterminate"></mat-progress-bar>
   }
@@ -152,7 +152,7 @@
       matButton="outlined"
       type="button"
       (click)="handleCancel()"
-      [disabled]="onProcessing()"  
+      [disabled]="isSaving()"  
     >
       Cancel
     </button>
@@ -160,9 +160,9 @@
       matButton="tonal"
       type="button"
       (click)="handleSave()"
-      [disabled]="onProcessing()"
+      [disabled]="isSaving() || isInvalid()"
       color="primary">
-      @if (onProcessing()) {
+      @if (isSaving()) {
         <span class="flex">
           <mat-spinner [diameter]="20"></mat-spinner>
           <span class="mx-2">{{isVideoMode? 'Editing...' : 'Syncing...'}}</span>
