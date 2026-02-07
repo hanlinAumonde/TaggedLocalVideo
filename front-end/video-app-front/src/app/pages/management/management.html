@@ -36,30 +36,36 @@
             </th>
             <th class="w-16 shrink-0 px-4 py-3 flex items-center font-medium">Type</th>
             <th class="flex-4 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
-                (click)="sortItemsBy(0)">
+                (click)="sortItemsBy(0, directoryContents().data)">
               Name
-              @if (sortCriteria()[0]) {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-              } @else {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+              @if (sortCriteria().index === 0 && sortCriteria().order) {
+                <mat-icon fontIcon="arrow_upward"></mat-icon>
+              } @else if(sortCriteria().index === 0 && !sortCriteria().order) {
+                <mat-icon fontIcon="arrow_downward"></mat-icon>
+              }@else {
+                <mat-icon fontIcon="unfold_more"></mat-icon>
               }
             </th>
             <th class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
-                (click)="sortItemsBy(1)">
+                (click)="sortItemsBy(1, directoryContents().data)">
               Size
-              @if (!sortCriteria()[1]) {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-              } @else {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+              @if (sortCriteria().index === 1 && sortCriteria().order) {
+                <mat-icon fontIcon="arrow_upward"></mat-icon>
+              } @else if(sortCriteria().index === 1 && !sortCriteria().order) {
+                <mat-icon fontIcon="arrow_downward"></mat-icon>
+              }@else {
+                <mat-icon fontIcon="unfold_more"></mat-icon>
               }
             </th>
             <th class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
-                (click)="sortItemsBy(2)">
+                (click)="sortItemsBy(2, directoryContents().data)">
               Last update
-              @if (!sortCriteria()[2]) {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_upward"></mat-icon>
-              } @else {
-                <mat-icon class="ml-1 text-sm!" fontIcon="arrow_downward"></mat-icon>
+              @if (sortCriteria().index === 2 && sortCriteria().order) {
+                <mat-icon fontIcon="arrow_upward"></mat-icon>
+              } @else if(sortCriteria().index === 2 && !sortCriteria().order) {
+                <mat-icon fontIcon="arrow_downward"></mat-icon>
+              }@else {
+                <mat-icon fontIcon="unfold_more"></mat-icon>
               }
             </th>
             <th 

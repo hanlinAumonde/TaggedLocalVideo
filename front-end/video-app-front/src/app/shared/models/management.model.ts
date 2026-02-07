@@ -1,7 +1,13 @@
 import { FileBrowseNode } from "./GQL-result.model";
 
-export type ManagementState = {
-  currentPath: string[];
+export type SortCriterion = {
+    index: number;
+    order: boolean; // true for ascending, false for descending
+}
+
+export type ManagementRefreshState = {
+  scrollPosition: number;
+  sortCriteria: SortCriterion;
 };
 
 export enum ItemsSortOption {
