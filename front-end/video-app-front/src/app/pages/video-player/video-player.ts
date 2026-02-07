@@ -113,6 +113,9 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       responsive: true,
       playbackRates: [0.5, 1, 1.5, 2],
       controlBar: {
+          remainingTimeDisplay: {
+            displayNegative: false
+          },
           children: [
               'playToggle',
               'volumePanel',
