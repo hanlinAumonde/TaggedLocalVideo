@@ -1,9 +1,4 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 
 import { GqlService } from '../../services/GQL-service/GQL-service';
@@ -19,21 +14,16 @@ import { BatchOperationPanel } from '../../shared/components/batch-operation-pan
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
 import { SortCriterion, ItemsSortOption, ManagementRefreshState, comparatorBySortOption } from '../../shared/models/management.model';
-import { RouterLink } from '@angular/router';
 import { DeleteCheckPanel } from '../../shared/components/delete-check-panel/delete-check-panel';
 import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-toolbar';
+import { FileBrowseTable } from '../../shared/components/file-browse-table/file-browse-table';
 import { ToastService } from '../../services/toast-service/toast-service';
 
 @Component({
   selector: 'app-management',
   imports: [
-    MatIconModule,
-    MatButtonModule,
-    MatCheckboxModule,
-    MatMenuModule,
-    MatTooltipModule,
-    RouterLink,
-    BottomToolbar
+    BottomToolbar,
+    FileBrowseTable
   ],
   templateUrl: './management.html'
 })
@@ -42,8 +32,6 @@ export class Management {
   private dialog = inject(MatDialog);
   private statService = inject(PageStateService);
   private toastService = inject(ToastService);
-
-  SORT_OPTIONS = ItemsSortOption;
 
   // true for ascending, false for descending
   sortCriteria = signal<SortCriterion>({
@@ -57,8 +45,6 @@ export class Management {
 
   selectedIds = signal<Set<string>>(new Set());
 
-  visibleTagsCount = signal<number>(3);
-
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
     return path.length === 0 ? './' : './' + path.join('/');
@@ -67,13 +53,6 @@ export class Management {
   isAtRoot = computed(() => this.currentPath().length === 0);
 
   selectedCount = computed(() => this.selectedIds().size);
-
-  isAllSelected = computed(() => {
-    const contents = this.directoryContents().data;
-    if (!contents || contents.length === 0) return false;
-    const selectableItems = contents.filter(item => !item.node.isDir);
-    return selectableItems.length > 0 && selectableItems.every(item => this.selectedIds().has(item.node.id));
-  });
 
   hasSelection = computed(() => this.selectedIds().size > 0);
 
@@ -220,16 +199,14 @@ export class Management {
     if (!contents) return;
 
     const selectableItems = contents.filter(item => !item.node.isDir);
+    const allSelected = selectableItems.length > 0
+      && selectableItems.every(item => this.selectedIds().has(item.node.id));
 
-    if (this.isAllSelected()) {
+    if (allSelected) {
       this.selectedIds.set(new Set());
     } else {
       this.selectedIds.set(new Set(selectableItems.map(item => item.node.id)));
     }
-  }
-
-  isSelected(id: string): boolean {
-    return this.selectedIds().has(id);
   }
 
   private getSelectedVideos(): BrowsedVideo[] {
@@ -334,38 +311,6 @@ export class Management {
         this.toastService.clearAllToastsBeyondDialog();
       }
     });
-  }
-
-  // ─── Template Helpers ──────────────────────────────────────────────
-
-  formatSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-  }
-
-  formatDate(timestamp: number): string {
-    if (!timestamp) return '-';
-    return new Date(timestamp * 1000).toLocaleDateString('zh-CN');
-  }
-
-  getVisibleTags(video: BrowsedVideo): string[] {
-    return video.tags?.slice(0, this.visibleTagsCount()).map(t => t.name) ?? [];
-  }
-
-  getRemainingTagsCount(video: BrowsedVideo): number {
-    const total = video.tags?.length ?? 0;
-    return Math.max(0, total - this.visibleTagsCount());
-  }
-
-  getAllRemainingTags(video: BrowsedVideo): string {
-    return video.tags?.slice(this.visibleTagsCount()).map(t => t.name).join(',  ') ?? '';
-  }
-
-  videoPage(video: BrowsedVideo) {
-    return [environment.videopage_api, video.id]
   }
 
   // ─── DOM Utilities ─────────────────────────────────────────────────
