@@ -1,24 +1,7 @@
-<div #managementContainer class="p-6 ml-4">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6 mr-16">
-    <div class="flex items-center gap-4">
-      <span class="bg-gray-800 dark:bg-neutral-700 text-white px-4 py-2 rounded-lg font-medium">Current path:</span>
-      <span class="text-gray-700 dark:text-gray-300 font-mono">{{ currentPathDisplay() }}</span>
-    </div>
-    <div class="flex gap-2">
-      <button
-        [disabled]="isAtRoot()"
-        (click)="navigateBack()"
-        class="px-4 py-2 bg-gray-700 hover:bg-gray-600 dark:bg-neutral-600 dark:hover:bg-neutral-500 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-      >
-        Return
-      </button>
-    </div>
-  </div>
-
+<div #managementContainer class="p-6 mx-4">
   <p class="mb-4 text-gray-600 dark:text-gray-400 italic">Right-click on an video item for more operations of videos.</p>
 
-  <!-- Table with Back to Top Button -->
+  <!-- Table -->
   <div class="flex gap-4 items-end">
     <!-- Table Container -->
     <div class="flex-1 min-w-0 bg-white dark:bg-neutral-800 rounded-lg shadow-2xl">
@@ -77,7 +60,12 @@
               class="flex-3 min-w-0 px-4 py-3 flex items-center font-medium">
               Tags
             </th>
-            <th class="w-14 shrink-0 px-4 py-3"></th>
+            <th class="flex items-center px-4 py-3">
+              <mat-icon 
+                class="hover:bg-neutral-300 dark:hover:bg-neutral-600 cursor-pointer"
+                fontIcon="refresh" [matTooltip]="'refresh'"
+                (click)="refreshDirectory()"></mat-icon>
+            </th>
           </tr>
         </thead>
 
@@ -272,32 +260,50 @@
         </tbody>
       </table>
     </div>
-    <!-- placeholder for back to top button-->
-    <div class="w-16"></div>
   </div>
-  <!-- Buttons group -->
-  <div class="fixed bottom-1 right-6 self-end pb-2">
-    <button
-      (click)="openBatchOperationPanel('videos')"
-      [disabled]="!hasSelection()"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+  <!-- Bottom Toolbar -->
+  <div class="sticky bottom-0 z-20 mt-5">
+    <!-- Toggle Button -->
+    <div class="flex justify-center">
+      <button
+        (click)="toggleToolbar()"
+        class="px-6 py-1 bg-neutral-700 dark:bg-neutral-600 hover:bg-neutral-600 dark:hover:bg-neutral-500 text-white rounded-t-lg cursor-pointer transition-colors shadow-lg"
+      >
+        <mat-icon
+          class="transition-transform duration-300"
+          [class.rotate-180]="toolbarVisible()"
+          fontIcon="keyboard_arrow_up"
+        ></mat-icon>
+      </button>
+    </div>
+    <!-- Toolbar Content -->
+    <div
+      class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
+      [style.max-height]="toolbarVisible() ? '120px' : '0px'"
+      [style.opacity]="toolbarVisible() ? '1' : '0'"
     >
-      <span class="text-lg">({{ selectedCount() }})</span>
-      <span class="text-xs">Batch</span>
-    </button>
-    <button
-      (click)="refreshDirectory()"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 mb-2 bg-gray-200 dark:bg-neutral-700 hover:cursor-pointer hover:bg-gray-300 dark:hover:bg-neutral-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition-colors"
-    >
-      <mat-icon fontIcon="refresh"></mat-icon>
-      <span class="text-xs">Refresh</span>
-    </button>
-    <button
-      (click)="scrollTo(0)"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 bg-gray-600 dark:bg-neutral-700 hover:cursor-pointer hover:bg-gray-500 dark:hover:bg-neutral-600 text-white rounded-lg font-medium transition-colors"
-    >
-      <mat-icon fontIcon="arrow_upward"></mat-icon>
-      <span class="text-xs">Top</span>
-    </button>
+      <div class="flex items-center justify-between px-6 py-3 bg-neutral-700 dark:bg-neutral-600 text-white">
+        <div class="flex items-center gap-4">
+          <span class="bg-gray-400 dark:bg-neutral-700 px-4 py-2 rounded-lg font-medium">Current path:</span>
+          <strong class="font-mono text-gray-200">{{ currentPathDisplay() }}</strong>
+        </div>
+        <div class="flex gap-2">
+          <button
+            (click)="openBatchOperationPanel('videos')"
+            [disabled]="!hasSelection()"
+            class="px-4 py-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            <span class="text-md">Batch ({{ selectedCount() }})</span>
+          </button>
+          <button
+            [disabled]="isAtRoot()"
+            (click)="navigateBack()"
+            class="px-4 py-2 bg-gray-500 hover:bg-gray-400 dark:bg-neutral-500 dark:hover:bg-neutral-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          >
+            Return
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>

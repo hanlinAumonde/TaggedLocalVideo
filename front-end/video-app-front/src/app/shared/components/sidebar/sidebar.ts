@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PageStateService } from '../../../services/Page-state-service/page-state';
+import { environment } from '../../../../environments/environment.development';
 
 interface NavItem {
   path: string;
@@ -45,5 +46,16 @@ export class Sidebar {
 
   onNavItemClick() {
     this.stateService.clearAllStates(false);
+  }
+
+  private getParentScrollContainer(): HTMLElement | null {
+      return document.getElementById(environment.rootMainContainerId);
+    }
+  
+  scrollTo(position: number) {
+    const mainContainer = this.getParentScrollContainer();
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: position, behavior: 'smooth' });
+    }
   }
 }

@@ -37,4 +37,16 @@
       </a>
     }
   </nav>
+  <div 
+    class="flex justify-center items-center mt-auto mx-auto"
+  >
+    <button
+      (click)="scrollTo(0)"
+      class="flex flex-col items-center w-full gap-1 px-4 py-3 rounded-md mx-auto
+            bg-gray-600 dark:bg-neutral-500 hover:cursor-pointer hover:bg-gray-500 dark:hover:bg-neutral-400 text-white font-medium transition-colors"
+    >
+      <mat-icon fontIcon="arrow_upward"></mat-icon>
+      <span class="text-xs">Top</span>
+    </button>
+  </div>
 </aside>

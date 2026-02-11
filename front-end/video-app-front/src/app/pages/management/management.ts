@@ -15,12 +15,12 @@ import {
 } from '../../shared/models/GQL-result.model';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/video-edit-panel.model';
-import { BatchOperationPanel } from './batch-operation-panel/batch-operation-panel';
+import { BatchOperationPanel } from '../../shared/components/batch-operation-panel/batch-operation-panel';
 import { PageStateService } from '../../services/Page-state-service/page-state';
 import { environment } from '../../../environments/environment';
 import { SortCriterion, ItemsSortOption, ManagementRefreshState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
-import { DeleteCheckPanel } from './delete-check-panel/delete-check-panel';
+import { DeleteCheckPanel } from '../../shared/components/delete-check-panel/delete-check-panel';
 import { ToastService } from '../../services/toast-service/toast-service';
 
 @Component({
@@ -56,6 +56,8 @@ export class Management {
   selectedIds = signal<Set<string>>(new Set());
 
   visibleTagsCount = signal<number>(3);
+
+  toolbarVisible = signal<boolean>(false);
 
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
@@ -364,6 +366,10 @@ export class Management {
 
   videoPage(video: BrowsedVideo) {
     return [environment.videopage_api, video.id]
+  }
+
+  toggleToolbar() {
+    this.toolbarVisible.update(v => !v);
   }
 
   // ─── DOM Utilities ─────────────────────────────────────────────────
