@@ -21,6 +21,7 @@ import { environment } from '../../../environments/environment';
 import { SortCriterion, ItemsSortOption, ManagementRefreshState, comparatorBySortOption } from '../../shared/models/management.model';
 import { RouterLink } from '@angular/router';
 import { DeleteCheckPanel } from '../../shared/components/delete-check-panel/delete-check-panel';
+import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-toolbar';
 import { ToastService } from '../../services/toast-service/toast-service';
 
 @Component({
@@ -31,7 +32,8 @@ import { ToastService } from '../../services/toast-service/toast-service';
     MatCheckboxModule,
     MatMenuModule,
     MatTooltipModule,
-    RouterLink
+    RouterLink,
+    BottomToolbar
   ],
   templateUrl: './management.html'
 })
@@ -56,8 +58,6 @@ export class Management {
   selectedIds = signal<Set<string>>(new Set());
 
   visibleTagsCount = signal<number>(3);
-
-  toolbarVisible = signal<boolean>(false);
 
   currentPathDisplay = computed(() => {
     const path = this.currentPath();
@@ -366,10 +366,6 @@ export class Management {
 
   videoPage(video: BrowsedVideo) {
     return [environment.videopage_api, video.id]
-  }
-
-  toggleToolbar() {
-    this.toolbarVisible.update(v => !v);
   }
 
   // ─── DOM Utilities ─────────────────────────────────────────────────

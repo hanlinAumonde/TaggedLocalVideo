@@ -1,0 +1,45 @@
+<!-- Bottom Toolbar -->
+<div class="sticky bottom-0 z-20 mt-5">
+  <!-- Toggle Button -->
+  <div class="flex justify-center">
+    <button
+      (click)="toggleToolbar()"
+      class="px-6 py-1 bg-neutral-700 dark:bg-neutral-600 hover:bg-neutral-600 dark:hover:bg-neutral-500 text-white rounded-t-lg cursor-pointer transition-colors shadow-lg"
+    >
+      <mat-icon
+        class="transition-transform duration-300"
+        [class.rotate-180]="toolbarVisible()"
+        fontIcon="keyboard_arrow_up"
+      ></mat-icon>
+    </button>
+  </div>
+  <!-- Toolbar Content -->
+  <div
+    class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
+    [style.max-height]="toolbarVisible() ? '120px' : '0px'"
+    [style.opacity]="toolbarVisible() ? '1' : '0'"
+  >
+    <div class="flex items-center justify-between px-6 py-3 bg-neutral-700 dark:bg-neutral-600 text-white">
+      <div class="flex items-center gap-4">
+        <span class="bg-gray-400 dark:bg-neutral-700 px-4 py-2 rounded-lg font-medium">Current path:</span>
+        <strong class="font-mono text-gray-200">{{ currentPathDisplay() }}</strong>
+      </div>
+      <div class="flex gap-2">
+        <button
+          (click)="batchOperation.emit()"
+          [disabled]="!hasSelection()"
+          class="px-4 py-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        >
+          <span class="text-md">Batch ({{ selectedCount() }})</span>
+        </button>
+        <button
+          [disabled]="isAtRoot()"
+          (click)="navigateBack.emit()"
+          class="px-4 py-2 bg-gray-500 hover:bg-gray-400 dark:bg-neutral-500 dark:hover:bg-neutral-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+        >
+          Return
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
