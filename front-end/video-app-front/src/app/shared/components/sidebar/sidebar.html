@@ -1,20 +1,13 @@
 <aside
-  class="h-full bg-gray-200 dark:bg-neutral-700 flex flex-col py-4 transition-all duration-300"
-  [class.w-16]="!isExpanded()"
-  [class.w-48]="isExpanded()"
+  class="h-full w-16 bg-gray-200 dark:bg-neutral-700 flex flex-col py-4 transition-all duration-300"
 >
   <!-- Toggle Button -->
-  <div class="flex items-center justify-center mb-4">
-    <button
-      mat-icon-button
-      (click)="toggleSidebar()"
-      class="hover:bg-gray-300 dark:hover:bg-neutral-500 rounded-lg"
-      [matTooltip]="isExpanded() ? 'Collapse' : 'Expand'"
-      matTooltipPosition="right"
-    >
-      <mat-icon class="text-gray-700 dark:text-gray-200">apps</mat-icon>
-    </button>
+  <div class="flex items-center justify-center mt-4 mb-5">
+    <mat-icon class="text-gray-700 dark:text-gray-200" fontIcon="apps"></mat-icon>
   </div>
+
+  <!-- Divider -->
+  <div class="border-t-2 border-gray-300 dark:border-neutral-600 mb-4"></div>
 
   <!-- Navigation Items -->
   <nav class="flex flex-col space-y-2">
@@ -23,17 +16,11 @@
         [routerLink]="item.path"
         routerLinkActive="bg-gray-400 dark:bg-neutral-500"
         (click)="onNavItemClick()"
-        class="flex items-center hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors cursor-pointer"
-        [class.justify-center]="!isExpanded()"
-        [class.px-4]="isExpanded()"
-        [class.py-3]="true"
-        [matTooltip]="!isExpanded() ? item.label : ''"
+        class="flex py-3 justify-center items-center hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors cursor-pointer"
+        [matTooltip]="item.label"
         matTooltipPosition="right"
       >
-        <mat-icon class="text-gray-700 dark:text-gray-200">{{ item.icon }}</mat-icon>
-        @if (isExpanded()) {
-          <span class="ml-3 text-gray-700 dark:text-gray-200 font-medium">{{ item.label }}</span>
-        }
+        <mat-icon class="text-gray-700 dark:text-gray-200" [fontIcon]="item.icon"></mat-icon>
       </a>
     }
   </nav>
@@ -42,11 +29,10 @@
   >
     <button
       (click)="scrollTo(0)"
-      class="flex flex-col items-center w-full gap-1 px-4 py-3 rounded-md mx-auto
+      class="flex items-center w-full gap-1 px-4 py-3 rounded-full mx-auto
             bg-gray-600 dark:bg-neutral-500 hover:cursor-pointer hover:bg-gray-500 dark:hover:bg-neutral-400 text-white font-medium transition-colors"
     >
-      <mat-icon fontIcon="arrow_upward"></mat-icon>
-      <span class="text-xs">Top</span>
+      <mat-icon fontIcon="arrow_upward" matTooltip="Scroll to Top"></mat-icon>
     </button>
   </div>
 </aside>

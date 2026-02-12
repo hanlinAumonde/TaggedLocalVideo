@@ -1,4 +1,4 @@
-<div #managementContainer class="p-6 mx-4">
+<div class="p-6 mx-4">
   <p class="mb-4 text-gray-600 dark:text-gray-400 italic">Right-click on an video item for more operations of videos.</p>
 
   <!-- Table -->
@@ -16,14 +16,17 @@
       (deleteVideo)="deleteVideo($event)"
       (batchSyncDirectory)="openBatchOperationPanel('directory', $event)"
       (refreshDirectoryMeta)="refreshSelectedDirectory($event)"
+      (tableResize)="updateTableWidth($event)"
     />
   </div>
   <app-bottom-toolbar
-    [currentPathDisplay]="currentPathDisplay()"
+    [currentPath]="currentPath()"
     [hasSelection]="hasSelection()"
     [selectedCount]="selectedCount()"
     [isAtRoot]="isAtRoot()"
+    [tableWidth]="tableWidth()"
     (batchOperation)="openBatchOperationPanel('videos')"
     (navigateBack)="navigateBack()"
+    (navigateToPath)="navigateBack($event)"
   />
 </div>

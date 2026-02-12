@@ -25,8 +25,8 @@ export class Sidebar {
   navItems: NavItem[] = [
     {
       path: '/home',
-      label: 'Dashboard',
-      icon: 'person',
+      label: 'HomePage',
+      icon: 'home',
     },
     {
       path: '/search',
@@ -40,20 +40,12 @@ export class Sidebar {
     },
   ];
 
-  toggleSidebar() {
-    this.isExpanded.update((value) => !value);
-  }
-
   onNavItemClick() {
     this.stateService.clearAllStates(false);
   }
-
-  private getParentScrollContainer(): HTMLElement | null {
-      return document.getElementById(environment.rootMainContainerId);
-    }
   
   scrollTo(position: number) {
-    const mainContainer = this.getParentScrollContainer();
+    const mainContainer = document.getElementById(environment.containerIds.rootMainContainerId);
     if (mainContainer) {
       mainContainer.scrollTo({ top: position, behavior: 'smooth' });
     }

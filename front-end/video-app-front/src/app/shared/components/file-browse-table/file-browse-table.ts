@@ -1,4 +1,4 @@
-import { Component, input, output, computed } from '@angular/core';
+import { Component, input, output, computed, viewChild, ElementRef, effect } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -39,6 +39,9 @@ export class FileBrowseTable {
   deleteVideo = output<BrowsedVideo>();
   batchSyncDirectory = output<string>();
   refreshDirectoryMeta = output<FileBrowseNode>();
+  tableResize = output<number>();
+
+  tableElement = viewChild<ElementRef>('tableElement');
 
   // --- Computed ---
   isAllSelected = computed(() => {
@@ -49,6 +52,21 @@ export class FileBrowseTable {
   });
 
   hasSelection = computed(() => this.selectedIds().size > 0);
+
+  private resizeCallback() {
+    const tableEl = this.tableElement();
+    if(tableEl){
+      const width = tableEl.nativeElement.offsetWidth;
+      this.tableResize.emit(width);
+    }
+  }
+
+  constructor(){
+    effect(() => {
+      this.resizeCallback();
+    });
+    window.addEventListener('resize', () => this.resizeCallback());
+  }
 
   // --- Template Helpers ---
 

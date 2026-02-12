@@ -6,17 +6,18 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { environment } from '../environments/environment';
 import { ToastDisplayer } from "./shared/components/toast-displayer/toast-displayer";
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Sidebar, Header, ToastDisplayer],
+  imports: [RouterOutlet, Sidebar, Header, ToastDisplayer, MatIconModule],
   templateUrl: './app.html'
 })
 export class App {
   private router = inject(Router);
   private activatedRoute = inject(ActivatedRoute);
 
-  rootMainContainerId = environment.rootMainContainerId;
+  rootMainContainerId = environment.containerIds.rootMainContainerId;
 
   headerTitle = toSignal(
     this.router.events.pipe(

@@ -1,5 +1,5 @@
 <!-- Bottom Toolbar -->
-<div class="sticky bottom-0 z-20 mt-5">
+<div class="fixed bottom-0 z-20 mt-5" [style.width]="tableWidth() + 'px'">
   <!-- Toggle Button -->
   <div class="flex justify-center">
     <button
@@ -22,7 +22,16 @@
     <div class="flex items-center justify-between px-6 py-3 bg-neutral-700 dark:bg-neutral-600 text-white">
       <div class="flex items-center gap-4">
         <span class="bg-gray-400 dark:bg-neutral-700 px-4 py-2 rounded-lg font-medium">Current path:</span>
-        <strong class="font-mono text-gray-200">{{ currentPathDisplay() }}</strong>
+        <strong class="font-mono text-gray-200 flex items-center">
+          @for(pathElement of paths(); track $index) { 
+            <span>/</span>
+            <span 
+              class="bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700 transition-colors"
+              (click)="navigatePath($index)">
+              {{pathElement}}
+            </span>
+          }
+        </strong>
       </div>
       <div class="flex gap-2">
         <button

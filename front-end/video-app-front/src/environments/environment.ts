@@ -11,7 +11,9 @@ export const environment = {
     pageListSize: 5,
     refreshKey: "_refresh_key",
     scrollKey: "_scroll_position",
-    rootMainContainerId: "root-main-container",
+    containerIds: {
+        rootMainContainerId: "root-main-container"
+    },
     VALIDATION_RULES:{
         NAME_MAX_LENGTH: 200,
         AUTHOR_MAX_LENGTH: 50,
@@ -25,6 +27,5 @@ export const environment = {
         MAX_TOASTS: 4,
         AUTO_DISMISS_MS: 10000,
         EXIT_ANIMATION_MS: 300,
-    },
-    VIDEO_DURATION_HEADER: "X-Video-Duration",
+    }
 } as const;

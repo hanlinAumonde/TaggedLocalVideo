@@ -33,6 +33,8 @@ export class Management {
   private statService = inject(PageStateService);
   private toastService = inject(ToastService);
 
+  tableWidth = signal<number>(0);
+
   // true for ascending, false for descending
   sortCriteria = signal<SortCriterion>({
     index: 0,
@@ -44,11 +46,6 @@ export class Management {
   directoryContents = signal(this.gqlService.initialSignalData<BrowseDirectoryDetail>([]));
 
   selectedIds = signal<Set<string>>(new Set());
-
-  currentPathDisplay = computed(() => {
-    const path = this.currentPath();
-    return path.length === 0 ? './' : './' + path.join('/');
-  });
 
   isAtRoot = computed(() => this.currentPath().length === 0);
 
@@ -175,8 +172,12 @@ export class Management {
     this.currentPath.update(path => [...path, node.node.name]);
   }
 
-  navigateBack() {
+  navigateBack(path?: string[]) {
     this.setRefreshState(this.getParentScrollContainer()?.scrollTop);
+    if(path){
+      this.currentPath.set(path);
+      return;
+    }
     this.currentPath.update(path => path.slice(0, -1));
   }
 
@@ -316,7 +317,7 @@ export class Management {
   // ─── DOM Utilities ─────────────────────────────────────────────────
 
   private getParentScrollContainer(): HTMLElement | null {
-    return document.getElementById(environment.rootMainContainerId);
+    return document.getElementById(environment.containerIds.rootMainContainerId);
   }
 
   scrollTo(position: number) {
@@ -324,5 +325,9 @@ export class Management {
     if (mainContainer) {
       mainContainer.scrollTo({ top: position, behavior: 'smooth' });
     }
+  }
+
+  updateTableWidth(width: number) {
+    this.tableWidth.set(width);
   }
 }
