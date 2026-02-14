@@ -168,12 +168,12 @@ export class Management {
       this.toggleSelection(node.node.id);
       return;
     };
-    this.setRefreshState(this.getParentScrollContainer()?.scrollTop);
+    this.setRefreshState();
     this.currentPath.update(path => [...path, node.node.name]);
   }
 
   navigateBack(path?: string[]) {
-    this.setRefreshState(this.getParentScrollContainer()?.scrollTop);
+    this.setRefreshState();
     if(path){
       this.currentPath.set(path);
       return;
