@@ -5,5 +5,4 @@ export type SearchPageParam = {
     tags?: string[],
     title?: string,
     author?: string,
-    //currentPageNumber?: number
 }

@@ -158,6 +158,12 @@ export class Search {
     });
   }
 
+  private navigateToPage(page?:number) {
+    this.router.navigate([environment.searchpage_api], {
+      queryParams: { currentPageNumber: page ?? this.currentPage() },
+    });
+  }
+
   private executeSearch(params: SearchPageParam, page: number) {
     this.gqlService.searchVideosQuery(
       SearchFrom.SearchPage,
@@ -183,16 +189,10 @@ export class Search {
     };
     this.searchParams.set(newParams);
 
-    // activate search state
     if (!this.hasSearched()) {
       this.hasSearched.set(true);
     }
-
-    // navigate to first page
-    this.router.navigate([environment.searchpage_api], {
-      queryParams: { currentPageNumber: 1 },
-      state: newParams
-    });
+    this.navigateToPage(1);
   }
 
   clearInput(field: "title" | "author") {
@@ -216,13 +216,10 @@ export class Search {
       title: this.searchParams().title, 
       author: this.searchParams().author 
     });
+    this.searchParams.set(newParams);
+    //when sort by loved, the total count may change
     if(sortBy === VideoSortOption.Loved) {
-      this.router.navigate([environment.searchpage_api], {
-        queryParams: { currentPageNumber: 1 },
-        state: newParams
-      });
-    }else{
-      this.searchParams.set(newParams);
+      this.navigateToPage(1);
     }
   }
 
@@ -238,19 +235,13 @@ export class Search {
     dialogRef.afterClosed().subscribe((result: string[] | undefined) => {
       if (result !== undefined) {
         const newParams: SearchPageParam = { ...this.searchParams(), tags: result };
-        this.stateService.setState<SearchPageParam>(environment.searchpage_api + environment.refreshKey, newParams, false);
         this.searchParams.set(newParams);
-        this.router.navigate([environment.searchpage_api], {
-          queryParams: { currentPageNumber: 1 },
-        });
+        this.navigateToPage(1);
       }
     });
   }
 
   onPageChange(page: number) {
-    this.router.navigate([environment.searchpage_api], {
-      queryParams: { currentPageNumber: page },
-      state: this.searchParams()
-    });
+    this.navigateToPage(page);
   }
 }
