@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientService } from './Http-client-service';
+import { HttpClientService } from './Http-client.service';
 
 describe('HttpClientService', () => {
   let service: HttpClientService;

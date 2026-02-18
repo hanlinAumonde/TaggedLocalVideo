@@ -2,7 +2,7 @@ import { HttpHandler, HttpInterceptor, HttpRequest } from "@angular/common/http"
 import { inject, Injectable } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { catchError } from "rxjs";
-import { ToastService } from "../../services/toast-service/toast-service";
+import { ToastService } from "../../services/toast-service/toast.service";
 
 @Injectable({
   providedIn: "root",

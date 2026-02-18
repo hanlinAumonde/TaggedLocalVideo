@@ -43,8 +43,8 @@ import {
   VideoMutationDetail,
   VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
-import { ValidationService } from '../validation-service/validation-service';
-import { ToastService } from '../toast-service/toast-service';
+import { ValidationService } from '../validation-service/validation.service';
+import { ToastService } from '../toast-service/toast.service';
 
 @Injectable({
   providedIn: 'root',

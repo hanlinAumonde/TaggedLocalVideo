@@ -5,10 +5,10 @@ import { ActivatedRouteSnapshot,
          RouterStateSnapshot } from "@angular/router";
 import { ResultState, VideoDetail } from "../shared/models/GQL-result.model";
 import { inject } from "@angular/core";
-import { GqlService } from "../services/GQL-service/GQL-service";
+import { GqlService } from "../services/GQL-service/GQL.service";
 import { of, switchMap, filter } from "rxjs";
 import { environment } from "../../environments/environment";
-import { ToastService } from "../services/toast-service/toast-service";
+import { ToastService } from "../services/toast-service/toast.service";
 
 export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | RedirectCommand> = (
     route: ActivatedRouteSnapshot,

@@ -30,10 +30,10 @@ import {
   VideoEditPanelData,
   EditableVideo,
 } from '../../models/video-edit-panel.model';
-import { GqlService } from '../../../services/GQL-service/GQL-service';
+import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
-import { ValidationService } from '../../../services/validation-service/validation-service';
-import { ToastService } from '../../../services/toast-service/toast-service';
+import { ValidationService } from '../../../services/validation-service/validation.service';
+import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastDisplayer } from "../toast-displayer/toast-displayer";
 
 @Component({

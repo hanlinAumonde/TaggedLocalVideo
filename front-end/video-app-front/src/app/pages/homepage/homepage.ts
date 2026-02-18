@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
-import { GqlService } from '../../services/GQL-service/GQL-service';
+import { GqlService } from '../../services/GQL-service/GQL.service';
 import { Router, RouterModule } from '@angular/router';
 import { SearchFrom, VideoSearchResult, VideoSortOption, VideoTag } from '../../core/graphql/generated/graphql';
 import { toSignal } from '@angular/core/rxjs-interop';

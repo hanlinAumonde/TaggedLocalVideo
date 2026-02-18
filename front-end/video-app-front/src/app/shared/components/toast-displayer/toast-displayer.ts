@@ -1,5 +1,5 @@
 import { Component, inject, input } from '@angular/core';
-import { ToastService } from '../../../services/toast-service/toast-service';
+import { ToastService } from '../../../services/toast-service/toast.service';
 import { MatIconModule } from "@angular/material/icon";
 
 @Component({

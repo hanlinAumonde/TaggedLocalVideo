@@ -14,11 +14,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 import { BatchResultType, DirectoryVideosBatchOperationInput, SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
-import { GqlService } from '../../../services/GQL-service/GQL-service';
+import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
-import { ValidationService } from '../../../services/validation-service/validation-service';
+import { ValidationService } from '../../../services/validation-service/validation.service';
 import { startWith, Subject, takeUntil, takeWhile } from 'rxjs';
-import { ToastService } from '../../../services/toast-service/toast-service';
+import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
 
 export interface BatchPanelData {

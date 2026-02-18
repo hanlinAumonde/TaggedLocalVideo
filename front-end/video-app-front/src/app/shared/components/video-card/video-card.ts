@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { SearchedVideo } from '../../models/GQL-result.model';
-import { HttpClientService } from '../../../services/Http-client-service/Http-client-service';
+import { HttpClientService } from '../../../services/Http-client-service/Http-client.service';
 
 @Component({
   selector: 'app-video-card',

@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { GqlService } from './GQL-service';
+import { ToastService } from './toast.service';
 
-describe('InputConstructor', () => {
-  let service: GqlService;
+describe('ToastService', () => {
+  let service: ToastService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(GqlService);
+    service = TestBed.inject(ToastService);
   });
 
   it('should be created', () => {

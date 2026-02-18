@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 
-import { GqlService } from '../../services/GQL-service/GQL-service';
+import { GqlService } from '../../services/GQL-service/GQL.service';
 import {
   BrowseDirectoryDetail,
   BrowsedVideo,
@@ -17,7 +17,7 @@ import { SortCriterion, ItemsSortOption, ManagementRefreshState, comparatorBySor
 import { DeleteCheckPanel } from '../../shared/components/delete-check-panel/delete-check-panel';
 import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-toolbar';
 import { FileBrowseTable } from '../../shared/components/file-browse-table/file-browse-table';
-import { ToastService } from '../../services/toast-service/toast-service';
+import { ToastService } from '../../services/toast-service/toast.service';
 
 @Component({
   selector: 'app-management',

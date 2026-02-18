@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { PageState } from './page-state';
+import { GqlService } from './GQL.service';
 
-describe('PageState', () => {
-  let service: PageState;
+describe('InputConstructor', () => {
+  let service: GqlService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(PageState);
+    service = TestBed.inject(GqlService);
   });
 
   it('should be created', () => {
