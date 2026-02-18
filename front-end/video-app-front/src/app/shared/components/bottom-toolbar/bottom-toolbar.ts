@@ -32,7 +32,6 @@ export class BottomToolbar {
     if(index < 0 || index > this.currentPath().length) return;
     if(index === this.currentPath().length) return;
     const targetPath = this.currentPath().slice(0, index);
-    console.log("Navigating to path:", targetPath);
     this.navigateToPath.emit(targetPath);
   }
 }

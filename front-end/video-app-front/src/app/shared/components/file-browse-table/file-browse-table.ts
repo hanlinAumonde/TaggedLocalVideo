@@ -41,7 +41,7 @@ export class FileBrowseTable {
   refreshDirectoryMeta = output<FileBrowseNode>();
   tableResize = output<number>();
 
-  tableElement = viewChild<ElementRef>('tableElement');
+  tableElement = viewChild<ElementRef<HTMLTableElement>>('tableElement');
 
   // --- Computed ---
   isAllSelected = computed(() => {
@@ -62,9 +62,7 @@ export class FileBrowseTable {
   }
 
   constructor(){
-    effect(() => {
-      this.resizeCallback();
-    });
+    effect(() => this.resizeCallback());
     window.addEventListener('resize', () => this.resizeCallback());
   }
 
