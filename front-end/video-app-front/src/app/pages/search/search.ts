@@ -11,18 +11,17 @@ import { MatBadgeModule } from '@angular/material/badge';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDialog } from '@angular/material/dialog';
 import { map } from 'rxjs';
-
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { Pagination } from '../../shared/components/pagination/pagination';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
-import { VideoEditPanelData } from '../../shared/models/video-edit-panel.model';
+import { VideoEditPanelData } from '../../shared/models/panels.model';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { SearchVideosDetail } from '../../shared/models/GQL-result.model';
 import { SearchFrom, VideoSortOption, SearchField } from '../../core/graphql/generated/graphql';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { environment } from '../../../environments/environment';
-import { PageStateService } from '../../services/Page-state-service/page-state';
+import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { ValidationService } from '../../services/validation-service/validation.service';
 
 @Component({

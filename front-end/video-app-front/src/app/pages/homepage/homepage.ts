@@ -7,7 +7,7 @@ import { SearchFrom, VideoSearchResult, VideoSortOption, VideoTag } from '../../
 import { toSignal } from '@angular/core/rxjs-interop';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { environment } from '../../../environments/environment';
-import { PageStateService } from '../../services/Page-state-service/page-state';
+import { PageStateService } from '../../services/Page-state-service/page-state.service';
 
 @Component({
   selector: 'app-homepage',

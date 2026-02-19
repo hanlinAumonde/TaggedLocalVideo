@@ -1,23 +1,22 @@
 import { Component, inject, signal, computed, effect } from '@angular/core';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-
+import { MatDialog } from '@angular/material/dialog';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import {
   BrowseDirectoryDetail,
-  BrowsedVideo,
   FileBrowseNode,
-  VideoMutationDetail
 } from '../../shared/models/GQL-result.model';
-import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
-import { VideoEditPanelData, VideoEditPanelMode } from '../../shared/models/video-edit-panel.model';
-import { BatchOperationPanel } from '../../shared/components/batch-operation-panel/batch-operation-panel';
-import { PageStateService } from '../../services/Page-state-service/page-state';
+import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { environment } from '../../../environments/environment';
-import { SortCriterion, ItemsSortOption, ManagementRefreshState, comparatorBySortOption } from '../../shared/models/management.model';
-import { DeleteCheckPanel } from '../../shared/components/delete-check-panel/delete-check-panel';
+import { 
+  SortCriterion, 
+  ItemsSortOption, 
+  ManagementRefreshState, 
+  comparatorBySortOption 
+} from '../../shared/models/management.model';
 import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-toolbar';
 import { FileBrowseTable } from '../../shared/components/file-browse-table/file-browse-table';
 import { ToastService } from '../../services/toast-service/toast.service';
+import { PathHistoryService } from '../../services/path-history-service/path-history.service';
 
 @Component({
   selector: 'app-management',
@@ -30,34 +29,30 @@ import { ToastService } from '../../services/toast-service/toast.service';
 export class Management {
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
-  private statService = inject(PageStateService);
+  private stateService = inject(PageStateService);
   private toastService = inject(ToastService);
+  
+  pathHistoryService = inject(PathHistoryService)
 
   tableWidth = signal<number>(0);
-
   // true for ascending, false for descending
   sortCriteria = signal<SortCriterion>({
     index: 0,
     order: true
   });
-
   currentPath = signal<string[]>([]);
-
   directoryContents = signal(this.gqlService.initialSignalData<BrowseDirectoryDetail>([]));
-
   selectedIds = signal<Set<string>>(new Set());
 
   isAtRoot = computed(() => this.currentPath().length === 0);
-
   selectedCount = computed(() => this.selectedIds().size);
-
   hasSelection = computed(() => this.selectedIds().size > 0);
 
   constructor() {
     const hasStatePredicate = (state: string[] | undefined) =>
       state && Array.isArray(state);
 
-    const state = this.statService.getState<string[]>(
+    const state = this.stateService.getState<string[]>(
       environment.management_api + environment.refreshKey,
       false
     );
@@ -71,7 +66,7 @@ export class Management {
     // Load directory when path changes
     effect(() => {
       const path = this.currentPath();
-      this.statService.setState(
+      this.stateService.setState(
         environment.management_api + environment.refreshKey,
         path,
         false
@@ -88,7 +83,7 @@ export class Management {
         // Sometimes this condition can be true twice in a single request, because of the cache update after the request
         // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
         if(!result.loading && result.data) {
-          const newState = this.statService.getState<ManagementRefreshState>(
+          const newState = this.stateService.getState<ManagementRefreshState>(
             environment.management_api + environment.refreshKey + environment.scrollKey,
             false
           );
@@ -154,7 +149,7 @@ export class Management {
   }
 
   setRefreshState(scrollTop: number = 0, sortCriteria: SortCriterion = { index: 0, order: false }) {
-    this.statService.setState<ManagementRefreshState>(
+    this.stateService.setState<ManagementRefreshState>(
       environment.management_api + environment.refreshKey + environment.scrollKey,
       { scrollPosition: scrollTop, sortCriteria: sortCriteria} as ManagementRefreshState,
       false
@@ -170,15 +165,12 @@ export class Management {
     };
     this.setRefreshState();
     this.currentPath.update(path => [...path, node.node.name]);
+    this.pathHistoryService.pushNewPath(this.currentPath());
   }
 
-  navigateBack(path?: string[]) {
+  navigateToPath(path: string[]) {
     this.setRefreshState();
-    if(path){
-      this.currentPath.set(path);
-      return;
-    }
-    this.currentPath.update(path => path.slice(0, -1));
+    this.currentPath.set(path);
   }
 
   // ─── Selection ─────────────────────────────────────────────────────
@@ -208,14 +200,6 @@ export class Management {
     } else {
       this.selectedIds.set(new Set(selectableItems.map(item => item.node.id)));
     }
-  }
-
-  private getSelectedVideos(): BrowsedVideo[] {
-    const contents = this.directoryContents().data;
-    if (!contents) return [];
-    return contents
-      .filter(item => !item.node.isDir && this.selectedIds().has(item.node.id))
-      .map(item => item.node);
   }
 
   // ─── Sorting ───────────────────────────────────────────────────────
@@ -255,63 +239,14 @@ export class Management {
     this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
   }
 
-  // ─── Dialog Operations ─────────────────────────────────────────────
+  // ─── Dialog Operations result ─────────────────────────────────────────────
 
-  openEditPanel(video: BrowsedVideo) {
-    const dialogRef: MatDialogRef<VideoEditPanel, VideoMutationDetail>
-     = this.dialog.open(VideoEditPanel, {
-      width: '500px',
-      data: {
-        mode: 'full' as VideoEditPanelMode,
-        video: video
-      } as VideoEditPanelData
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.refreshDirectory();
-      }
-    });
-  }
-
-  deleteVideo(video: BrowsedVideo) {
-    const checkResult = this.dialog.open(DeleteCheckPanel, {
-      width: '400px'
-    })
-    checkResult.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
-          if (result.data?.success) {
-            this.refreshDirectory();
-          }
-        });
-      }
-    });
-  }
-
-  openBatchOperationPanel(mode: 'videos' | 'directory', dirName?:string) {
-    const selectedVideos = this.getSelectedVideos();
-    if (selectedVideos.length === 0 && mode === 'videos') return;
-    if(mode === 'directory' && !dirName) return;
-
-    const data = mode === 'videos' ? { mode: mode, videos: selectedVideos }
-    : { mode: mode, selectedDirectoryPath: this.currentPath().join('/') + '/' + dirName! };
-
-    this.toastService.clearAllToasts();
-
-    const dialogRef = this.dialog.open(BatchOperationPanel, {
-      width: '500px',
-      data: data,
-      disableClose: true,
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.refreshDirectory();
-        this.selectedIds.set(new Set());
-        this.toastService.clearAllToastsBeyondDialog();
-      }
-    });
+  operationResult(result: boolean) {
+    if (!result) return;
+    else {
+      this.refreshDirectory();
+      this.selectedIds.set(new Set());
+    }
   }
 
   // ─── DOM Utilities ─────────────────────────────────────────────────

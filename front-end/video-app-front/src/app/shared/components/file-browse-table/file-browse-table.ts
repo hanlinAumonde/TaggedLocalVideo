@@ -1,14 +1,20 @@
-import { Component, input, output, computed, viewChild, ElementRef, effect } from '@angular/core';
+import { Component, input, output, computed, viewChild, ElementRef, effect, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-
 import { ResultState, BrowsedVideo, FileBrowseNode } from '../../models/GQL-result.model';
 import { SortCriterion } from '../../models/management.model';
 import { environment } from '../../../../environments/environment';
+import { ToastService } from '../../../services/toast-service/toast.service';
+import { MatDialog } from '@angular/material/dialog';
+import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
+import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
+import { GqlService } from '../../../services/GQL-service/GQL.service';
+import { VideoEditPanelData, VideoEditPanelMode } from '../../models/panels.model';
+import { VideoEditPanel } from '../video-edit-panel/video-edit-panel';
 
 @Component({
   selector: 'app-file-browse-table',
@@ -27,6 +33,7 @@ export class FileBrowseTable {
   directoryContents = input.required<ResultState<FileBrowseNode[]>>();
   sortCriteria = input.required<SortCriterion>();
   selectedIds = input.required<Set<string>>();
+  currentPath = input.required<string[]>();
   visibleTagsCount = input<number>(3);
 
   // --- Outputs ---
@@ -35,13 +42,17 @@ export class FileBrowseTable {
   nodeClick = output<FileBrowseNode>();
   selectionToggle = output<string>();
   selectAllToggle = output<void>();
-  editVideo = output<BrowsedVideo>();
-  deleteVideo = output<BrowsedVideo>();
-  batchSyncDirectory = output<string>();
+  editVideoResult = output<boolean>();
+  deleteVideoResult = output<boolean>();
+  batchSyncDirectoryResult = output<boolean>();
   refreshDirectoryMeta = output<FileBrowseNode>();
   tableResize = output<number>();
 
   tableElement = viewChild<ElementRef<HTMLTableElement>>('tableElement');
+
+  private toastService = inject(ToastService);
+  private gqlService = inject(GqlService);
+  private dialog = inject(MatDialog);
 
   // --- Computed ---
   isAllSelected = computed(() => {
@@ -64,6 +75,63 @@ export class FileBrowseTable {
   constructor(){
     effect(() => this.resizeCallback());
     window.addEventListener('resize', () => this.resizeCallback());
+  }
+
+  openEditPanel(video: BrowsedVideo) {
+    const dialogRef = this.dialog.open(VideoEditPanel, {
+      width: '500px',
+      data: {
+        mode: 'full' as VideoEditPanelMode,
+        video: video
+      } as VideoEditPanelData
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.editVideoResult.emit(true);
+      } else {
+        this.editVideoResult.emit(false);
+      }
+    });
+  }
+
+  deleteVideo(video: BrowsedVideo) {
+    const checkResult = this.dialog.open(DeleteCheckPanel, {
+      width: '400px'
+    })
+    checkResult.afterClosed().subscribe(confirmed => {
+      if (confirmed) {
+        this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
+          if(result.data?.success){
+            this.deleteVideoResult.emit(true);
+          }else if(result.error || result.data?.success === false){
+            this.toastService.emitErrorOrWarning('Failed to delete video', 'error');
+            this.deleteVideoResult.emit(false);
+          }
+        });
+      }else{
+        this.deleteVideoResult.emit(false);
+      }
+    });
+  }
+
+  openBatchOperationPanel(dirName:string) {
+    if(!dirName) return;
+
+    const data = { mode: 'directory', selectedDirectoryPath: this.currentPath().join('/') + '/' + dirName! };
+    
+    this.toastService.clearAllToasts();
+
+    const dialogRef = this.dialog.open(BatchOperationPanel, {
+      width: '500px',
+      data: data,
+      disableClose: true,
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      this.toastService.clearAllToastsBeyondDialog();
+      this.batchSyncDirectoryResult.emit(result? true : false);
+    });
   }
 
   // --- Template Helpers ---

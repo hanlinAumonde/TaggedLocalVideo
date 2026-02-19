@@ -4,6 +4,11 @@ import { BrowsedVideo, VideoDetail } from './GQL-result.model';
 
 export type VideoEditPanelMode = 'full' | 'filter';
 
+export interface BatchPanelData {
+  mode: 'videos' | 'directory';
+  videos?: Set<string>;
+  selectedDirectoryPath?: string;
+}
 
 export interface EditFormState {
   name: string;

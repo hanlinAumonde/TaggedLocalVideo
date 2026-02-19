@@ -1,10 +1,4 @@
-import {
-  Component,
-  OnInit,
-  signal,
-  computed,
-  inject,
-} from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   FormBuilder,
@@ -21,15 +15,12 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { startWith } from 'rxjs/operators';
-
-import {
-  SearchField,
-} from '../../../core/graphql/generated/graphql';
+import { SearchField } from '../../../core/graphql/generated/graphql';
 import {
   VideoEditPanelMode,
   VideoEditPanelData,
   EditableVideo,
-} from '../../models/video-edit-panel.model';
+} from '../../models/panels.model';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation.service';

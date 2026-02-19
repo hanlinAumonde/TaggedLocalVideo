@@ -12,20 +12,18 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-
-import { BatchResultType, DirectoryVideosBatchOperationInput, SearchField, VideosBatchOperationInput } from '../../../core/graphql/generated/graphql';
+import { 
+  BatchResultType, 
+  DirectoryVideosBatchOperationInput, 
+  SearchField, 
+  VideosBatchOperationInput 
+} from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
-import { BrowsedVideo } from '../../../shared/models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation.service';
 import { startWith, Subject, takeUntil, takeWhile } from 'rxjs';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
-
-export interface BatchPanelData {
-  mode: 'videos' | 'directory';
-  videos?: BrowsedVideo[];
-  selectedDirectoryPath?: string;
-}
+import { BatchPanelData } from '../../models/panels.model';
 
 @Component({
   selector: 'app-batch-tags-panel',
@@ -55,7 +53,7 @@ export class BatchOperationPanel implements OnDestroy {
   private toastService = inject(ToastService);
 
   readonly isVideoMode = this.data.mode === 'videos';
-  readonly videos = this.data.videos ?? [];
+  readonly videoIds = this.data.videos ?? new Set<string>();
   readonly directoryPath = this.data.selectedDirectoryPath ?? '';
 
   form = this.formBuilder.group({
@@ -144,7 +142,7 @@ export class BatchOperationPanel implements OnDestroy {
   handleSave() {
     if (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode) return;
     if (this.form.invalid || this.tagsError()) return;
-
+    console.log("toggling saving to true")
     this.isSaving.set(true);
 
     const tagsOperation = this.tags().length > 0 ? {
@@ -158,7 +156,7 @@ export class BatchOperationPanel implements OnDestroy {
 
     const subscription$ = this.isVideoMode
       ? this.gqlService.batchUpdateVideosSubscription({
-          videoIds: this.videos.map(video => video.id),
+          videoIds: Array.from(this.videoIds),
           tagsOperation,
           author
         } as VideosBatchOperationInput)

@@ -19,16 +19,20 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import videojs from 'video.js';
 import Player from 'video.js/dist/types/player';
-
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
-import { VideoEditPanelData } from '../../shared/models/video-edit-panel.model';
-import { ResultState, VideoDetail, VideoMutationDetail, VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
+import { VideoEditPanelData } from '../../shared/models/panels.model';
+import { 
+  ResultState, 
+  VideoDetail, 
+  VideoMutationDetail, 
+  VideoRecordViewDetail 
+} from '../../shared/models/GQL-result.model';
 import { environment } from '../../../environments/environment';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { Title } from '@angular/platform-browser';
 import { ToastService } from '../../services/toast-service/toast.service';
-import { PageStateService } from '../../services/Page-state-service/page-state';
+import { PageStateService } from '../../services/Page-state-service/page-state.service';
 
 @Component({
   selector: 'app-video-player',

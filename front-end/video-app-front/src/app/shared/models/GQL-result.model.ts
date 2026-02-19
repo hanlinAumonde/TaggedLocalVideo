@@ -1,4 +1,14 @@
-import { BatchUpdateSubscriptionSubscription, BrowseDirectoryQuery, DeleteVideoMutation, GetDirectoryMetadataQuery, GetTopTagsQuery, GetVideoByIdQuery, RecordVideoViewMutation, SearchVideosQuery, UpdateVideoMetadataMutation } from "../../core/graphql/generated/graphql";
+import { 
+    BatchUpdateSubscriptionSubscription, 
+    BrowseDirectoryQuery, 
+    DeleteVideoMutation, 
+    GetDirectoryMetadataQuery, 
+    GetTopTagsQuery, 
+    GetVideoByIdQuery, 
+    RecordVideoViewMutation, 
+    SearchVideosQuery, 
+    UpdateVideoMetadataMutation 
+} from "../../core/graphql/generated/graphql";
 
 export interface ResultState<T> {
     loading: boolean;

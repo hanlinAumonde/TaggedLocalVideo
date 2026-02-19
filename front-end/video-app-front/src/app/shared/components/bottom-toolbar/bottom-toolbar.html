@@ -20,35 +20,46 @@
     [style.opacity]="toolbarVisible() ? '1' : '0'"
   >
     <div class="flex items-center justify-between px-6 py-3 bg-neutral-700 dark:bg-neutral-600 text-white">
-      <div class="flex items-center gap-4">
-        <span class="bg-gray-400 dark:bg-neutral-700 px-4 py-2 rounded-lg font-medium">Current path:</span>
+      <div class="flex-1 flex items-center">
+        <div class="gap-2 flex items-center">
+          <button
+            mat-icon-button
+            (click)="navigateOnClickButton(true)"
+            [disabled]="!pathHistoryService.hasHistory()"
+          >
+            <mat-icon fontIcon="arrow_back"></mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            (click)="navigateOnClickButton(false)"
+            [disabled]="!pathHistoryService.hasForward()"
+          >
+            <mat-icon fontIcon="arrow_forward"></mat-icon>
+          </button>
+        </div>
+        <span class="bg-gray-400 dark:bg-neutral-700 mx-4 px-4 py-2 rounded-lg font-medium">Current path:</span>
         <strong class="font-mono text-gray-200 flex items-center">
           @for(pathElement of paths(); track $index) { 
             <span>/</span>
             <span 
               class="bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700 transition-colors"
-              (click)="navigatePath($index)">
+              (click)="navigateOnClickPathElement($index)">
               {{pathElement}}
             </span>
           }
         </strong>
       </div>
-      <div class="flex gap-2">
+      <div class="flex items-end gap-4">
         <button
-          (click)="batchOperation.emit()"
+          (click)="openBatchOperationPanel()"
           [disabled]="!hasSelection()"
-          class="px-4 py-2 bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+          class="px-4 py-2
+               bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
         >
           <span class="text-md">Batch ({{ selectedCount() }})</span>
         </button>
-        <button
-          [disabled]="isAtRoot()"
-          (click)="navigateBack.emit()"
-          class="px-4 py-2 bg-gray-500 hover:bg-gray-400 dark:bg-neutral-500 dark:hover:bg-neutral-400 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-        >
-          Return
-        </button>
       </div>
+        
     </div>
   </div>
 </div>

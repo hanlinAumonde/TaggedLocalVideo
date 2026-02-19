@@ -31,7 +31,7 @@ export const appConfig: ApplicationConfig = {
       const http = httpLink.create({ uri: environment.backend_api + "/graphql" });
       const ws = new GraphQLWsLink(
         createClient({
-          url: environment.backend_ws_api + window.location.host + "/graphql",
+          url: environment.backend_ws_api +  "/graphql",
         }),
       );
       const link = ApolloLink.split(

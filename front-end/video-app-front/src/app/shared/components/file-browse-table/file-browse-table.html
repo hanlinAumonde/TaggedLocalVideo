@@ -100,7 +100,7 @@
         @for (item of directoryContents().data; track item.node.id) {
           <mat-menu #operateMenu="matMenu">
             @if(item.node.isDir){
-              <button mat-menu-item (click)="batchSyncDirectory.emit(item.node.name)">
+              <button mat-menu-item (click)="openBatchOperationPanel(item.node.name)">
                 <mat-icon fontIcon="backup"></mat-icon>
                 <span>Sync videos</span>
               </button>
@@ -119,11 +119,11 @@
                   <span>Play Video</span>
                 </a>
               </button>
-              <button mat-menu-item (click)="editVideo.emit(item.node)">
+              <button mat-menu-item (click)="openEditPanel(item.node)">
                 <mat-icon fontIcon="edit"></mat-icon>
                 <span>Edit</span>
               </button>
-              <button mat-menu-item (click)="deleteVideo.emit(item.node)" class="text-red-600">
+              <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
                 <mat-icon fontIcon="delete"></mat-icon>
                 <span>Delete</span>
               </button>
