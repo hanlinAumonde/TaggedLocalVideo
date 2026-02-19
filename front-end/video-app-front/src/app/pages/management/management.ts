@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import {
@@ -26,7 +26,7 @@ import { PathHistoryService } from '../../services/path-history-service/path-his
   ],
   templateUrl: './management.html'
 })
-export class Management {
+export class Management implements OnDestroy{
   private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
   private stateService = inject(PageStateService);
@@ -73,6 +73,10 @@ export class Management {
       );
       this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
     });
+  }
+
+  ngOnDestroy(): void {
+    this.pathHistoryService.clearAllHistory();
   }
 
   // ─── Directory Data Loading ────────────────────────────────────────
