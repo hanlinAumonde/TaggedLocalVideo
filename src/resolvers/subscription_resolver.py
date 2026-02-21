@@ -128,20 +128,21 @@ class SubscriptionResolver:
                     {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIds]}}
                 )
                 yield self.constructBatchOperationStatus(
-                    status=f"Deleted {result.deleted_count} videos based on IDs"  
+                    status=f"Deleted {result.deleted_count} videos based on IDs"
                 )
                 videos_not_deleted = await VideoModel.find_many(
                     {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIds]}}
                 ).to_list()
-                paths_to_delete = [
-                    resolver_utils().to_mounted_path(v.path) 
-                    for v in videos if v not in videos_not_deleted
-                ]
-                await run_in_threadpool(resolver_utils().remove_videos_by_paths, paths_to_delete)
+                not_deleted_ids = {v.id for v in videos_not_deleted}
+                actually_deleted = [v for v in videos if v.id not in not_deleted_ids]
+                await self._remove_videos_and_update_tags(actually_deleted)
 
             else:
                 # delete by paths
                 paths = [resolver_utils().to_host_path(fe.path) for fe in fileEntries]
+                videos_before_delete = await VideoModel.find_many(
+                    {"path": {"$in": paths}}
+                ).to_list()
                 result = await VideoModel.get_pymongo_collection().delete_many(
                     {"path": {"$in": paths}}
                 )
@@ -151,11 +152,9 @@ class SubscriptionResolver:
                 videos_not_deleted = await VideoModel.find_many(
                     {"path": {"$in": paths}}
                 ).to_list()
-                paths_to_delete = [
-                    resolver_utils().to_mounted_path(path)
-                    for path in paths if path not in [v.path for v in videos_not_deleted]
-                ]
-                await run_in_threadpool(resolver_utils().remove_videos_by_paths, paths_to_delete)
+                not_deleted_paths = {v.path for v in videos_not_deleted}
+                actually_deleted = [v for v in videos_before_delete if v.path not in not_deleted_paths]
+                await self._remove_videos_and_update_tags(actually_deleted)
             
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Success if (result.deleted_count == len(videoIds) if videoIds else result.deleted_count == len(fileEntries)) else \
@@ -324,6 +323,16 @@ class SubscriptionResolver:
             no_need_update_flag = True
 
         return no_need_update_flag
+    
+    async def _remove_videos_and_update_tags(self, actually_deleted: list[VideoModel]):
+        paths_to_delete = [resolver_utils().to_mounted_path(v.path) for v in actually_deleted]
+        await run_in_threadpool(resolver_utils().remove_videos_by_paths, paths_to_delete)
+
+        update_tags: dict[str, tuple[int, bool]] = {}
+        for video in actually_deleted:
+            resolver_utils()._track_tag_change(update_tags, set(video.tags or []), False)
+        if update_tags:
+            await resolver_utils().update_tag_counts(update_tags=update_tags)
 
 @lru_cache()
 def get_subscription_resolver() -> SubscriptionResolver:

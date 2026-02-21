@@ -7,10 +7,19 @@ import { Observable, tap } from 'rxjs';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { BatchResultType } from '../../../core/graphql/generated/graphql';
 import { ToastDisplayer } from "../toast-displayer/toast-displayer";
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 
 @Component({
   selector: 'app-delete-check-panel',
-  imports: [MatButtonModule, MatDialogActions, MatDialogClose, MatDialogTitle, MatDialogContent, ToastDisplayer],
+  imports: [
+    MatButtonModule, 
+    MatDialogActions, 
+    MatDialogClose, 
+    MatDialogTitle, 
+    MatDialogContent, 
+    MatProgressBarModule,
+    ToastDisplayer
+  ],
   templateUrl: './delete-check-panel.html',
 })
 export class DeleteCheckPanel {

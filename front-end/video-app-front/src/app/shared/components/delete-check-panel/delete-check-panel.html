@@ -3,6 +3,10 @@
   Are you sure you want to delete {{ textToDelete() }}?
 </mat-dialog-content>
 <mat-dialog-actions>
+  @if(isSaving()){
+    <p class="text-sm text-gray-600 dark:text-gray-300">{{processingMessage()}}</p>
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  }
   <button matButton mat-dialog-close cdkInitialFocus>No</button>
   <button 
     matButton
