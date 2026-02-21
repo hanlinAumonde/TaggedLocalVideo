@@ -23,3 +23,27 @@ export const DIRECTORY_BATCH_UPDATE = gql`
         }
     }
 `
+
+export const BATCH_DELETE = gql`
+    subscription BatchDeleteSubscription($input: VideosBatchOperationInput!) {
+        batchDeleteSubscription(input: $input) {
+            result {
+                resultType
+                message
+            }
+            status
+        }   
+    }
+`
+
+export const DIRECTORY_BATCH_DELETE = gql`
+    subscription BatchDeleteDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
+        batchDeleteDirectorySubscription(input: $input) {
+            result {
+                resultType
+                message
+            }
+            status
+        }
+    }
+`

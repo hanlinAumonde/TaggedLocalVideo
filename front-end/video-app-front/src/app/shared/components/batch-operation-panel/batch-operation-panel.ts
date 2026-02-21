@@ -200,7 +200,7 @@ export class BatchOperationPanel implements OnDestroy {
         } else {
           this.toastService.emitErrorOrWarning(
             'Batch update failed. Please try again.', 
-            'error'
+            'error', true
           );
           this.processingMessage.set('');
         }

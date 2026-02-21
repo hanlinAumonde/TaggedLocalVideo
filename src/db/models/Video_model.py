@@ -1,7 +1,7 @@
 from typing import Optional
 from beanie import Document, Indexed
 import pymongo
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 class VideoModel(Document):
     path: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore 

@@ -5,15 +5,21 @@ import { PathHistoryService } from '../../../services/path-history-service/path-
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
+import { MatMenuModule } from "@angular/material/menu";
+import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
+import { GqlService } from '../../../services/GQL-service/GQL.service';
+import { BatchResultType } from '../../../core/graphql/generated/graphql';
+import { DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
 
 @Component({
   selector: 'app-bottom-toolbar',
-  imports: [MatIconModule, MatButtonModule],
+  imports: [MatIconModule, MatButtonModule, MatMenuModule],
   templateUrl: './bottom-toolbar.html'
 })
 export class BottomToolbar {
   pathHistoryService = inject(PathHistoryService)
   private toastService = inject(ToastService);
+  private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
 
   currentPath = input.required<string[]>();
@@ -66,8 +72,25 @@ export class BottomToolbar {
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      this.toastService.clearAllToastsBeyondDialog();
       this.batchOperationResult.emit(result? true : false);
     });
+  }
+
+  openBatchDeleteCheckPanel() {
+    if (this.selectedIds().size === 0) return;
+    this.toastService.clearAllToasts();
+
+    const dialogRef = this.dialog.open(DeleteCheckPanel, {
+      width: '400px',
+      data: { 
+        deleteType: DeleteType.Batch,
+        videoCount: this.selectedIds().size,
+        videoIds: this.selectedIds()
+      } as DeleteCheckPanelData
+    });
+
+    dialogRef.afterClosed().subscribe(confirmed => {
+      this.batchOperationResult.emit(confirmed? true : false);
+    })
   }
 }

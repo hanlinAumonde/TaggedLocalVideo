@@ -37,3 +37,16 @@ export interface AuthorSuggestion {
 export interface TagSuggestion {
   value: string;
 }
+
+export enum DeleteType {
+  Single = 'single',
+  Batch = 'batch',
+  Directory = 'directory'
+}
+
+export interface DeleteCheckPanelData {
+  deleteType: DeleteType;
+  videoCount?: number;
+  videoIds?: Set<string>;
+  directoryPath?: string;
+}

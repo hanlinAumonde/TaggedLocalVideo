@@ -11,13 +11,10 @@ export class ToastService {
   private _toasts = signal<Toast[]>([]);
   toasts = this._toasts.asReadonly();
 
-  private _toastBeyondDialog = signal<Toast[]>([]);
-  toastBeyondDialog = this._toastBeyondDialog.asReadonly();
-
   emitErrorOrWarning(message: string, type: 'error' | 'warning' = 'error', beyondDialog: boolean = false) {
     const id = ++this.counter;
 
-    const updateFn = beyondDialog ? this._toastBeyondDialog.update : this._toasts.update;
+    const updateFn = this._toasts.update;
 
     updateFn(list => {
       const newList = [...list, { id, message, type }];
@@ -26,18 +23,18 @@ export class ToastService {
         const oldest = newList.find(t => !t.removing);
         if (oldest) {
           oldest.removing = true;
-          setTimeout(() => this.removeToast(oldest.id, beyondDialog), environment.ERROR_TOAST_SETTINGS.EXIT_ANIMATION_MS);
+          setTimeout(() => this.removeToast(oldest.id), environment.ERROR_TOAST_SETTINGS.EXIT_ANIMATION_MS);
         }
       }
       return newList;
     });
 
     // close automatically after a delay
-    setTimeout(() => this.dismiss(id, beyondDialog), environment.ERROR_TOAST_SETTINGS.AUTO_DISMISS_MS);
+    setTimeout(() => this.dismiss(id), environment.ERROR_TOAST_SETTINGS.AUTO_DISMISS_MS);
   }
 
-  dismiss(id: number, beyondDialog: boolean = false) {
-    const updateFn = beyondDialog ? this._toastBeyondDialog.update : this._toasts.update;
+  dismiss(id: number) {
+    const updateFn = this._toasts.update;
     // marked as removing to trigger exit animation
     updateFn(list =>
       list.map(t => (t.id === id ? { ...t, removing: true } : t))
@@ -46,15 +43,9 @@ export class ToastService {
     setTimeout(() => this.removeToast(id), environment.ERROR_TOAST_SETTINGS.EXIT_ANIMATION_MS);
   }
 
-  private removeToast(id: number, beyondDialog: boolean = false) {
-    const updateFn = beyondDialog ? this._toastBeyondDialog.update : this._toasts.update;
+  private removeToast(id: number) {
+    const updateFn = this._toasts.update;
     updateFn(list => list.filter(t => t.id !== id));
-  }
-
-  public clearAllToastsBeyondDialog() {
-    this._toastBeyondDialog().forEach(t => {
-      this.removeToast(t.id, true);
-    });
   }
 
   public clearAllToasts() {

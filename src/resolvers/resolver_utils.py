@@ -177,13 +177,17 @@ class ResolverUtils:
         except Exception as e:
             logger.error(f"Error during bulk update of tag counts: {e}")
 
+    def _track_tag_change(self, update_tags: dict[str, tuple[int, bool]], tags: set[str], is_increment: bool):
+        for tag in tags:
+            tag_record: tuple[int, bool] | None = update_tags.get(tag)
+            update_tags[tag] = (tag_record[0] + 1, is_increment) if tag_record else (1, is_increment)
 
     async def process_new_video_entry(
         self,
         entry: os.DirEntry[str],
         author: str | None,
         tagsOperation: TagsOperationMappingInputModel | None,
-        track_tag_change: callable
+        update_tags: dict[str, tuple[int,bool]]
     ) -> UpdateOne:
         """
         Process a single new video entry: get duration via ffprobe and build upsert operation.
@@ -194,7 +198,7 @@ class ResolverUtils:
         :param track_tag_change: Callback to track tag changes
         :return: UpdateOne operation for bulk write
         """
-        host_path = resolver_utils().to_host_path(entry.path)
+        host_path = self.to_host_path(entry.path)
         filter_query = {"path": host_path}
 
         # Get video duration with semaphore to limit concurrent ffprobe processes
@@ -218,9 +222,17 @@ class ResolverUtils:
             tags_set = set(tagsOperation.tags)
             if tagsOperation.append:
                 set_on_insert["tags"] = list(tags_set)
-                track_tag_change(tags_set, True)
+                self._track_tag_change(update_tags, tags_set, True)
 
         return UpdateOne(filter_query, {"$setOnInsert": set_on_insert}, upsert=True)
+    
+    def remove_videos_by_paths(self, paths: list[str]):
+        try:
+            for path in paths:
+                os.remove(self.to_mounted_path(path))
+        except Exception as e:
+            logger.error(f"Error removing video files: {e}")
+            raise FileBrowseError("Error removing video files.")
 
     # ============================================================
     # Calculate directory size and last modified time with caching

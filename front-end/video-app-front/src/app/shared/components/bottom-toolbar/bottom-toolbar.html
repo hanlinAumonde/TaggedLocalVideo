@@ -49,15 +49,33 @@
           }
         </strong>
       </div>
-      <div class="flex items-end gap-4">
-        <button
-          (click)="openBatchOperationPanel()"
-          [disabled]="!hasSelection()"
-          class="px-4 py-2
-               bg-cyan-500 hover:cursor-pointer hover:bg-cyan-600 disabled:bg-gray-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+      <div class="flex items-end">
+        <div class="px-4 py-2 bg-neutral-500 gap-2 flex items-center
+                  text-white rounded-lg font-medium transition-colors"
         >
-          <span class="text-md">Batch ({{ selectedCount() }})</span>
-        </button>
+          <span class="text-md">({{ selectedCount() }}) Batch</span>
+          <button class="flex items-center hover:bg-neutral-400 hover:disabled:bg-neutral-500 
+                         disabled:cursor-no-drop rounded-full transition-colors"
+            [matMenuTriggerFor]="batchMenu" [disabled]="selectedCount() == 0">
+            <mat-icon fontIcon="arrow_drop_up"></mat-icon>
+          </button>
+          <mat-menu #batchMenu>
+            <button 
+              mat-menu-item
+              (click)="openBatchOperationPanel()"
+            >
+              <mat-icon fontIcon="edit"></mat-icon>
+              <span>Edit</span>
+            </button>
+            <button 
+              mat-menu-item
+              (click)="openBatchDeleteCheckPanel()"
+            >
+              <mat-icon fontIcon="delete"></mat-icon>
+              <span>Delete</span>
+            </button>
+          </mat-menu>
+        </div>
       </div>
         
     </div>

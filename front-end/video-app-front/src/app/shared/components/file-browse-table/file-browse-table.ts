@@ -13,7 +13,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
-import { VideoEditPanelData, VideoEditPanelMode } from '../../models/panels.model';
+import { DeleteCheckPanelData, DeleteType, VideoEditPanelData, VideoEditPanelMode } from '../../models/panels.model';
 import { VideoEditPanel } from '../video-edit-panel/video-edit-panel';
 
 @Component({
@@ -97,21 +97,27 @@ export class FileBrowseTable {
 
   deleteVideo(video: BrowsedVideo) {
     const checkResult = this.dialog.open(DeleteCheckPanel, {
-      width: '400px'
+      width: '400px',
+      data: {
+        deleteType: DeleteType.Single,
+        videoIds: new Set<string>([video.id])
+       } as DeleteCheckPanelData
     })
     checkResult.afterClosed().subscribe(confirmed => {
-      if (confirmed) {
-        this.gqlService.deleteVideoMutation(video.id).subscribe(result => {
-          if(result.data?.success){
-            this.deleteVideoResult.emit(true);
-          }else if(result.error || result.data?.success === false){
-            this.toastService.emitErrorOrWarning('Failed to delete video', 'error');
-            this.deleteVideoResult.emit(false);
-          }
-        });
-      }else{
-        this.deleteVideoResult.emit(false);
-      }
+      this.deleteVideoResult.emit(confirmed? true : false);
+    });
+  }
+
+  deleteVideosInDirectory(dirPath: string) {
+    const dialogRef = this.dialog.open(DeleteCheckPanel, {
+      width: '400px',
+      data: {
+        deleteType: DeleteType.Directory,
+        directoryPath: this.currentPath().join('/') + '/' + dirPath
+       } as DeleteCheckPanelData
+    });
+    dialogRef.afterClosed().subscribe(confirmed => {
+      this.deleteVideoResult.emit(confirmed? true : false);
     });
   }
 
@@ -129,7 +135,6 @@ export class FileBrowseTable {
     });
 
     dialogRef.afterClosed().subscribe(result => {
-      this.toastService.clearAllToastsBeyondDialog();
       this.batchSyncDirectoryResult.emit(result? true : false);
     });
   }

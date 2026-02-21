@@ -108,6 +108,10 @@
                 <mat-icon fontIcon="refresh"></mat-icon>
                 <span>Refresh Metadata</span>
               </button>
+              <button mat-menu-item (click)="deleteVideosInDirectory(item.node.name)">
+                <mat-icon fontIcon="delete"></mat-icon>
+                <span>Delete All videos</span>
+              </button>
             }@else{
               <button mat-menu-item>
                 <a

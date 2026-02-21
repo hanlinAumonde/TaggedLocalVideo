@@ -18,7 +18,9 @@ import {
   DirectoryVideosBatchOperationInput,
   GetDirectoryMetadataGQL,
   BatchUpdateDirectorySubscriptionGQL,
-  BatchUpdateSubscriptionGQL
+  BatchUpdateSubscriptionGQL,
+  BatchDeleteSubscriptionGQL,
+  BatchDeleteDirectorySubscriptionGQL
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -61,12 +63,22 @@ export class GqlService {
   private deleteVideoGQL = inject(DeleteVideoGQL)
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
   private batchUpdateVideosSubscriptionGQL = inject(BatchUpdateSubscriptionGQL)
+  private batchDeleteVideosSubscriptionGQL = inject(BatchDeleteSubscriptionGQL)
   private batchUpdateDirectorySubscriptionGQL = inject(BatchUpdateDirectorySubscriptionGQL)
+  private batchDeleteDirectorySubscriptionGQL = inject(BatchDeleteDirectorySubscriptionGQL)
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
 
   private filterUndefinedResult<T>(result : T[]){
     return result.filter((r) => r != undefined)
+  }
+
+  initialSignalData<T>(data: T): ResultState<T> {
+    return {
+      loading: true,
+      error: null,
+      data: data
+    } 
   }
 
   private toResultStateObservable<TData, TResult>(
@@ -95,6 +107,8 @@ export class GqlService {
       )
   }
 
+  // ----------------------------Query----------------------------
+
   private getTopTagsAsSuggestionQuery(): Observable<ResultState<string[]>>{
     return this.toResultStateObservable(
       this.getTopTagsAsSuggestionGQL.watch().valueChanges,
@@ -104,14 +118,6 @@ export class GqlService {
         );
       }
     )
-  }
-
-  initialSignalData<T>(data: T): ResultState<T> {
-    return {
-      loading: true,
-      error: null,
-      data: data
-    } 
   }
 
   getSuggestionsQuery(formValueChanges: Observable<string | null>, field: SearchField): Observable<ResultState<string[]>> {
@@ -138,28 +144,6 @@ export class GqlService {
           (data) => this.filterUndefinedResult(data?.getSuggestions ?? [])
         )        
       )
-    )
-  }
-
-  updateVideoMetadataMutation(videoID: string,loved: boolean = false,tags?: string[],
-                              title?: string,description?: string,author?: string): Observable<ResultState<VideoMutationDetail>>{
-    return this.toResultStateObservable(this.updateVideoMetadataGQL.mutate({
-          variables: {
-            input: {
-              videoId: videoID,
-              name: title,
-              introduction: description,
-              tags: tags ?? [],
-              author: author,
-              loved: loved,
-            }
-          }
-        }
-      ),
-      (data) => ({
-        success: data.updateVideoMetadata?.success ?? false,
-        video: data.updateVideoMetadata?.video ?? null
-      } as VideoMutationDetail)
     )
   }
 
@@ -202,16 +186,6 @@ export class GqlService {
     )
   }
 
-  recordVideoViewMutation(videoId: string): Observable<ResultState<VideoRecordViewDetail>> {
-    return this.toResultStateObservable(
-      this.recordVideoViewGQL.mutate({ variables: { videoId } }),
-      (data) => ({
-        success: data.recordVideoView?.success ?? false,
-        video: data.recordVideoView?.video
-      } as VideoRecordViewDetail)
-    )
-  }
-
   browseDirectoryQuery(relativePath?: string, refreshCache: boolean = false): Observable<ResultState<BrowseDirectoryDetail>> {
     return this.toResultStateObservable(
       this.browseDirectoryGQL.watch({
@@ -221,16 +195,6 @@ export class GqlService {
         } }
       }).valueChanges,
       (data) => this.filterUndefinedResult(data.browseDirectory ?? []) as BrowseDirectoryDetail
-    )
-  }
-
-  deleteVideoMutation(videoId: string): Observable<ResultState<DeleteVideoDetail>> {
-    return this.toResultStateObservable(
-      this.deleteVideoGQL.mutate({ variables: { videoId } }),
-      (data) => ({
-        success: data.deleteVideo?.success ?? false,
-        video: data.deleteVideo?.video
-      } as DeleteVideoDetail)
     )
   }
 
@@ -248,24 +212,83 @@ export class GqlService {
     )
   }
 
+  // ----------------------------Mutation----------------------------
+
+  recordVideoViewMutation(videoId: string): Observable<ResultState<VideoRecordViewDetail>> {
+    return this.toResultStateObservable(
+      this.recordVideoViewGQL.mutate({ variables: { videoId } }),
+      (data) => ({
+        success: data.recordVideoView?.success ?? false,
+        video: data.recordVideoView?.video
+      } as VideoRecordViewDetail)
+    )
+  }
+
+  deleteVideoMutation(videoId: string): Observable<ResultState<DeleteVideoDetail>> {
+    return this.toResultStateObservable(
+      this.deleteVideoGQL.mutate({ variables: { videoId } }),
+      (data) => ({
+        success: data.deleteVideo?.success ?? false,
+        video: data.deleteVideo?.video
+      } as DeleteVideoDetail)
+    )
+  }
+
+  updateVideoMetadataMutation(videoID: string,loved: boolean = false,tags?: string[],
+                              title?: string,description?: string,author?: string): Observable<ResultState<VideoMutationDetail>>{
+    return this.toResultStateObservable(this.updateVideoMetadataGQL.mutate({
+          variables: {
+            input: {
+              videoId: videoID,
+              name: title,
+              introduction: description,
+              tags: tags ?? [],
+              author: author,
+              loved: loved,
+            }
+          }
+        }
+      ),
+      (data) => ({
+        success: data.updateVideoMetadata?.success ?? false,
+        video: data.updateVideoMetadata?.video ?? null
+      } as VideoMutationDetail)
+    )
+  }
+
+  // ----------------------------Subscription----------------------------
+
+  private batchOperationDataConverter(subscriptionResult: any): BatchUpdateVideosDetail {
+    return {
+      result: {
+        resultType: subscriptionResult?.result?.resultType ?? undefined,
+        message: subscriptionResult?.result?.message ?? undefined
+      },
+      status: subscriptionResult?.status ?? undefined
+    } as BatchUpdateVideosDetail
+  }
+
   batchUpdateVideosSubscription(input: VideosBatchOperationInput){
     return this.toResultStateObservable(
       this.batchUpdateVideosSubscriptionGQL.subscribe({
         variables: {
-            input: {
-              videoIds: input.videoIds,
-              tagsOperation: input.tagsOperation ?? undefined,
-              author: input.author ?? undefined,
-            }
+          input: {
+            videoIds: input.videoIds,
+            tagsOperation: input.tagsOperation ?? undefined,
+            author: input.author ?? undefined,
           }
+        }
       }),
-      (data) => ({
-        result: {
-          resultType: data.batchUpdateSubscription?.result?.resultType ?? undefined,
-          message: data.batchUpdateSubscription?.result?.message ?? undefined
-        },
-        status: data.batchUpdateSubscription?.status ?? undefined
-      } as BatchUpdateVideosDetail)
+      (data) => this.batchOperationDataConverter(data.batchUpdateSubscription)
+    )
+  }
+
+  batchDeleteVideosSubscription(input: VideosBatchOperationInput){
+    return this.toResultStateObservable(
+      this.batchDeleteVideosSubscriptionGQL.subscribe({
+        variables: { input: { videoIds: input.videoIds } }
+      }),
+      (data) => this.batchOperationDataConverter(data.batchDeleteSubscription)
     )
   }
 
@@ -280,13 +303,16 @@ export class GqlService {
           }
         }
       }),
-      (data) => ({
-        result: {
-          resultType: data.batchUpdateDirectorySubscription?.result?.resultType ?? undefined,
-          message: data.batchUpdateDirectorySubscription?.result?.message ?? undefined
-        },
-        status: data.batchUpdateDirectorySubscription?.status ?? undefined
-      } as BatchUpdateVideosDetail)
+      (data) => this.batchOperationDataConverter(data.batchUpdateDirectorySubscription)
+    )
+  }
+
+  batchDeleteDirectorySubscription(input: DirectoryVideosBatchOperationInput){
+    return this.toResultStateObservable(
+      this.batchDeleteDirectorySubscriptionGQL.subscribe({
+        variables: { input: { relativePath: input.relativePath } }
+      }),
+      (data) => this.batchOperationDataConverter(data.batchDeleteDirectorySubscription)
     )
   }
 }
