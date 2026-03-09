@@ -2,7 +2,7 @@ from pydantic import BaseModel, ValidationInfo, field_validator
 
 
 class RelativePathInputModel(BaseModel):
-    refreshFlag: bool = False  # If True, bypass any caching
+    skipCache: bool = False  # If True, bypass any caching and get the latest info from disk
     
     relativePath: str | None = None  # If None, browse the root directory that contains all resources paths with their pesudo names
 

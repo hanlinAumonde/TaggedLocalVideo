@@ -93,12 +93,12 @@ export type QuerySearchVideosArgs = {
 
 
 export type QueryBrowseDirectoryArgs = {
-  path: RelativePathInput;
+  input: RelativePathInput;
 };
 
 
 export type QueryGetDirectoryMetadataArgs = {
-  path: RelativePathInput;
+  input: RelativePathInput;
 };
 
 
@@ -113,8 +113,8 @@ export type QueryGetVideoByIdArgs = {
 
 export type RelativePathInput = {
   parsedPath?: InputMaybe<Array<Scalars['String']['input']>>;
-  refreshFlag?: Scalars['Boolean']['input'];
   relativePath?: InputMaybe<Scalars['String']['input']>;
+  skipCache?: Scalars['Boolean']['input'];
 };
 
 export enum SearchField {
@@ -295,14 +295,14 @@ export type GetSuggestionsQueryVariables = Exact<{
 export type GetSuggestionsQuery = { __typename?: 'Query', getSuggestions: Array<string> };
 
 export type BrowseDirectoryQueryVariables = Exact<{
-  path: RelativePathInput;
+  input: RelativePathInput;
 }>;
 
 
 export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
 
 export type GetDirectoryMetadataQueryVariables = Exact<{
-  path: RelativePathInput;
+  input: RelativePathInput;
 }>;
 
 
@@ -524,8 +524,8 @@ export const GetSuggestionsDocument = gql`
     }
   }
 export const BrowseDirectoryDocument = gql`
-    query BrowseDirectory($path: RelativePathInput!) {
-  browseDirectory(path: $path) {
+    query BrowseDirectory($input: RelativePathInput!) {
+  browseDirectory(input: $input) {
     node {
       id
       isDir
@@ -555,8 +555,8 @@ export const BrowseDirectoryDocument = gql`
     }
   }
 export const GetDirectoryMetadataDocument = gql`
-    query GetDirectoryMetadata($path: RelativePathInput!) {
-  getDirectoryMetadata(path: $path) {
+    query GetDirectoryMetadata($input: RelativePathInput!) {
+  getDirectoryMetadata(input: $input) {
     totalSize
     lastModifiedTime
   }

@@ -28,7 +28,6 @@ import { PathHistoryService } from '../../services/path-history-service/path-his
 })
 export class Management implements OnDestroy{
   private gqlService = inject(GqlService);
-  private dialog = inject(MatDialog);
   private stateService = inject(PageStateService);
   private toastService = inject(ToastService);
   
@@ -81,8 +80,8 @@ export class Management implements OnDestroy{
 
   // ─── Directory Data Loading ────────────────────────────────────────
 
-  private loadDirectory(relativePath?: string, refreshCache: boolean = false) {
-    this.gqlService.browseDirectoryQuery(relativePath, refreshCache).subscribe({
+  private loadDirectory(relativePath?: string, skipCache: boolean = false) {
+    this.gqlService.browseDirectoryQuery(relativePath, skipCache).subscribe({
       next: (result) => {
         // Sometimes this condition can be true twice in a single request, because of the cache update after the request
         // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again

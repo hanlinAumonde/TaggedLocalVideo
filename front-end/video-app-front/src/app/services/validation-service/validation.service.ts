@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { MonoTypeOperatorFunction, pipe } from 'rxjs';
-import { filter, map } from 'rxjs/operators';
+import { filter } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { SearchField } from '../../core/graphql/generated/graphql';
 

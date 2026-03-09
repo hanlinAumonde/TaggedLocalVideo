@@ -1,7 +1,8 @@
 from typing import Optional
 import strawberry
 
-from src.db.models.Video_model import VideoModel, VideoTagModel
+from src.db.models.Video_model import VideoModel
+from src.db.models.VideoTag_model import VideoTagModel
 from src.schema.types.pydantic_types.video_type import UpdateVideoMetadataInputModel
 
 @strawberry.type

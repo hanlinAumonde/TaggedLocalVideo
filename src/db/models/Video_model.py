@@ -1,7 +1,6 @@
 from typing import Optional
 from beanie import Document, Indexed
 import pymongo
-from pydantic import BaseModel, Field
 
 class VideoModel(Document):
     path: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore 
@@ -33,10 +32,3 @@ class VideoModel(Document):
             [("viewCount", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
             [("duration", pymongo.DESCENDING)],
         ]
-
-class VideoTagModel(Document):
-    name: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore 
-    tag_count: int = Field(Indexed(int, pymongo.DESCENDING), alias="count")  # type: ignore
-
-    class Settings:
-        name = "tags"

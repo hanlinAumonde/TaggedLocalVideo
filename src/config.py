@@ -6,7 +6,8 @@ from pydantic_settings import BaseSettings
 
 class CacheConfig(BaseModel):
     max_size: int = 2048
-    ttl: int = 300  # in seconds
+    ttl: int = 3600  # in seconds
+    cache_type: str = "cachetools"
 
 class PageSize(BaseModel):
     homepage_videos: int = 10

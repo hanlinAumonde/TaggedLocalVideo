@@ -1,8 +1,10 @@
-import { ActivatedRouteSnapshot, 
-         RedirectCommand, 
-         ResolveFn, 
-         Router, 
-         RouterStateSnapshot } from "@angular/router";
+import { 
+    ActivatedRouteSnapshot, 
+    RedirectCommand, 
+    ResolveFn, 
+    Router, 
+    RouterStateSnapshot 
+} from "@angular/router";
 import { ResultState, VideoDetail } from "../shared/models/GQL-result.model";
 import { inject } from "@angular/core";
 import { GqlService } from "../services/GQL-service/GQL.service";

@@ -1,6 +1,11 @@
 import { ApplicationConfig, inject, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
+import { 
+  HTTP_INTERCEPTORS, 
+  provideHttpClient, 
+  withFetch, 
+  withInterceptorsFromDi 
+} from '@angular/common/http';
 import { provideApollo } from 'apollo-angular';
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';

@@ -186,13 +186,15 @@ export class GqlService {
     )
   }
 
-  browseDirectoryQuery(relativePath?: string, refreshCache: boolean = false): Observable<ResultState<BrowseDirectoryDetail>> {
+  browseDirectoryQuery(relativePath?: string, skipCache: boolean = false): Observable<ResultState<BrowseDirectoryDetail>> {
     return this.toResultStateObservable(
       this.browseDirectoryGQL.watch({
-        variables: { path: { 
-          relativePath: relativePath,
-          refreshFlag: refreshCache 
-        } }
+        variables: { 
+          input: { 
+            relativePath: relativePath,
+            skipCache: skipCache
+          } 
+        }
       }).valueChanges,
       (data) => this.filterUndefinedResult(data.browseDirectory ?? []) as BrowseDirectoryDetail
     )
@@ -201,9 +203,7 @@ export class GqlService {
   getDirectoryMetadataQuery(relativePath?: string): Observable<ResultState<DirectoryMetadataDetail>> {
     return this.toResultStateObservable(
       this.getDirectoryMetadataGQL.watch({
-        variables: { path: { 
-          relativePath: relativePath
-        } }
+        variables: { input: { relativePath: relativePath } }
       }).valueChanges,
       (data) => ({
         totalSize: data.getDirectoryMetadata?.totalSize ?? 0,

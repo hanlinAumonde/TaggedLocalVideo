@@ -5,6 +5,7 @@ resource_paths:
 cache_config:
   max_size: 2048
   ttl: 300  # in seconds
+  cache_type: cachetools
 
 ffmpeg_semaphore_limit: 4
 

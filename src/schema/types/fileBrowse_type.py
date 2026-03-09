@@ -23,7 +23,7 @@ class FileBrowseNode:
 
 @strawberry.experimental.pydantic.input(model=RelativePathInputModel)
 class RelativePathInput:
-    refreshFlag: strawberry.auto  # If True, bypass any caching and get the latest info from disk
+    skipCache: strawberry.auto
     relativePath: strawberry.auto
     parsedPath: strawberry.auto
 

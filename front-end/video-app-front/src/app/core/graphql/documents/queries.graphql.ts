@@ -66,8 +66,8 @@ export const GET_SUGGESTIONS = gql`
 `;
 
 export const BROWSE_DIRECTORY = gql`
-  query BrowseDirectory($path: RelativePathInput!) {
-    browseDirectory(path: $path) {
+  query BrowseDirectory($input: RelativePathInput!) {
+    browseDirectory(input: $input) {
       node {
         id
         isDir
@@ -87,8 +87,8 @@ export const BROWSE_DIRECTORY = gql`
 `;
 
 export const GET_DIRECTORY_METADATA = gql`
-  query GetDirectoryMetadata($path: RelativePathInput!) {
-    getDirectoryMetadata(path: $path) {
+  query GetDirectoryMetadata($input: RelativePathInput!) {
+    getDirectoryMetadata(input: $input) {
       totalSize
       lastModifiedTime
     }

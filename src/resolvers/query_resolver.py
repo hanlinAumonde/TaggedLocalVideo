@@ -1,4 +1,3 @@
-from fastapi.concurrency import run_in_threadpool
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
@@ -17,7 +16,8 @@ from src.schema.types.search_type import (
     Pagination
 )
 from src.schema.types.video_type import Video, VideoTag
-from src.db.models.Video_model import VideoModel, VideoTagModel
+from src.db.models.Video_model import VideoModel
+from src.db.models.VideoTag_model import VideoTagModel
 from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
 
 logger = get_logger("query_resolver")
@@ -201,46 +201,44 @@ class QueryResolver:
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
     
-    async def resolve_browse_directory(self,path: RelativePathInput) -> list[FileBrowseNode]:
+    async def resolve_browse_directory(self,input: RelativePathInput) -> list[FileBrowseNode]:
         """
         Resolve function to browse videos in a directory specified by a relative path.
 
-        :param path: The relative path to browse.
-        :type path: RelativePathInput
+        :param input: The relative path input to browse.
+        :type input: RelativePathInput
         :return: List of file browse nodes in the specified directory.
         :rtype: list[FileBrowseNode]
         """
         try:
-            relativePathInputModel = path.to_pydantic()
+            relativePathInputModel = input.to_pydantic()
         except Exception as e:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
-        abs_path = resolver_utils().get_absolute_resource_path(relativePathInputModel)
+        return await resolver_utils().get_node_list_in_directory(
+            resolver_utils().get_absolute_resource_path(relativePathInputModel),
+            skipCache=relativePathInputModel.skipCache
+        )
 
-        return await resolver_utils().get_node_list_in_directory(abs_path, relativePathInputModel.refreshFlag)
-
-    async def resolve_directory_metadata(self,path: RelativePathInput) -> DirectoryMetadataResult:
+    async def resolve_directory_metadata(self,input: RelativePathInput) -> DirectoryMetadataResult:
         """
         Resolve function to get metadata of a directory specified by a relative path.
 
-        :param path: The relative path of the directory.
-        :type path: RelativePathInput
+        :param input: The relative path input of the directory.
+        :type input: RelativePathInput
         :return: Directory metadata result containing total size and last modified time.
         :rtype: DirectoryMetadataResult
         """
         try:
-            relativePathInputModel = path.to_pydantic()
+            relativePathInputModel = input.to_pydantic()
         except Exception as e:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
-        abs_path = resolver_utils().get_absolute_resource_path(relativePathInputModel)
-
-        size, last_update_time = await run_in_threadpool(
-            resolver_utils().get_total_size_and_last_modified_time, 
-            abs_path,
-            True
+        size, last_update_time = await resolver_utils().get_total_size_and_last_modified_time(
+            resolver_utils().get_absolute_resource_path(relativePathInputModel),
+            skipCache=True
         )
 
         return DirectoryMetadataResult(

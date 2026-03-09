@@ -1,6 +1,13 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogActions, MatDialogClose, MatDialogContent, MatDialogRef, MatDialogTitle } from '@angular/material/dialog';
+import { 
+  MAT_DIALOG_DATA, 
+  MatDialogActions, 
+  MatDialogClose, 
+  MatDialogContent, 
+  MatDialogRef, 
+  MatDialogTitle 
+} from '@angular/material/dialog';
 import { DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { Observable, tap } from 'rxjs';

@@ -1,4 +1,13 @@
-import { Component, input, output, computed, viewChild, ElementRef, effect, inject } from '@angular/core';
+import { 
+  Component, 
+  input, 
+  output, 
+  computed, 
+  viewChild, 
+  ElementRef, 
+  effect, 
+  inject 
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -13,7 +22,12 @@ import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
-import { DeleteCheckPanelData, DeleteType, VideoEditPanelData, VideoEditPanelMode } from '../../models/panels.model';
+import { 
+  DeleteCheckPanelData, 
+  DeleteType, 
+  VideoEditPanelData, 
+  VideoEditPanelMode 
+} from '../../models/panels.model';
 import { VideoEditPanel } from '../video-edit-panel/video-edit-panel';
 
 @Component({

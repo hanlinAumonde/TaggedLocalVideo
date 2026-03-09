@@ -7,8 +7,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { MatMenuModule } from "@angular/material/menu";
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
-import { GqlService } from '../../../services/GQL-service/GQL.service';
-import { BatchResultType } from '../../../core/graphql/generated/graphql';
 import { DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
 
 @Component({
@@ -19,7 +17,6 @@ import { DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
 export class BottomToolbar {
   pathHistoryService = inject(PathHistoryService)
   private toastService = inject(ToastService);
-  private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
 
   currentPath = input.required<string[]>();

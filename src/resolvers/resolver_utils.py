@@ -2,29 +2,23 @@ from functools import lru_cache
 import os
 
 from bson import ObjectId
-from cachetools import TTLCache
 from fastapi.concurrency import run_in_threadpool
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
 import strawberry
 from src.config import get_settings
-from src.db.models.Video_model import VideoModel, VideoTagModel
+from src.db.models.Video_model import VideoModel
+from src.db.models.VideoTag_model import VideoTagModel
 from src.errors import FileBrowseError
 from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
 from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.video_type import Video
+from src.cache.dir_metadata_service import get_dir_metadata_service
 from src.logger import get_logger
 
 logger = get_logger("resolver_utils")
-
-
-# cache for directory size and last modified time
-_dir_cache: TTLCache[str, tuple[float, float]] = TTLCache(
-    maxsize=get_settings().cache_config.max_size, 
-    ttl=get_settings().cache_config.ttl
-)
 
 class ResolverUtils:
 
@@ -32,44 +26,40 @@ class ResolverUtils:
     # Browse file utils
     # ============================================================
 
-    async def get_node_list_in_directory(self, abs_path: str | None, refreshFlag: bool = False) -> list[FileBrowseNode]:
+    async def get_node_list_in_directory(self, abs_path: str | None, skipCache: bool = False) -> list[FileBrowseNode]:
         fileBrowse_nodes: list[FileBrowseNode] = []
         resource_paths = get_settings().resource_paths
         try:
             if abs_path is None:
                 for name in resource_paths.keys():
                     abs_root_resource_path = self.get_absolute_root_resource_path(name)
-                    await self._get_directory_node(abs_root_resource_path, name, fileBrowse_nodes, refreshFlag)
+                    await self._get_directory_node(abs_root_resource_path, name, fileBrowse_nodes, skipCache)
             else:
                 with os.scandir(abs_path) as entries:
-                    while True:
+                    for entry in entries:
                         try:
-                            entry = next(entries)
                             if entry.is_dir():
-                                await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, refreshFlag)
+                                await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, skipCache)
                             elif entry.is_file() and self.is_video_file(entry.name):
-                                    stat = entry.stat()
-                                    video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
-                                        {"path": self.to_host_path(entry.path)},
-                                        {"$setOnInsert": VideoModel(
-                                            path=self.to_host_path(entry.path),
-                                            name=os.path.basename(entry.path),
-                                            isDir=False,
-                                            lastModifyTime=stat.st_mtime,
-                                            size=stat.st_size,
-                                            tags=[]
-                                        ).model_dump()},
-                                        upsert=True, return_document=True
-                                    )
+                                stat = entry.stat()
+                                video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
+                                    {"path": self.to_host_path(entry.path)},
+                                    {"$setOnInsert": VideoModel(
+                                        path=self.to_host_path(entry.path),
+                                        name=os.path.basename(entry.path),
+                                        isDir=False,
+                                        lastModifyTime=stat.st_mtime,
+                                        size=stat.st_size,
+                                        tags=[]
+                                    ).model_dump()},
+                                    upsert=True, return_document=True
+                                )
 
-                                    fileBrowse_nodes.append(
-                                        FileBrowseNode(
-                                            node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
-                                        )
+                                fileBrowse_nodes.append(
+                                    FileBrowseNode(
+                                        node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
                                     )
-
-                        except StopIteration:
-                            break
+                                )
                         except OSError as e:
                             logger.error(f"Error processing file {entry.path}: {e}")
                             continue
@@ -78,15 +68,17 @@ class ResolverUtils:
             logger.error(f"Error accessing directory {abs_path}: {e}")
             raise FileBrowseError(f"Error accessing directory {abs_path}")
         
-        logger.info(f"Cached size: {_dir_cache.currsize}/{_dir_cache.maxsize}")
         return fileBrowse_nodes
 
-    async def _get_directory_node(self, path: str, name: str, fileBrowse_nodes: list[FileBrowseNode], refreshFlag: bool = False):
+    async def _get_directory_node(self, 
+                                  path: str, 
+                                  name: str, 
+                                  fileBrowse_nodes: list[FileBrowseNode], 
+                                  skipCache: bool):
         """Calculate total size and last modified time of all videos under this directory"""
-        total_size, last_modified_time = await run_in_threadpool(
-            self.get_total_size_and_last_modified_time,
+        total_size, last_modified_time = await self.get_total_size_and_last_modified_time(
             self.get_path_standard_format(path),
-            refreshFlag
+            skipCache
         )
         # Append directory node only when there is at least one video file inside or
         if total_size != 0.0 and last_modified_time != 0.0:
@@ -238,53 +230,49 @@ class ResolverUtils:
     # Calculate directory size and last modified time with caching
     # ============================================================
 
-    def get_total_size_and_last_modified_time(self, directory_path: str, refreshFlag: bool = False) -> tuple[float, float]:
+    async def get_total_size_and_last_modified_time(self, directory_path: str, skipCache: bool = False) -> tuple[float, float]:
         """
         Get total size and last modified time of all video files under the given directory.
-        Uses caching to avoid redundant calculations.
+        Uses Cache-Aside pattern: cache -> database -> filesystem scan.
         """
-        if not refreshFlag and directory_path in _dir_cache:
-            return _dir_cache.get(directory_path)
+        service = get_dir_metadata_service()
+        if not skipCache:
+            cached = await service.get_metadata(directory_path)
+            if cached is not None:
+                return cached
 
-        result = self._get_total_size_and_last_modified_time_impl(directory_path, refreshFlag)
-        _dir_cache.update({directory_path: result})
-        
+        collected: dict[str, tuple[float, float]] = {}
+        result = await run_in_threadpool(
+            self._get_total_size_and_last_modified_time_impl, directory_path, collected
+        )
+        collected[directory_path] = result
+        await service.bulk_set_metadata(collected)
         return result
 
-    def _get_total_size_and_last_modified_time_impl(self, directory_path: str, refreshFlag: bool) -> tuple[float, float]:
+    def _get_total_size_and_last_modified_time_impl(self, directory_path: str, collected: dict[str, tuple[float, float]]) -> tuple[float, float]:
         total_size = 0.0
         last_modified_time = 0.0
-        
-        def calculate_entry():
-            nonlocal total_size, last_modified_time
-            try:
-                with os.scandir(directory_path) as entries:
-                    for entry in entries:
-                        if entry and not refreshFlag:
-                            total_size = -1.0
-                            last_modified_time = -1.0
-                            return
-                        
-                        if entry.is_dir():
-                            dir_size, dir_mtime = self.get_total_size_and_last_modified_time(
-                                self.get_path_standard_format(entry.path),
-                                refreshFlag
-                            )
-                            total_size += dir_size
-                            last_modified_time = max(last_modified_time, dir_mtime)
-                        elif entry.is_file() and self.is_video_file(entry.name):
-                            stat = entry.stat()
-                            total_size += stat.st_size
-                            last_modified_time = max(last_modified_time, stat.st_mtime)
 
-            except (OSError, Exception):
-                # If any error occurs (e.g., permission denied), log and return 0 size and time
-                logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
-                total_size = -1.0
-                last_modified_time = -1.0
+        try:
+            with os.scandir(directory_path) as entries:
+                for entry in entries:
+                    if entry.is_dir():
+                        sub_path = self.get_path_standard_format(entry.path)
+                        dir_size, dir_mtime = self._get_total_size_and_last_modified_time_impl(sub_path, collected)
+                        collected[sub_path] = (dir_size, dir_mtime)
+                        total_size += dir_size
+                        last_modified_time = max(last_modified_time, dir_mtime)
+                    elif entry.is_file() and self.is_video_file(entry.name):
+                        stat = entry.stat()
+                        total_size += stat.st_size
+                        last_modified_time = max(last_modified_time, stat.st_mtime)
 
-        calculate_entry()
-        
+        except (OSError, Exception):
+            # On error, log and return -1 to indicate failure
+            logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
+            total_size = -1.0
+            last_modified_time = -1.0
+
         return total_size, last_modified_time
 
     # ============================================================
