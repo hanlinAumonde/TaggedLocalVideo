@@ -240,7 +240,7 @@ class QueryResolver:
         size, last_update_time = await resolver_utils().calculate_directory_metadata(
             resolver_utils().get_absolute_resource_path(relativePathInputModel),
             skipCache=True,
-            recursive_calculation=True
+            recursiveCalculation=True
         )
 
         return DirectoryMetadataResult(
