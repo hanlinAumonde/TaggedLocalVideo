@@ -1,3 +1,4 @@
+import asyncio
 from functools import lru_cache
 import os
 
@@ -26,20 +27,36 @@ class ResolverUtils:
     # Browse file utils
     # ============================================================
 
-    async def get_node_list_in_directory(self, abs_path: str | None, skipCache: bool = False) -> list[FileBrowseNode]:
+    async def get_node_list_in_directory(self, 
+                                         abs_path: str | None, 
+                                         skipCache: bool = False,
+                                         recursiveCalculation: bool = True
+                                         ) -> list[FileBrowseNode]:
         fileBrowse_nodes: list[FileBrowseNode] = []
         resource_paths = get_settings().resource_paths
         try:
             if abs_path is None:
                 for name in resource_paths.keys():
                     abs_root_resource_path = self.get_absolute_root_resource_path(name)
-                    await self._get_directory_node(abs_root_resource_path, name, fileBrowse_nodes, skipCache)
+                    await self._get_directory_node(
+                        abs_root_resource_path, 
+                        name, 
+                        fileBrowse_nodes, 
+                        skipCache, 
+                        recursiveCalculation
+                    )
             else:
                 with os.scandir(abs_path) as entries:
                     for entry in entries:
                         try:
                             if entry.is_dir():
-                                await self._get_directory_node(entry.path, entry.name, fileBrowse_nodes, skipCache)
+                                await self._get_directory_node(
+                                    entry.path, 
+                                    entry.name, 
+                                    fileBrowse_nodes, 
+                                    skipCache,
+                                    recursiveCalculation
+                                )
                             elif entry.is_file() and self.is_video_file(entry.name):
                                 stat = entry.stat()
                                 video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
@@ -63,6 +80,14 @@ class ResolverUtils:
                         except OSError as e:
                             logger.error(f"Error processing file {entry.path}: {e}")
                             continue
+                
+                # After processing all entries, update the directory metadata for "abs_path"
+                # to ensure cachea and database are updated if there are new files
+                await resolver_utils().calculate_directory_metadata(
+                    abs_path, 
+                    skipCache=skipCache, 
+                    recursiveCalculation=recursiveCalculation
+                )
 
         except (OSError, Exception) as e:
             logger.error(f"Error accessing directory {abs_path}: {e}")
@@ -74,11 +99,13 @@ class ResolverUtils:
                                   path: str, 
                                   name: str, 
                                   fileBrowse_nodes: list[FileBrowseNode], 
-                                  skipCache: bool):
+                                  skipCache: bool,
+                                  recursiveCalculation: bool):
         """Calculate total size and last modified time of all videos under this directory"""
-        total_size, last_modified_time = await self.get_total_size_and_last_modified_time(
+        total_size, last_modified_time = await self.calculate_directory_metadata(
             self.get_path_standard_format(path),
-            skipCache
+            skipCache=skipCache,
+            recursiveCalculation=recursiveCalculation
         )
         # Append directory node only when there is at least one video file inside or
         if total_size != 0.0 and last_modified_time != 0.0:
@@ -230,10 +257,19 @@ class ResolverUtils:
     # Calculate directory size and last modified time with caching
     # ============================================================
 
-    async def get_total_size_and_last_modified_time(self, directory_path: str, skipCache: bool = False) -> tuple[float, float]:
+    async def calculate_directory_metadata(self, 
+                                           directory_path: str, 
+                                           skipCache: bool = False,
+                                           recursiveCalculation: bool = True) -> tuple[float, float]:
         """
         Get total size and last modified time of all video files under the given directory.
         Uses Cache-Aside pattern: cache -> database -> filesystem scan.
+
+        :param directory_path: Absolute path of the directory to calculate metadata for
+        :param skipCache: If True, bypass cache and get fresh data from filesystem
+        :param recursiveCalculation: If True, calculate metadata recursively for all subdirectories; if False, only calculate for the specified directory without going into subdirectories
+        :return: Tuple of (total size in bytes, last modified time as timestamp)
+        :rtype: tuple[float, float]
         """
         service = get_dir_metadata_service()
         if not skipCache:
@@ -243,13 +279,16 @@ class ResolverUtils:
 
         collected: dict[str, tuple[float, float]] = {}
         result = await run_in_threadpool(
-            self._get_total_size_and_last_modified_time_impl, directory_path, collected
+            self._calculate_directory_metadata_impl, directory_path, collected, recursiveCalculation
         )
         collected[directory_path] = result
         await service.bulk_set_metadata(collected)
         return result
 
-    def _get_total_size_and_last_modified_time_impl(self, directory_path: str, collected: dict[str, tuple[float, float]]) -> tuple[float, float]:
+    def _calculate_directory_metadata_impl(self, 
+                                           directory_path: str, 
+                                           collected: dict[str, tuple[float, float]],
+                                           recursiveCalculation: bool) -> tuple[float, float]:
         total_size = 0.0
         last_modified_time = 0.0
 
@@ -258,7 +297,15 @@ class ResolverUtils:
                 for entry in entries:
                     if entry.is_dir():
                         sub_path = self.get_path_standard_format(entry.path)
-                        dir_size, dir_mtime = self._get_total_size_and_last_modified_time_impl(sub_path, collected)
+                        if recursiveCalculation:
+                            dir_size, dir_mtime = self._calculate_directory_metadata_impl(
+                                sub_path, collected, recursiveCalculation
+                            )
+                        else:
+                            loop = asyncio.get_event_loop()
+                            dir_size, dir_mtime = loop.run_until_complete(
+                                get_dir_metadata_service().get_metadata(sub_path)
+                            ) or (0.0, 0.0)
                         collected[sub_path] = (dir_size, dir_mtime)
                         total_size += dir_size
                         last_modified_time = max(last_modified_time, dir_mtime)

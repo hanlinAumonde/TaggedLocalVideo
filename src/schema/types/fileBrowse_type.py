@@ -24,6 +24,7 @@ class FileBrowseNode:
 @strawberry.experimental.pydantic.input(model=RelativePathInputModel)
 class RelativePathInput:
     skipCache: strawberry.auto
+    recursiveCalculation: strawberry.auto
     relativePath: strawberry.auto
     parsedPath: strawberry.auto
 

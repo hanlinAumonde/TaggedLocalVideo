@@ -218,7 +218,8 @@ class QueryResolver:
         
         return await resolver_utils().get_node_list_in_directory(
             resolver_utils().get_absolute_resource_path(relativePathInputModel),
-            skipCache=relativePathInputModel.skipCache
+            skipCache=relativePathInputModel.skipCache,
+            recursiveCalculation=relativePathInputModel.recursiveCalculation
         )
 
     async def resolve_directory_metadata(self,input: RelativePathInput) -> DirectoryMetadataResult:
@@ -236,9 +237,10 @@ class QueryResolver:
             logger.error(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
-        size, last_update_time = await resolver_utils().get_total_size_and_last_modified_time(
+        size, last_update_time = await resolver_utils().calculate_directory_metadata(
             resolver_utils().get_absolute_resource_path(relativePathInputModel),
-            skipCache=True
+            skipCache=True,
+            recursive_calculation=True
         )
 
         return DirectoryMetadataResult(

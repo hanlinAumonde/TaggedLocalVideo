@@ -3,6 +3,8 @@ from pydantic import BaseModel, ValidationInfo, field_validator
 
 class RelativePathInputModel(BaseModel):
     skipCache: bool = False  # If True, bypass any caching and get the latest info from disk
+
+    recursiveCalculation: bool = True  # If True, calculate metadata for all subdirectories recursively; if False, only calculate for the specified directory without going into subdirectories
     
     relativePath: str | None = None  # If None, browse the root directory that contains all resources paths with their pesudo names
 

@@ -27,7 +27,6 @@ export class BottomToolbar {
   tableWidth = input.required<number>();
 
   batchOperationResult = output<boolean>();
-  navigateBack = output<void>();
   navigateToPath = output<string[]>();
 
   paths = computed(() => {

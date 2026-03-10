@@ -122,7 +122,18 @@ class MutationResolver:
             await video_model.delete()
             await resolver_utils().update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
-            os.remove(resolver_utils().to_mounted_path(video_path))
+            video_absolute_path = resolver_utils().to_mounted_path(video_path)
+            directory_path = os.path.dirname(video_absolute_path)
+            if directory_path:
+                # After deletion, update the directory metadata for "directory_path"
+                # to ensure cache and database are updated if there are deleted files
+                await resolver_utils().calculate_directory_metadata(
+                    directory_path, 
+                    skipCache=False, 
+                    recursiveCalculation=False
+                )
+
+            os.remove(video_absolute_path)
             logger.info(f"Deleted video file at path: {video_path}")
 
             return VideoMutationResult(success=True, video=None)

@@ -186,13 +186,16 @@ export class GqlService {
     )
   }
 
-  browseDirectoryQuery(relativePath?: string, skipCache: boolean = false): Observable<ResultState<BrowseDirectoryDetail>> {
+  browseDirectoryQuery(relativePath?: string, 
+                       skipCache: boolean = false, 
+                       recursiveCalculation: boolean = true): Observable<ResultState<BrowseDirectoryDetail>> {
     return this.toResultStateObservable(
       this.browseDirectoryGQL.watch({
         variables: { 
           input: { 
             relativePath: relativePath,
-            skipCache: skipCache
+            skipCache: skipCache,
+            recursiveCalculation: recursiveCalculation
           } 
         }
       }).valueChanges,

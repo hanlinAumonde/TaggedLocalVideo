@@ -100,10 +100,12 @@ class SubscriptionResolver:
             ):
                 yield status
         else:
-            async for status in self._batch_delete(None, entries):
+            async for status in self._batch_delete(dir_path, None, entries):
                 yield status
 
-    async def _batch_delete(self, videoIds: list[str],
+    async def _batch_delete(self, 
+                            dir_path: str,
+                            videoIds: list[str],
                             fileEntries: list[os.DirEntry[str]] | None) -> AsyncGenerator[BatchOperationStatus, None]:
         """
         Batch delete videos based on provided video IDs or paths.
@@ -156,6 +158,15 @@ class SubscriptionResolver:
                 actually_deleted = [v for v in videos_before_delete if v.path not in not_deleted_paths]
                 await self._remove_videos_and_update_tags(actually_deleted)
             
+            if dir_path:
+                # After deletion, update the directory metadata for "dir_path"
+                # to ensure cache and database are updated if there are deleted files
+                await resolver_utils().calculate_directory_metadata(
+                    dir_path, 
+                    skipCache=False, 
+                    recursiveCalculation=False
+                )
+
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Success if (result.deleted_count == len(videoIds) if videoIds else result.deleted_count == len(fileEntries)) else \
                         BatchResultType.PartialSuccess if result.deleted_count > 0 

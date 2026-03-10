@@ -113,6 +113,7 @@ export type QueryGetVideoByIdArgs = {
 
 export type RelativePathInput = {
   parsedPath?: InputMaybe<Array<Scalars['String']['input']>>;
+  recursiveCalculation?: Scalars['Boolean']['input'];
   relativePath?: InputMaybe<Scalars['String']['input']>;
   skipCache?: Scalars['Boolean']['input'];
 };

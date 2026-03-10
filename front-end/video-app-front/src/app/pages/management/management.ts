@@ -80,8 +80,8 @@ export class Management implements OnDestroy{
 
   // ─── Directory Data Loading ────────────────────────────────────────
 
-  private loadDirectory(relativePath?: string, skipCache: boolean = false) {
-    this.gqlService.browseDirectoryQuery(relativePath, skipCache).subscribe({
+  private loadDirectory(relativePath?: string, skipCache: boolean = false, recursiveCalculation: boolean = true) {
+    this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation).subscribe({
       next: (result) => {
         // Sometimes this condition can be true twice in a single request, because of the cache update after the request
         // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
@@ -118,7 +118,7 @@ export class Management implements OnDestroy{
       index: this.sortCriteria().index,
       order: !this.sortCriteria().order
     });
-    this.loadDirectory(path.length > 0 ? path.join('/') : undefined, true);
+    this.loadDirectory(path.length > 0 ? path.join('/') : undefined, true, false);
   }
 
   refreshSelectedDirectory(item: FileBrowseNode) {
