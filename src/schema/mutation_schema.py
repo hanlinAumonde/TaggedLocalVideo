@@ -1,8 +1,8 @@
 import strawberry
-
+from src.resolvers.mutation_resolver import get_mutation_resolver
 from src.schema.types.fileBrowse_type import VideoMutationResult
-from src.resolvers.mutation_resolver import MutationResolver
 
+MutationResolver = get_mutation_resolver()
 
 @strawberry.type
 class Mutation:

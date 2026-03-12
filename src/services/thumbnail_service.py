@@ -1,27 +1,72 @@
 import asyncio
 from functools import lru_cache
+import io
 import os
 import subprocess
-from fastapi import HTTPException
+from typing import Annotated
+from fastapi import Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
-
+from starlette.responses import StreamingResponse
 from src.config import get_settings
+from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
+from src.services.path_convert_service import get_path_service
 
-# Limit concurrent ffmpeg/ffprobe processes to avoid resource exhaustion
-_process_semaphore = asyncio.Semaphore(
-    max(
-        get_settings().ffmpeg_semaphore_limit, 
-        os.cpu_count() // 2
-    )
-)
+logger = get_logger("thumbnail_service")
 
-logger = get_logger("thumbnail_resolver")
+class ThumbnailService:
+    def __init__(
+        self,
+    ):
+        # Limit concurrent ffmpeg/ffprobe processes to avoid resource exhaustion
+        self.process_semaphore = asyncio.Semaphore(
+            max(
+                get_settings().ffmpeg_semaphore_limit, 
+                os.cpu_count() // 2
+            )
+        )
+        self.pathHepler = get_path_service()
+        
+    async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
+        if not video_id:
+            raise HTTPException(status_code=400, detail="Cannot find thumbnail without video-id")
+        else:
+            # 1- fetch video metadata from database
+            video = await VideoModel.get(video_id) 
+            if not video:
+                logger.warning(f"Video metadata not found for video_id: {video_id}")
+                raise HTTPException(status_code=404, detail="Video not found")
 
-class ThumbnailResolver:
+            video_path = self.pathHepler.to_mounted_path(video.path)
+            if not os.path.exists(video_path):
+                logger.warning(f"Video file not found at path: {video_path}")
+                raise HTTPException(status_code=404, detail="Video file doesn't exist")
+            
+            no_duration_in_model = video.duration == 0.0 or video.duration is None
+                    
+            # 2- TODO: find jpeg thumbnail from object storage using thumbnail-id
+            if thumbnail_id:
+                # get thumbnail data from object storage
+                pass
+                # get duration if not exists in model
+                if no_duration_in_model:
+                    video.duration = await self.get_video_duration(video_path)
+                    await video.save()
+
+            # 3- video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
+            else:
+                thumbnail_bytes = await self.generate_thumbnail(video_path)
+                
+            return StreamingResponse(
+                content=io.BytesIO(thumbnail_bytes),
+                media_type="image/jpeg",
+                headers={
+                    "Cache-Control": "public, max-age=3600"
+                }
+            )
 
     async def generate_thumbnail(self, video_path: str, with_duration: bool = True):
-        async with _process_semaphore:
+        async with self.process_semaphore:
             return await run_in_threadpool(
                 self._generate_thumbnail,
                 video_path,
@@ -29,7 +74,7 @@ class ThumbnailResolver:
             )
     
     async def get_video_duration(self, video_path: str) -> float:
-        async with _process_semaphore:
+        async with self.process_semaphore:
             try:
                 return await run_in_threadpool(
                     self._get_video_duration,
@@ -108,5 +153,7 @@ class ThumbnailResolver:
         return float(result.stdout)
 
 @lru_cache()
-def get_thumbnail_resolver():
-    return ThumbnailResolver()
+def get_thumbnail_service() -> ThumbnailService:
+    return ThumbnailService()
+
+ThumbnailServiceDep = Annotated[ThumbnailService, Depends(get_thumbnail_service)]

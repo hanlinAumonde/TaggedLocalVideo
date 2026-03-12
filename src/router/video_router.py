@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
-
 from src.resolvers.video_stream_resolver import VideoResolverDep
+from src.services.thumbnail_service import ThumbnailServiceDep
 
 router = APIRouter(prefix="/video")
 
@@ -10,5 +10,5 @@ async def stream_video(video_id: str, request: Request, videoResolverDep: VideoR
     return await videoResolverDep.video_stream_resolver(video_id, request)
 
 @router.get("/thumbnail")
-async def get_thumbnail(videoResolverDep: VideoResolverDep, video_id: str, thumbnail_id: str | None = None):
-    return await videoResolverDep.get_thumbnail(video_id, thumbnail_id)
+async def get_thumbnail(thumbnailServiceDep: ThumbnailServiceDep, video_id: str, thumbnail_id: str | None = None):
+    return await thumbnailServiceDep.get_thumbnail(video_id, thumbnail_id)

@@ -1,20 +1,26 @@
+from functools import lru_cache
 import os
 import strawberry
 from bson import ObjectId
 import time
-
 from src.logger import get_logger
-from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.fileBrowse_type import VideoMutationResult
-
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
+from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.path_convert_service import get_path_service
+from src.services.tag_operation_service import get_tag_operation_service
 
 logger = get_logger("mutation_resolver")
 
 
 class MutationResolver:
+
+    def __init__(self):
+        self.pathHelper = get_path_service()
+        self.tagOperationService = get_tag_operation_service()
+        self.dirMetadataService = get_dir_metadata_service()
 
     async def resolve_update_video_metadata(self,input: UpdateVideoMetadataInput) -> VideoMutationResult:
         """
@@ -58,14 +64,10 @@ class MutationResolver:
                 video_model.tags = validated_input.tags
 
                 await video_model.save()
-                await resolver_utils().update_tag_counts(update_tags=update_tags)
+                await self.tagOperationService.update_tag_counts(update_tags=update_tags)
 
                 updated_video = await Video.from_mongoDB(video_model)
                 return VideoMutationResult(success=True, video=updated_video)
-            
-            else:
-                if not validated_input.path:
-                    raise VideoNotFoundError(str(validated_input.videoId))
 
         except VideoNotFoundError:
             logger.exception(f"Video not found: {validated_input.videoId}")
@@ -120,15 +122,15 @@ class MutationResolver:
             video_path = video_model.path
 
             await video_model.delete()
-            await resolver_utils().update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
+            await self.tagOperationService.update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
-            video_absolute_path = resolver_utils().to_mounted_path(video_path)
+            video_absolute_path = self.pathHelper.to_mounted_path(video_path)
 
             os.remove(video_absolute_path)
 
             directory_path = os.path.dirname(video_absolute_path)
             if directory_path:
-                await resolver_utils().update_directory_metadata_forward(directory_path)
+                await self.dirMetadataService.update_directory_metadata_forward(directory_path)
                 
             logger.info(f"Deleted video file at path: {video_path}")
 
@@ -140,3 +142,7 @@ class MutationResolver:
         except Exception as e:
             logger.exception(f"Database operation error during delete video: {e}")
             raise DatabaseOperationError("delete_video", f"videoId-{videoId}")
+        
+@lru_cache
+def get_mutation_resolver() -> MutationResolver:
+    return MutationResolver()

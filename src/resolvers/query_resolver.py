@@ -1,10 +1,15 @@
+from functools import lru_cache
+
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
 from src.logger import get_logger
-from src.resolvers.thumbnail_resolver import get_thumbnail_resolver
+from src.services.browse_file_service import get_browse_file_service
+from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.path_convert_service import get_path_service
+from src.services.tag_operation_service import get_tag_operation_service
+from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
-from src.resolvers.resolver_utils import resolver_utils
 from src.schema.types.search_type import (
     DirectoryMetadataResult,
     SearchFrom,
@@ -24,6 +29,14 @@ logger = get_logger("query_resolver")
 
 class QueryResolver:
 
+    def __init__(self):
+        self.settings = get_settings()
+        self.pathHepler = get_path_service()
+        self.tagOperationService = get_tag_operation_service()
+        self.thumbnailService = get_thumbnail_service()
+        self.browseFileService = get_browse_file_service()
+        self.dirMetadataService = get_dir_metadata_service()
+    
     async def resolve_search_videos(self,input: VideoSearchInput) -> VideoSearchResult:
         """
         Resolve function to search for videos based on various criteria.
@@ -75,8 +88,8 @@ class QueryResolver:
 
             async def get_video(video_model: VideoModel):
                 if video_model.duration is None or video_model.duration == 0.0:
-                    video_path = resolver_utils().to_mounted_path(video_model.path)
-                    duration = await get_thumbnail_resolver().get_video_duration(video_path)
+                    video_path = self.pathHepler.to_mounted_path(video_model.path)
+                    duration = await self.thumbnailService.get_video_duration(video_path)
                     video_model.duration = duration
                     await video_model.save()
                 return await Video.from_mongoDB(video_model)
@@ -103,10 +116,9 @@ class QueryResolver:
         :return: List of top video tags.
         :rtype: list[VideoTag]
         """
-        settings = get_settings()
-        limit = settings.page_size_default.homepage_tags
+        limit = self.settings.page_size_default.homepage_tags
         try:
-            tag_docs = await resolver_utils().get_top_tag_docs(limit)
+            tag_docs = await self.tagOperationService.get_top_tag_docs(limit)
             return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
         except Exception as e:
             logger.exception(f"Database operation error during get top tags: {e}")
@@ -128,33 +140,32 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
 
-        settings = get_settings()
         if validated_input.keyword.keyWord:
             keyword = validated_input.keyword.keyWord
         else:
             return []
         suggestion_type = validated_input.suggestionType
-        limits = settings.suggestion_limit
+        limits = self.settings.suggestion_limit
 
         try:
             match suggestion_type:
                 case SearchField.Tag.value:
                     limit = limits.tag
                     if not keyword:
-                        tag_docs = await resolver_utils().get_top_tag_docs(limit)
+                        tag_docs = await self.tagOperationService.get_top_tag_docs(limit)
                         return [tag.name for tag in tag_docs]
 
                     prefix_query = VideoTagModel.find(
                         {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
                     )
-                    prefix_matches = await resolver_utils().get_top_tag_docs(limit,prefix_query)
+                    prefix_matches = await self.tagOperationService.get_top_tag_docs(limit,prefix_query)
                     prefix_matches_names = [tag.name for tag in prefix_matches]
 
                     if limit - len(prefix_matches_names) > 0:
                         contains_query = VideoTagModel.find(
                             {"name": {"$regex": f".*{keyword}.*", "$options":"i", "$nin": prefix_matches_names}}
                         )
-                        contains_matches = await resolver_utils().get_top_tag_docs(limit, contains_query)
+                        contains_matches = await self.tagOperationService.get_top_tag_docs(limit, contains_query)
                         prefix_matches_names.extend([tag.name for tag in contains_matches])
 
                     return prefix_matches_names
@@ -216,8 +227,8 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
-        return await resolver_utils().get_node_list_in_directory(
-            resolver_utils().get_absolute_resource_path(relativePathInputModel),
+        return await self.browseFileService.get_node_list_in_directory(
+            self.pathHepler.get_absolute_resource_path(relativePathInputModel),
             skipCache=relativePathInputModel.skipCache,
             recursiveCalculation=relativePathInputModel.recursiveCalculation
         )
@@ -237,8 +248,8 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
-        size, last_update_time = await resolver_utils().calculate_directory_metadata(
-            resolver_utils().get_absolute_resource_path(relativePathInputModel),
+        size, last_update_time = await self.dirMetadataService.calculate_directory_metadata(
+            self.pathHepler.get_absolute_resource_path(relativePathInputModel),
             skipCache=True,
             recursiveCalculation=True
         )
@@ -247,3 +258,7 @@ class QueryResolver:
             totalSize=size,
             lastModifiedTime=last_update_time
         )
+
+@lru_cache
+def get_query_resolver() -> QueryResolver:
+    return QueryResolver()
