@@ -16,7 +16,7 @@ class StrawberrySchema(strawberry.Schema):
     
     def process_errors(self, errors, execution_context = None) -> None:
         for error in errors:
-            logger.error(f"GraphQL Execution Error: {error.message}")
+            logger.exception(f"GraphQL Execution Error: {error.message}")
         #return super().process_errors(errors, execution_context)
         
 schema = StrawberrySchema(query=Query, mutation=Mutation, subscription=Subscription)

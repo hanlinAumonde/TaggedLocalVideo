@@ -49,7 +49,7 @@ class SubscriptionResolver:
         try:
             validated_input = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
         
         if update:
@@ -81,7 +81,7 @@ class SubscriptionResolver:
         try:
             validated_input = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="DirectoryVideosBatchOperationInput", issue="Invalid input data for batch updating directory videos")
         
         dir_path = resolver_utils().get_absolute_resource_path(validated_input.relativePath)
@@ -159,13 +159,7 @@ class SubscriptionResolver:
                 await self._remove_videos_and_update_tags(actually_deleted)
             
             if dir_path:
-                # After deletion, update the directory metadata for "dir_path"
-                # to ensure cache and database are updated if there are deleted files
-                await resolver_utils().calculate_directory_metadata(
-                    dir_path, 
-                    skipCache=False, 
-                    recursiveCalculation=False
-                )
+                await resolver_utils().update_directory_metadata_forward(dir_path)
 
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Success if (result.deleted_count == len(videoIds) if videoIds else result.deleted_count == len(fileEntries)) else \
@@ -177,7 +171,7 @@ class SubscriptionResolver:
         except FileBrowseError:
             raise 
         except Exception as e:
-            logger.error(f"Error during batch delete: {e}")
+            logger.exception(f"Error during batch delete: {e}")
             raise DatabaseOperationError("batch_delete", "general_failure")
 
     async def _batch_update(self, videoIDs: list[str] | None,
@@ -288,10 +282,10 @@ class SubscriptionResolver:
                 )
 
         except BulkWriteError as bwe:
-            logger.error(f"Bulk write error during bulk write operation: {bwe.details}")
+            logger.exception(f"Bulk write error during bulk write operation: {bwe.details}")
             raise DatabaseOperationError("batch_update", "bulk_write_failure")
         except Exception as e:
-            logger.error(f"Error during batch update: {e}")
+            logger.exception(f"Error during batch update: {e}")
             raise DatabaseOperationError("batch_update", "general_failure")
 
     async def _update_existing_videos_operations(self, video_models: list[VideoModel], 

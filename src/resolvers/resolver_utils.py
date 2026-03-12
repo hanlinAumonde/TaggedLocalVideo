@@ -47,6 +47,7 @@ class ResolverUtils:
                     )
             else:
                 with os.scandir(abs_path) as entries:
+                    hasNewFileFlag = False
                     for entry in entries:
                         try:
                             if entry.is_dir():
@@ -59,6 +60,10 @@ class ResolverUtils:
                                 )
                             elif entry.is_file() and self.is_video_file(entry.name):
                                 stat = entry.stat()
+                                if not hasNewFileFlag:
+                                    hasNewFileFlag = await VideoModel.find_one(
+                                        {"path": self.to_host_path(entry.path)}
+                                    ) is None
                                 video_doc = await VideoModel.get_pymongo_collection().find_one_and_update(
                                     {"path": self.to_host_path(entry.path)},
                                     {"$setOnInsert": VideoModel(
@@ -78,19 +83,14 @@ class ResolverUtils:
                                     )
                                 )
                         except OSError as e:
-                            logger.error(f"Error processing file {entry.path}: {e}")
+                            logger.exception(f"Error processing file {entry.path}: {e}")
                             continue
                 
-                # After processing all entries, update the directory metadata for "abs_path"
-                # to ensure cachea and database are updated if there are new files
-                await resolver_utils().calculate_directory_metadata(
-                    abs_path, 
-                    skipCache=skipCache, 
-                    recursiveCalculation=recursiveCalculation
-                )
+                if hasNewFileFlag:
+                    await self.update_directory_metadata_forward(abs_path)
 
         except (OSError, Exception) as e:
-            logger.error(f"Error accessing directory {abs_path}: {e}")
+            logger.exception(f"Error accessing directory {abs_path}: {e}")
             raise FileBrowseError(f"Error accessing directory {abs_path}")
         
         return fileBrowse_nodes
@@ -136,7 +136,7 @@ class ResolverUtils:
                             )
                         )
         except (OSError, Exception):
-            logger.error(f"Error accessing directory {directory_path} to get video entries.")
+            logger.exception(f"Error accessing directory {directory_path} to get video entries.")
         
         return video_entries
 
@@ -192,9 +192,9 @@ class ResolverUtils:
                 await VideoTagModel.find({"count": {"$lte": 0}}).delete()
         
         except BulkWriteError as bwe:
-            logger.error(f"Bulk write error during tag counts update: {bwe.details}")
+            logger.exception(f"Bulk write error during tag counts update: {bwe.details}")
         except Exception as e:
-            logger.error(f"Error during bulk update of tag counts: {e}")
+            logger.exception(f"Error during bulk update of tag counts: {e}")
 
     def _track_tag_change(self, update_tags: dict[str, tuple[int, bool]], tags: set[str], is_increment: bool):
         for tag in tags:
@@ -250,7 +250,7 @@ class ResolverUtils:
             for path in paths:
                 os.remove(self.to_mounted_path(path))
         except Exception as e:
-            logger.error(f"Error removing video files: {e}")
+            logger.exception(f"Error removing video files: {e}")
             raise FileBrowseError("Error removing video files.")
 
     # ============================================================
@@ -278,14 +278,12 @@ class ResolverUtils:
                 return cached
 
         collected: dict[str, tuple[float, float]] = {}
-        result = await run_in_threadpool(
-            self._calculate_directory_metadata_impl, directory_path, collected, recursiveCalculation
-        )
+        result = await self._calculate_directory_metadata_impl(directory_path, collected, recursiveCalculation)
         collected[directory_path] = result
         await service.bulk_set_metadata(collected)
         return result
 
-    def _calculate_directory_metadata_impl(self, 
+    async def _calculate_directory_metadata_impl(self, 
                                            directory_path: str, 
                                            collected: dict[str, tuple[float, float]],
                                            recursiveCalculation: bool) -> tuple[float, float]:
@@ -298,14 +296,11 @@ class ResolverUtils:
                     if entry.is_dir():
                         sub_path = self.get_path_standard_format(entry.path)
                         if recursiveCalculation:
-                            dir_size, dir_mtime = self._calculate_directory_metadata_impl(
+                            dir_size, dir_mtime = await self._calculate_directory_metadata_impl(
                                 sub_path, collected, recursiveCalculation
                             )
                         else:
-                            loop = asyncio.get_event_loop()
-                            dir_size, dir_mtime = loop.run_until_complete(
-                                get_dir_metadata_service().get_metadata(sub_path)
-                            ) or (0.0, 0.0)
+                            dir_size, dir_mtime = await get_dir_metadata_service().get_metadata(sub_path) or (0.0, 0.0)
                         collected[sub_path] = (dir_size, dir_mtime)
                         total_size += dir_size
                         last_modified_time = max(last_modified_time, dir_mtime)
@@ -314,13 +309,35 @@ class ResolverUtils:
                         total_size += stat.st_size
                         last_modified_time = max(last_modified_time, stat.st_mtime)
 
-        except (OSError, Exception):
+        except (OSError, Exception) as e:
             # On error, log and return -1 to indicate failure
-            logger.error(f"Error accessing directory {directory_path} to calculate size and last modified time.")
+            logger.exception(f"Error accessing directory {directory_path} to calculate size and last modified time.")
             total_size = -1.0
             last_modified_time = -1.0
 
         return total_size, last_modified_time
+
+    async def update_directory_metadata_forward(self, directory_path: str) -> None:
+        service = get_dir_metadata_service()
+        current_path = directory_path
+
+        while True:
+            total_size, last_modified_time = await self.calculate_directory_metadata(
+                current_path, skipCache=True, recursiveCalculation=False
+            )
+            # If calculation failed, stop propagation
+            if total_size == -1.0 and last_modified_time == -1.0:
+                logger.exception(f"Failed to calculate metadata for {current_path}. Stopping forward update.")
+                break
+            # Here we don't use bulkwrite to update both cache and database to ensure consistency 
+            # so that for each iteration the method calculation_directory_metadata can get the newly updated metadata
+            await service.set_metadata(current_path, total_size, last_modified_time)
+            
+            # Get corresponding root resource path for parent directory
+            root_resource_paths = get_settings().resource_paths.values()
+            if current_path in root_resource_paths:
+                break
+            current_path = os.path.dirname(current_path)
 
     # ============================================================
     # Path conversion utils

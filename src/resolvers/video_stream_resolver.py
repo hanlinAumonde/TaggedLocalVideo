@@ -80,7 +80,7 @@ class VideoResolver:
                     media_type=resolver_utils().get_video_mime_type(video_path)
                 )
         except Exception as e:
-            logger.error(f"Error while processing video stream request: {e}")
+            logger.exception(f"Error while processing video stream request: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
         
     async def iter_file(self, video_path: str, chunk_size: int = 1024*1024, start: int = 0, content_length: int | None = None, with_range: bool = True):

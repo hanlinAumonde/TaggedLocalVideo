@@ -36,7 +36,7 @@ class QueryResolver:
         try:
             validated_input = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="VideoSearchInput", issue="Invalid input data for video search")
 
         settings = get_settings()
@@ -92,7 +92,7 @@ class QueryResolver:
             return VideoSearchResult(pagination=pagination, videos=videos)
         
         except Exception as e:
-            logger.error(f"Database operation error during video search: {e}")
+            logger.exception(f"Database operation error during video search: {e}")
             raise DatabaseOperationError(operation="video search", 
                                          details=f"Filters-{query_filters}, Sort-{sort_criteria}, Skip-{skip}, Limit-{page_size}")
 
@@ -109,7 +109,7 @@ class QueryResolver:
             tag_docs = await resolver_utils().get_top_tag_docs(limit)
             return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
         except Exception as e:
-            logger.error(f"Database operation error during get top tags: {e}")
+            logger.exception(f"Database operation error during get top tags: {e}")
             raise DatabaseOperationError(operation="get top tags",
                                          details=f"Limit-{limit}")
 
@@ -125,7 +125,7 @@ class QueryResolver:
         try:             
             validated_input = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="SuggestionInput", issue="Invalid input data for suggestions")
 
         settings = get_settings()
@@ -175,7 +175,7 @@ class QueryResolver:
                             result.append(doc["_id"])
                     return result
         except Exception as e:
-            logger.error(f"Database operation error during get suggestions: {e}")
+            logger.exception(f"Database operation error during get suggestions: {e}")
             raise DatabaseOperationError(operation="get suggestions",
                                          details=f"Keyword-{keyword}, SuggestionType-{suggestion_type}")
 
@@ -193,11 +193,11 @@ class QueryResolver:
         try:
             video_model = await VideoModel.get(ObjectId(str(videoId)))
         except Exception as e:
-            logger.error(f"Database operation error during get video by id: {e}")
+            logger.exception(f"Database operation error during get video by id: {e}")
             raise DatabaseOperationError(operation="get video by id", details=f"videoId-{videoId}")
         
         if not video_model:
-            logger.error(f"Video not found: {videoId}")
+            logger.exception(f"Video not found: {videoId}")
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
     
@@ -213,7 +213,7 @@ class QueryResolver:
         try:
             relativePathInputModel = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
         return await resolver_utils().get_node_list_in_directory(
@@ -234,7 +234,7 @@ class QueryResolver:
         try:
             relativePathInputModel = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
         size, last_update_time = await resolver_utils().calculate_directory_metadata(

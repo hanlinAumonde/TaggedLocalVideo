@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown")
 
 async def global_exception_handler(request: Request, exc: HTTPException):
-    logger.error(
+    logger.exception(
         f"Unhandled exception: {exc.status_code} - {exc.detail}"
         f" on path: {request.url.path}"
     )

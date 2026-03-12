@@ -28,7 +28,7 @@ class MutationResolver:
         try:
             validated_input = input.to_pydantic()
         except Exception as e:
-            logger.error(f"Input validation error: {e}")
+            logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="UpdateVideoMetadataInput", issue="Invalid input data for updating video metadata")
 
         try:
@@ -68,10 +68,10 @@ class MutationResolver:
                     raise VideoNotFoundError(str(validated_input.videoId))
 
         except VideoNotFoundError:
-            logger.error(f"Video not found: {validated_input.videoId}")
+            logger.exception(f"Video not found: {validated_input.videoId}")
             raise
         except Exception as e:
-            logger.error(f"Database operation error during update video metadata: {e}")
+            logger.exception(f"Database operation error during update video metadata: {e}")
             raise DatabaseOperationError("update_video_metadata", f"videoId-{validated_input.videoId}")
 
     async def resolve_record_video_view(self,videoId: strawberry.ID) -> VideoMutationResult:
@@ -99,7 +99,7 @@ class MutationResolver:
         except VideoNotFoundError:
             raise
         except Exception as e:
-            logger.error(f"Database operation error during record video view: {e}")
+            logger.exception(f"Database operation error during record video view: {e}")
             raise DatabaseOperationError("record_video_view", f"videoId-{videoId}")
 
     async def resolve_delete_video(self,videoId: strawberry.ID) -> VideoMutationResult:
@@ -123,24 +123,20 @@ class MutationResolver:
             await resolver_utils().update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
             video_absolute_path = resolver_utils().to_mounted_path(video_path)
-            directory_path = os.path.dirname(video_absolute_path)
-            if directory_path:
-                # After deletion, update the directory metadata for "directory_path"
-                # to ensure cache and database are updated if there are deleted files
-                await resolver_utils().calculate_directory_metadata(
-                    directory_path, 
-                    skipCache=False, 
-                    recursiveCalculation=False
-                )
 
             os.remove(video_absolute_path)
+
+            directory_path = os.path.dirname(video_absolute_path)
+            if directory_path:
+                await resolver_utils().update_directory_metadata_forward(directory_path)
+                
             logger.info(f"Deleted video file at path: {video_path}")
 
             return VideoMutationResult(success=True, video=None)
 
         except VideoNotFoundError:
-            logger.error(f"Video not found: {videoId}")
+            logger.exception(f"Video not found: {videoId}")
             raise
         except Exception as e:
-            logger.error(f"Database operation error during delete video: {e}")
+            logger.exception(f"Database operation error during delete video: {e}")
             raise DatabaseOperationError("delete_video", f"videoId-{videoId}")

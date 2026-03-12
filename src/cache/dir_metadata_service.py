@@ -60,7 +60,7 @@ class DirMetadataService:
         try:
             await DirMetadataModel.get_pymongo_collection().bulk_write(operations)
         except Exception as e:
-            logger.error(f"Bulk write error during dir metadata upsert: {e}")
+            logger.exception(f"Bulk write error during dir metadata upsert: {e}")
 
         for path, value in entries.items():
             self._cache.set(path, value)

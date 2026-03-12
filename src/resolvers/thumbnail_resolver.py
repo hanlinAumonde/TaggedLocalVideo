@@ -48,12 +48,12 @@ class ThumbnailResolver:
         try:
             return self._generate_thumbnail_process(video_path, ss=10)
         except Exception as e:
-            logger.error(f"Error generating thumbnail at 10s for {video_path}: {e}")
+            logger.exception(f"Error generating thumbnail at 10s for {video_path}: {e}")
             # If seeking to 10s fails (video too short), try at 0s
             try:
                 return self._generate_thumbnail_process(video_path, ss=0)
             except Exception as e2:
-                logger.error(f"Error generating thumbnail at 0s for {video_path}: {e2}")
+                logger.exception(f"Error generating thumbnail at 0s for {video_path}: {e2}")
                 raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
 
 
