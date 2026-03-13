@@ -141,7 +141,6 @@ export class BatchOperationPanel implements OnDestroy {
   handleSave() {
     if (this.tags().length === 0 && this.newAuthor() === '' && this.isVideoMode) return;
     if (this.form.invalid || this.tagsError()) return;
-    console.log("toggling saving to true")
     this.isSaving.set(true);
 
     const tagsOperation = this.tags().length > 0 ? {
@@ -155,8 +154,9 @@ export class BatchOperationPanel implements OnDestroy {
 
     this.gqlService.batchUpdateVideosSubscription({
       videoIds: Array.from(this.videoIds),
-      tagsOperation,
-      author
+      relativePath: {},
+      tagsOperation: tagsOperation,
+      author: author
     } as VideosBatchOperationInput).pipe(
       takeWhile(result => result.data?.result?.resultType === undefined, true),
       takeUntil(this.destroy$)

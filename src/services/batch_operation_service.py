@@ -337,4 +337,4 @@ class BatchOperationService:
 
 @lru_cache
 def get_batch_operation_service() -> BatchOperationService:
-    BatchOperationService()
+    return BatchOperationService()
