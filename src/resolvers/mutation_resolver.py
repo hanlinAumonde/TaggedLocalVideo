@@ -9,7 +9,7 @@ from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
 from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.path_convert_service import get_path_service
+from src.services.path_convert_service import AbsolutePath
 from src.services.tag_operation_service import get_tag_operation_service
 
 logger = get_logger("mutation_resolver")
@@ -18,7 +18,6 @@ logger = get_logger("mutation_resolver")
 class MutationResolver:
 
     def __init__(self):
-        self.pathHelper = get_path_service()
         self.tagOperationService = get_tag_operation_service()
         self.dirMetadataService = get_dir_metadata_service()
 
@@ -119,21 +118,21 @@ class MutationResolver:
                 raise VideoNotFoundError(str(videoId))
 
             old_tags = set(video_model.tags or [])
-            video_path = video_model.path
+            video_path = AbsolutePath.from_existing_path(video_model.path)
 
             await video_model.delete()
             await self.tagOperationService.update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
-            video_absolute_path = self.pathHelper.to_mounted_path(video_path)
+            video_FS_path = video_path.FS_format_path()
 
-            os.remove(video_absolute_path)
+            os.remove(video_FS_path)
 
-            directory_path = os.path.dirname(video_absolute_path)
+            directory_path = os.path.dirname(video_FS_path)
             if directory_path:
-                await self.dirMetadataService.update_directory_metadata_forward(directory_path)
+                await self.dirMetadataService.update_directory_metadata_forward(
+                    AbsolutePath.from_existing_path(directory_path)
+                )
                 
-            logger.info(f"Deleted video file at path: {video_path}")
-
             return VideoMutationResult(success=True, video=None)
 
         except VideoNotFoundError:

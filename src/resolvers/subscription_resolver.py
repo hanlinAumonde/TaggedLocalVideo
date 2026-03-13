@@ -5,12 +5,11 @@ from src.errors import InputValidationError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import (
     BatchOperationStatus, 
-    DirectoryVideosBatchOperationInput, 
     VideosBatchOperationInput
 )
 from src.services.batch_operation_service import get_batch_operation_service
 from src.services.browse_file_service import get_browse_file_service
-from src.services.path_convert_service import get_path_service
+from src.services.path_convert_service import AbsolutePath, get_path_service
 
 
 logger = get_logger("SubscriptionResolver")
@@ -26,9 +25,9 @@ class SubscriptionResolver:
                                        input: VideosBatchOperationInput,
                                        update: bool) -> AsyncGenerator[BatchOperationStatus, None]:
         """
-        Resolve function to batch update tags for multiple videos.
+        Resolve function to batch update or delete videos based on provided video IDs or directory path.
 
-        :param input: Input containing the mapping of video IDs to tags and the operation type (append/remove).
+        :param input: Input containing video IDs or relative path for batch operation.
         :type input: VideosBatchOperationInput
         :return: An asynchronous generator yielding the status of the batch update operation.
         :rtype: AsyncGenerator[BatchOperationStatus, None]
@@ -39,57 +38,35 @@ class SubscriptionResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
         
+        dir_path = AbsolutePath.from_relative_path(validated_input.relativePath.parsedPath)
+        if validated_input.videoIds is None or len(validated_input.videoIds) == 0:
+            videoIDs = None
+            entries = await run_in_threadpool(
+                self.browseFileService.get_all_video_entries_in_directory, 
+                dir_path.FS_format_path()
+            )
+            yield self.batchOperationService.constructBatchOperationStatus(
+                status=f"Found {len(entries)} video entries in directory '{validated_input.relativePath.relativePath}' for batch update"
+            )
+        else:
+            videoIDs = validated_input.videoIds
+            entries = None
+        
         if update:
             async for status in self.batchOperationService.batch_update(
-                videoIDs=validated_input.videoIds,
-                fileEntries=None,
+                videoIDs=videoIDs,
+                fileEntries=entries,
                 author=validated_input.author, 
                 tagsOperation=validated_input.tagsOperation,
             ):
                 yield status
         else:
             async for status in self.batchOperationService.batch_delete(
-                videoIds=validated_input.videoIds,
-                fileEntries=None
+                dir_path=dir_path,
+                videoIds=videoIDs,
+                fileEntries=entries
             ):
                 yield status
-
-    async def resolve_directory_batch_operations(self, 
-                                                 input: DirectoryVideosBatchOperationInput,
-                                                 update: bool) -> AsyncGenerator[BatchOperationStatus, None]:
-        """
-        Resolve function to batch update tags for videos in a specified directory.
-        
-        :param input: Input containing the relative path of the directory and tags operation details.
-        :type input: DirectoryVideosBatchOperationInput
-        :return: An asynchronous generator yielding the status of the batch update operation.
-        :rtype: AsyncGenerator[BatchOperationStatus, None]
-        """
-        try:
-            validated_input = input.to_pydantic()
-        except Exception as e:
-            logger.exception(f"Input validation error: {e}")
-            raise InputValidationError(field="DirectoryVideosBatchOperationInput", issue="Invalid input data for batch updating directory videos")
-        
-        dir_path = self.pathHepler.get_absolute_resource_path(validated_input.relativePath)
-        entries = await run_in_threadpool(self.browseFileService.get_all_video_entries_in_directory, dir_path)
-
-        yield self.batchOperationService.constructBatchOperationStatus(
-            status=f"Found {len(entries)} video entries in directory '{validated_input.relativePath.relativePath}' for batch update"
-        )
-        
-        if update:
-            async for status in self.batchOperationService.batch_update(
-                None,
-                entries,
-                validated_input.author,
-                validated_input.tagsOperation
-            ):
-                yield status
-        else:
-            async for status in self.batchOperationService.batch_delete(dir_path, None, entries):
-                yield status
-
     
 
 @lru_cache()

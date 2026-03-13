@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.path_convert_service import get_path_service
+from src.services.path_convert_service import AbsolutePath, get_path_service
 
 logger = get_logger("video_stream_resolver")
 
@@ -30,11 +30,12 @@ class VideoResolver:
         if not video:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
-        video_path = self.pathHepler.to_mounted_path(video.path)
-        if not os.path.exists(video_path):
+        video_path = AbsolutePath.from_existing_path(video.path)
+        video_fs_path = video_path.FS_format_path()
+        if not os.path.exists(video_fs_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 
-        file_size = os.path.getsize(video_path)
+        file_size = os.path.getsize(video_fs_path)
 
         range_header = request.headers.get("Range")
 
@@ -56,26 +57,26 @@ class VideoResolver:
                 content_length = end - start + 1
 
                 return StreamingResponse(
-                    self.iter_file(video_path, 1024*1024, start, content_length),
+                    self.iter_file(video_fs_path, 1024*1024, start, content_length),
                     status_code=206,
                     headers={
                         "Content-Range": f"bytes {start}-{end}/{file_size}",
                         "Accept-Ranges": "bytes",
                         "Content-Length": str(content_length),
-                        "Content-Type": self.get_video_mime_type(video_path),
+                        "Content-Type": self.get_video_mime_type(video_fs_path),
                     },
-                    media_type=self.get_video_mime_type(video_path)
+                    media_type=self.get_video_mime_type(video_fs_path)
                 )
 
             else:
                 return StreamingResponse(
-                    self.iter_file(video_path, chunk_size=1024*1024, with_range=False),
+                    self.iter_file(video_fs_path, chunk_size=1024*1024, with_range=False),
                     headers={
                         "Accept-Ranges": "bytes",
                         "Content-Length": str(file_size),
-                        "Content-Type": self.get_video_mime_type(video_path),
+                        "Content-Type": self.get_video_mime_type(video_fs_path),
                     },
-                    media_type=self.get_video_mime_type(video_path)
+                    media_type=self.get_video_mime_type(video_fs_path)
                 )
         except Exception as e:
             logger.exception(f"Error while processing video stream request: {e}")
@@ -107,7 +108,7 @@ class VideoResolver:
         Returns:
             str: MIME type string
         """
-        ext = self.pathHepler.get_file_extension(file_path)
+        ext = self.pathHepler.get_file_extension(file_path).lower()
         mime_types = {
             ".mp4": "video/mp4",
             ".webm": "video/webm",

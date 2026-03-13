@@ -1,12 +1,11 @@
 from functools import lru_cache
-
 import strawberry
 from bson import ObjectId
 from src.config import get_settings
 from src.logger import get_logger
 from src.services.browse_file_service import get_browse_file_service
 from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.path_convert_service import get_path_service
+from src.services.path_convert_service import AbsolutePath, get_path_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
@@ -88,7 +87,7 @@ class QueryResolver:
 
             async def get_video(video_model: VideoModel):
                 if video_model.duration is None or video_model.duration == 0.0:
-                    video_path = self.pathHepler.to_mounted_path(video_model.path)
+                    video_path = AbsolutePath.from_existing_path(video_model.path).FS_format_path()
                     duration = await self.thumbnailService.get_video_duration(video_path)
                     video_model.duration = duration
                     await video_model.save()
@@ -228,7 +227,7 @@ class QueryResolver:
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
         return await self.browseFileService.get_node_list_in_directory(
-            self.pathHepler.get_absolute_resource_path(relativePathInputModel),
+            AbsolutePath.from_relative_path(relativePathInputModel.parsedPath),
             skipCache=relativePathInputModel.skipCache,
             recursiveCalculation=relativePathInputModel.recursiveCalculation
         )
@@ -249,7 +248,7 @@ class QueryResolver:
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
         size, last_update_time = await self.dirMetadataService.calculate_directory_metadata(
-            self.pathHepler.get_absolute_resource_path(relativePathInputModel),
+            AbsolutePath.from_relative_path(relativePathInputModel.parsedPath),
             skipCache=True,
             recursiveCalculation=True
         )

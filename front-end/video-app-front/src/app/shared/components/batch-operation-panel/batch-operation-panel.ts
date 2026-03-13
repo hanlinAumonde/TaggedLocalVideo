@@ -14,7 +14,6 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { 
   BatchResultType, 
-  DirectoryVideosBatchOperationInput, 
   SearchField, 
   VideosBatchOperationInput 
 } from '../../../core/graphql/generated/graphql';
@@ -154,19 +153,11 @@ export class BatchOperationPanel implements OnDestroy {
       ? this.form.value.authorInput.trim()
       : undefined;
 
-    const subscription$ = this.isVideoMode
-      ? this.gqlService.batchUpdateVideosSubscription({
-          videoIds: Array.from(this.videoIds),
-          tagsOperation,
-          author
-        } as VideosBatchOperationInput)
-      : this.gqlService.batchUpdateDirectorySubscription({
-          relativePath: { relativePath: this.directoryPath },
-          tagsOperation,
-          author
-        } as DirectoryVideosBatchOperationInput);
-
-    subscription$.pipe(
+    this.gqlService.batchUpdateVideosSubscription({
+      videoIds: Array.from(this.videoIds),
+      tagsOperation,
+      author
+    } as VideosBatchOperationInput).pipe(
       takeWhile(result => result.data?.result?.resultType === undefined, true),
       takeUntil(this.destroy$)
     )

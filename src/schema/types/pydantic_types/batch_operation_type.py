@@ -42,6 +42,7 @@ class BatchOperationInputModel(BaseModel):
     
 class VideosBatchOperationInputModel(BatchOperationInputModel):
     videoIds: list[str]
-
-class DirectoryVideosBatchOperationInputModel(BatchOperationInputModel):
     relativePath: RelativePathInputModel
+
+# class DirectoryVideosBatchOperationInputModel(BatchOperationInputModel):
+#     relativePath: RelativePathInputModel

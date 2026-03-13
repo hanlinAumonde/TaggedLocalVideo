@@ -68,13 +68,19 @@ export class DeleteCheckPanel {
       case DeleteType.Batch:
         this.gqlRequest$ = this.processBatchDeletion(
           this.gqlService.batchDeleteVideosSubscription(
-          { videoIds: this.data.videoIds ? Array.from(this.data.videoIds) : [] })
+          { 
+            videoIds: this.data.videoIds ? Array.from(this.data.videoIds) : [],
+            relativePath: { relativePath: this.data.directoryPath ? this.data.directoryPath : "" }
+          })
         );
         break;
       case DeleteType.Directory:
         this.gqlRequest$ = this.processBatchDeletion(
-          this.gqlService.batchDeleteDirectorySubscription(
-          { relativePath: { relativePath: this.data.directoryPath ? this.data.directoryPath : "" } })
+          this.gqlService.batchDeleteVideosSubscription(
+          { 
+            videoIds: [],
+            relativePath: { relativePath: this.data.directoryPath ? this.data.directoryPath : "" } 
+          })
         );
         break;
     }

@@ -15,12 +15,9 @@ import {
   BrowseDirectoryGQL,
   DeleteVideoGQL,
   VideosBatchOperationInput,
-  DirectoryVideosBatchOperationInput,
   GetDirectoryMetadataGQL,
-  BatchUpdateDirectorySubscriptionGQL,
   BatchUpdateSubscriptionGQL,
   BatchDeleteSubscriptionGQL,
-  BatchDeleteDirectorySubscriptionGQL
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -64,8 +61,6 @@ export class GqlService {
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
   private batchUpdateVideosSubscriptionGQL = inject(BatchUpdateSubscriptionGQL)
   private batchDeleteVideosSubscriptionGQL = inject(BatchDeleteSubscriptionGQL)
-  private batchUpdateDirectorySubscriptionGQL = inject(BatchUpdateDirectorySubscriptionGQL)
-  private batchDeleteDirectorySubscriptionGQL = inject(BatchDeleteDirectorySubscriptionGQL)
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
 
@@ -277,6 +272,7 @@ export class GqlService {
         variables: {
           input: {
             videoIds: input.videoIds,
+            relativePath: input.relativePath,
             tagsOperation: input.tagsOperation ?? undefined,
             author: input.author ?? undefined,
           }
@@ -289,33 +285,14 @@ export class GqlService {
   batchDeleteVideosSubscription(input: VideosBatchOperationInput){
     return this.toResultStateObservable(
       this.batchDeleteVideosSubscriptionGQL.subscribe({
-        variables: { input: { videoIds: input.videoIds } }
-      }),
-      (data) => this.batchOperationDataConverter(data.batchDeleteSubscription)
-    )
-  }
-
-  batchUpdateDirectorySubscription(input: DirectoryVideosBatchOperationInput){
-    return this.toResultStateObservable(
-      this.batchUpdateDirectorySubscriptionGQL.subscribe({
-        variables: {
-          input: {
-            relativePath: input.relativePath,
-            tagsOperation: input.tagsOperation ?? undefined,
-            author: input.author ?? undefined,
-          }
+        variables: { 
+          input: { 
+            videoIds: input.videoIds,
+            relativePath: input.relativePath
+          } 
         }
       }),
-      (data) => this.batchOperationDataConverter(data.batchUpdateDirectorySubscription)
-    )
-  }
-
-  batchDeleteDirectorySubscription(input: DirectoryVideosBatchOperationInput){
-    return this.toResultStateObservable(
-      this.batchDeleteDirectorySubscriptionGQL.subscribe({
-        variables: { input: { relativePath: input.relativePath } }
-      }),
-      (data) => this.batchOperationDataConverter(data.batchDeleteDirectorySubscription)
+      (data) => this.batchOperationDataConverter(data.batchDeleteSubscription)
     )
   }
 }

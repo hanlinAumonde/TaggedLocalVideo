@@ -4,7 +4,6 @@ import strawberry
 
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.pydantic_types.batch_operation_type import (
-    DirectoryVideosBatchOperationInputModel,
     TagsOperationMappingInputModel,
     VideosBatchOperationInputModel
 )
@@ -38,11 +37,6 @@ class TagsOperationMappingInput:
 @strawberry.experimental.pydantic.input(model=VideosBatchOperationInputModel)
 class VideosBatchOperationInput:
     videoIds: strawberry.auto
-    tagsOperation: Optional[TagsOperationMappingInput] = None
-    author: strawberry.auto
-
-@strawberry.experimental.pydantic.input(model=DirectoryVideosBatchOperationInputModel)
-class DirectoryVideosBatchOperationInput:
     relativePath: RelativePathInput
     tagsOperation: Optional[TagsOperationMappingInput] = None
     author: strawberry.auto

@@ -81,7 +81,8 @@ export class BottomToolbar {
       data: { 
         deleteType: DeleteType.Batch,
         videoCount: this.selectedIds().size,
-        videoIds: this.selectedIds()
+        videoIds: this.selectedIds(),
+        directoryPath: this.isAtRoot() ? "" : this.currentPath().join("/")
       } as DeleteCheckPanelData
     });
 

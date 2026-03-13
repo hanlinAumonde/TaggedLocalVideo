@@ -36,12 +36,6 @@ export type DirectoryMetadataResult = {
   totalSize: Scalars['Float']['output'];
 };
 
-export type DirectoryVideosBatchOperationInput = {
-  author?: InputMaybe<Scalars['String']['input']>;
-  relativePath: RelativePathInput;
-  tagsOperation?: InputMaybe<TagsOperationMappingInput>;
-};
-
 export type FileBrowseNode = {
   __typename?: 'FileBrowseNode';
   node: Video;
@@ -135,25 +129,13 @@ export type SerachKeyword = {
 
 export type Subscription = {
   __typename?: 'Subscription';
-  batchDeleteDirectorySubscription: BatchOperationStatus;
   batchDeleteSubscription: BatchOperationStatus;
-  batchUpdateDirectorySubscription: BatchOperationStatus;
   batchUpdateSubscription: BatchOperationStatus;
-};
-
-
-export type SubscriptionBatchDeleteDirectorySubscriptionArgs = {
-  input: DirectoryVideosBatchOperationInput;
 };
 
 
 export type SubscriptionBatchDeleteSubscriptionArgs = {
   input: VideosBatchOperationInput;
-};
-
-
-export type SubscriptionBatchUpdateDirectorySubscriptionArgs = {
-  input: DirectoryVideosBatchOperationInput;
 };
 
 
@@ -233,6 +215,7 @@ export type VideoTag = {
 
 export type VideosBatchOperationInput = {
   author?: InputMaybe<Scalars['String']['input']>;
+  relativePath: RelativePathInput;
   tagsOperation?: InputMaybe<TagsOperationMappingInput>;
   videoIds: Array<Scalars['String']['input']>;
 };
@@ -316,26 +299,12 @@ export type BatchUpdateSubscriptionSubscriptionVariables = Exact<{
 
 export type BatchUpdateSubscriptionSubscription = { __typename?: 'Subscription', batchUpdateSubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
 
-export type BatchUpdateDirectorySubscriptionSubscriptionVariables = Exact<{
-  input: DirectoryVideosBatchOperationInput;
-}>;
-
-
-export type BatchUpdateDirectorySubscriptionSubscription = { __typename?: 'Subscription', batchUpdateDirectorySubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
-
 export type BatchDeleteSubscriptionSubscriptionVariables = Exact<{
   input: VideosBatchOperationInput;
 }>;
 
 
 export type BatchDeleteSubscriptionSubscription = { __typename?: 'Subscription', batchDeleteSubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
-
-export type BatchDeleteDirectorySubscriptionSubscriptionVariables = Exact<{
-  input: DirectoryVideosBatchOperationInput;
-}>;
-
-
-export type BatchDeleteDirectorySubscriptionSubscription = { __typename?: 'Subscription', batchDeleteDirectorySubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
 
 export const UpdateVideoMetadataDocument = gql`
     mutation UpdateVideoMetadata($input: UpdateVideoMetadataInput!) {
@@ -596,28 +565,6 @@ export const BatchUpdateSubscriptionDocument = gql`
       super(apollo);
     }
   }
-export const BatchUpdateDirectorySubscriptionDocument = gql`
-    subscription BatchUpdateDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
-  batchUpdateDirectorySubscription(input: $input) {
-    result {
-      resultType
-      message
-    }
-    status
-  }
-}
-    `;
-
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class BatchUpdateDirectorySubscriptionGQL extends Apollo.Subscription<BatchUpdateDirectorySubscriptionSubscription, BatchUpdateDirectorySubscriptionSubscriptionVariables> {
-    override document = BatchUpdateDirectorySubscriptionDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }
 export const BatchDeleteSubscriptionDocument = gql`
     subscription BatchDeleteSubscription($input: VideosBatchOperationInput!) {
   batchDeleteSubscription(input: $input) {
@@ -635,28 +582,6 @@ export const BatchDeleteSubscriptionDocument = gql`
   })
   export class BatchDeleteSubscriptionGQL extends Apollo.Subscription<BatchDeleteSubscriptionSubscription, BatchDeleteSubscriptionSubscriptionVariables> {
     override document = BatchDeleteSubscriptionDocument;
-    
-    constructor(apollo: Apollo.Apollo) {
-      super(apollo);
-    }
-  }
-export const BatchDeleteDirectorySubscriptionDocument = gql`
-    subscription BatchDeleteDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
-  batchDeleteDirectorySubscription(input: $input) {
-    result {
-      resultType
-      message
-    }
-    status
-  }
-}
-    `;
-
-  @Injectable({
-    providedIn: 'root'
-  })
-  export class BatchDeleteDirectorySubscriptionGQL extends Apollo.Subscription<BatchDeleteDirectorySubscriptionSubscription, BatchDeleteDirectorySubscriptionSubscriptionVariables> {
-    override document = BatchDeleteDirectorySubscriptionDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

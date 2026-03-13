@@ -10,7 +10,7 @@ from starlette.responses import StreamingResponse
 from src.config import get_settings
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.path_convert_service import get_path_service
+from src.services.path_convert_service import AbsolutePath, get_path_service
 
 logger = get_logger("thumbnail_service")
 
@@ -37,9 +37,10 @@ class ThumbnailService:
                 logger.warning(f"Video metadata not found for video_id: {video_id}")
                 raise HTTPException(status_code=404, detail="Video not found")
 
-            video_path = self.pathHepler.to_mounted_path(video.path)
-            if not os.path.exists(video_path):
-                logger.warning(f"Video file not found at path: {video_path}")
+            video_path = AbsolutePath.from_existing_path(video.path)
+            video_fs_path = video_path.FS_format_path()
+            if not os.path.exists(video_fs_path):
+                logger.warning(f"Video file not found at path: {video_fs_path}")
                 raise HTTPException(status_code=404, detail="Video file doesn't exist")
             
             no_duration_in_model = video.duration == 0.0 or video.duration is None
@@ -50,12 +51,12 @@ class ThumbnailService:
                 pass
                 # get duration if not exists in model
                 if no_duration_in_model:
-                    video.duration = await self.get_video_duration(video_path)
+                    video.duration = await self.get_video_duration(video_fs_path)
                     await video.save()
 
             # 3- video_id exists but thumbnail_id is null/empty - generate thumbnail with ffmpeg
             else:
-                thumbnail_bytes = await self.generate_thumbnail(video_path)
+                thumbnail_bytes = await self.generate_thumbnail(video_fs_path)
                 
             return StreamingResponse(
                 content=io.BytesIO(thumbnail_bytes),

@@ -12,18 +12,6 @@ export const BATCH_UPDATE = gql`
     }
 `
 
-export const DIRECTORY_BATCH_UPDATE = gql`
-    subscription BatchUpdateDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
-        batchUpdateDirectorySubscription(input: $input) {
-            result {
-                resultType
-                message
-            }
-            status
-        }
-    }
-`
-
 export const BATCH_DELETE = gql`
     subscription BatchDeleteSubscription($input: VideosBatchOperationInput!) {
         batchDeleteSubscription(input: $input) {
@@ -33,17 +21,5 @@ export const BATCH_DELETE = gql`
             }
             status
         }   
-    }
-`
-
-export const DIRECTORY_BATCH_DELETE = gql`
-    subscription BatchDeleteDirectorySubscription($input: DirectoryVideosBatchOperationInput!) {
-        batchDeleteDirectorySubscription(input: $input) {
-            result {
-                resultType
-                message
-            }
-            status
-        }
     }
 `
