@@ -146,10 +146,12 @@ class DirMetadataService:
             # so that for each iteration the method calculation_directory_metadata can get the newly updated metadata
             await self.set_metadata(current_path.DB_format_path(), total_size, last_modified_time)
             
-            current_fs_path = current_path.FS_format_path()
-            if current_fs_path in self.settings.resource_paths.values():
+            # resource_paths.values() is a set of host path (DB format), 
+            # so we have to use DB_format_path() to compare with it. 
+            current_db_path = current_path.DB_format_path()
+            if current_db_path in self.settings.resource_paths.values():
                 break
-            current_path.update_path(os.path.dirname(current_fs_path))
+            current_path.update_path(os.path.dirname(current_db_path))
 
 
 @lru_cache
