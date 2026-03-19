@@ -11,7 +11,7 @@ import {
   SortCriterion, 
   ItemsSortOption, 
   ManagementRefreshState, 
-  comparatorBySortOption 
+  comparatorBySortOption
 } from '../../shared/models/management.model';
 import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-toolbar';
 import { FileBrowseTable } from '../../shared/components/file-browse-table/file-browse-table';
@@ -47,30 +47,46 @@ export class Management implements OnDestroy{
   selectedCount = computed(() => this.selectedIds().size);
   hasSelection = computed(() => this.selectedIds().size > 0);
 
-  constructor() {
-    const hasStatePredicate = (state: string[] | undefined) =>
-      state && Array.isArray(state);
-
-    const state = this.stateService.getState<string[]>(
-      environment.management_api + environment.refreshKey,
+  private setRefreshState(scrollTop: number = 0, sortIndex: number = 0, order: boolean = false, currentPath?: string[]) {
+    this.stateService.setState<ManagementRefreshState>(
+      environment.management_api + environment.refreshKey + environment.scrollKey,
+      { 
+        scrollPosition: scrollTop, 
+        sortCriteria: { index: sortIndex, order: order }, 
+        currentPath: currentPath 
+      } as ManagementRefreshState,
       false
     );
+  }
+
+  private getRefreshState(): ManagementRefreshState | undefined {
+    return this.stateService.getState<ManagementRefreshState>(
+      environment.management_api + environment.refreshKey + environment.scrollKey,
+      false
+    );
+  }
+
+  constructor() {
+    const hasStatePredicate = (state: ManagementRefreshState | undefined) =>
+      state && Array.isArray(state.currentPath);
+
+    const state = this.getRefreshState();
 
     if (hasStatePredicate(state)) {
-      this.currentPath.set(state!);
+      this.currentPath.set(state!.currentPath!);
     }
 
-    this.setRefreshState();
+    this.setRefreshState(
+      state?.scrollPosition ?? 0,
+      state?.sortCriteria.index ?? 0,
+      state?.sortCriteria.order ?? true,
+      state?.currentPath
+    );
 
     // Load directory when path changes
     effect(() => {
       const path = this.currentPath();
-      this.stateService.setState(
-        environment.management_api + environment.refreshKey,
-        path,
-        false
-      );
-      this.loadDirectory(path.length > 0 ? path.join('/') : undefined);
+      this.loadDirectory(path);
     });
   }
 
@@ -80,19 +96,17 @@ export class Management implements OnDestroy{
 
   // ─── Directory Data Loading ────────────────────────────────────────
 
-  private loadDirectory(relativePath?: string, skipCache: boolean = false, recursiveCalculation: boolean = true) {
+  private loadDirectory(path: string[], skipCache: boolean = false, recursiveCalculation: boolean = true) {
+    const relativePath =  path.length > 0 ? path.join('/') : undefined;
     this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation).subscribe({
       next: (result) => {
         // Sometimes this condition can be true twice in a single request, because of the cache update after the request
         // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
         if(!result.loading && result.data) {
-          const newState = this.stateService.getState<ManagementRefreshState>(
-            environment.management_api + environment.refreshKey + environment.scrollKey,
-            false
-          );
+          const newState = this.getRefreshState();
           if(newState?.sortCriteria){
             this.sortCriteria.set(newState.sortCriteria);
-            this.sortItemsBy(this.sortCriteria().index, result.data);
+            this.sortItemsBy(newState.sortCriteria, result.data);
             this.directoryContents.set({...this.directoryContents(), loading: result.loading, error: result.error});
             setTimeout(() => {
               if(newState !== undefined){
@@ -113,12 +127,8 @@ export class Management implements OnDestroy{
 
   refreshDirectory() {
     const path = this.currentPath();
-    // get current scroll position
-    this.setRefreshState(this.getParentScrollContainer()?.scrollTop, {
-      index: this.sortCriteria().index,
-      order: !this.sortCriteria().order
-    });
-    this.loadDirectory(path.length > 0 ? path.join('/') : undefined, true, false);
+    this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, path);
+    this.loadDirectory(path, true, false);
   }
 
   refreshSelectedDirectory(item: FileBrowseNode) {
@@ -151,13 +161,7 @@ export class Management implements OnDestroy{
     });
   }
 
-  setRefreshState(scrollTop: number = 0, sortCriteria: SortCriterion = { index: 0, order: false }) {
-    this.stateService.setState<ManagementRefreshState>(
-      environment.management_api + environment.refreshKey + environment.scrollKey,
-      { scrollPosition: scrollTop, sortCriteria: sortCriteria} as ManagementRefreshState,
-      false
-    );
-  }
+  
 
   // ─── Directory Navigation ──────────────────────────────────────────
 
@@ -166,13 +170,14 @@ export class Management implements OnDestroy{
       this.toggleSelection(node.node.id);
       return;
     };
-    this.setRefreshState();
-    this.currentPath.update(path => [...path, node.node.name]);
+    const newPath = [...this.currentPath(), node.node.name];
+    this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, newPath);
+    this.currentPath.set(newPath);
     this.pathHistoryService.pushNewPath(this.currentPath());
   }
 
   navigateToPath(path: string[]) {
-    this.setRefreshState();
+    this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, path);
     this.currentPath.set(path);
   }
 
@@ -207,7 +212,7 @@ export class Management implements OnDestroy{
 
   // ─── Sorting ───────────────────────────────────────────────────────
 
-  getSortOptionForColumn(columnIndex: number, asc: ItemsSortOption, desc: ItemsSortOption): ItemsSortOption {
+  toggleSort(columnIndex: number){
     this.sortCriteria.update(criteria => {
       if (criteria.index === columnIndex) {
         // Toggle sort order
@@ -218,27 +223,15 @@ export class Management implements OnDestroy{
       }
       return criteria;
     });
-    return this.sortCriteria().order ? asc : desc;
+    this.sortItemsBy(this.sortCriteria(), this.directoryContents().data);
   }
 
-  sortItemsBy(columnIndex: number, contents: FileBrowseNode[] | null) {
+  sortItemsBy(sortCriteria: SortCriterion, contents: FileBrowseNode[] | null) {
     if (!contents) return;
     let sortedContents = [...contents];
 
-    const option = (() => {
-      switch(columnIndex){
-        case 0:
-          return this.getSortOptionForColumn(0, ItemsSortOption.NAME_ASC, ItemsSortOption.NAME_DESC);
-        case 1:
-          return this.getSortOptionForColumn(1, ItemsSortOption.SIZE_ASC, ItemsSortOption.SIZE_DESC);
-        case 2:
-          return this.getSortOptionForColumn(2, ItemsSortOption.DATE_ASC, ItemsSortOption.DATE_DESC);
-        default:
-          return ItemsSortOption.NAME_ASC;
-      }
-    })();
-
-    sortedContents.sort(comparatorBySortOption(option))
+    const sortComparator = comparatorBySortOption(sortCriteria.index, sortCriteria.order);
+    sortedContents.sort(sortComparator);
     this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
   }
 

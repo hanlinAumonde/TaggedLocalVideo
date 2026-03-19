@@ -4,37 +4,12 @@ import { Injectable } from "@angular/core";
     providedIn: "root",
 })
 export class PathHistoryService {
-    private pathStack1: number[][] = [];
-    private pathStack2: number[][] = [];
-
-    private pathElementsMap: Map<number, string> = new Map();
-    private pathElementsReverseMap: Map<string, number> = new Map();
-    private pathIdCounter: number = 0;
-    
-    private recordNewPath(path: string[]): number[] {
-        const pathIds: number[] = [];
-        path.forEach(p => {
-            if(!this.pathElementsReverseMap.has(p)) {
-                this.pathElementsMap.set(this.pathIdCounter, p);
-                this.pathElementsReverseMap.set(p, this.pathIdCounter);
-                this.pathIdCounter++;
-            }
-            pathIds.push(this.pathElementsReverseMap.get(p) as number);
-        })
-        return pathIds;
-    } 
-
-    private getCurrentPath(): string[] | undefined {
-        const currentPathId = this.pathStack1[this.pathStack1.length - 1];
-        if (currentPathId) {
-            return currentPathId.map(id => this.pathElementsMap.get(id) || "");
-        }
-        return undefined;
-    }
+    private pathStack1: string[][] = [];
+    private pathStack2: string[][] = [];
 
     pushNewPath(path: string[]): void {
         this.pathStack2 = [];
-        this.pathStack1.push(this.recordNewPath(path));
+        this.pathStack1.push([...path]);
     }
 
     pushForwardPath(): string[] | undefined {
@@ -64,5 +39,10 @@ export class PathHistoryService {
     clearAllHistory(): void {
         this.pathStack1 = [];
         this.pathStack2 = [];
+    }
+
+    private getCurrentPath(): string[] | undefined {
+        const current = this.pathStack1[this.pathStack1.length - 1];
+        return current ? [...current] : undefined;
     }
 }

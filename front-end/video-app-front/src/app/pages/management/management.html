@@ -8,7 +8,7 @@
       [sortCriteria]="sortCriteria()"
       [selectedIds]="selectedIds()"
       [currentPath]="currentPath()"
-      (sort)="sortItemsBy($event, directoryContents().data)"
+      (sort)="toggleSort($event)"
       (refresh)="refreshDirectory()"
       (nodeClick)="onClickFileBrowseNode($event)"
       (selectionToggle)="toggleSelection($event)"

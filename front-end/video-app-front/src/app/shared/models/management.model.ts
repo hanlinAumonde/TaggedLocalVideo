@@ -6,6 +6,7 @@ export type SortCriterion = {
 }
 
 export type ManagementRefreshState = {
+  currentPath?: string[];
   scrollPosition: number;
   sortCriteria: SortCriterion;
 };
@@ -19,7 +20,15 @@ export enum ItemsSortOption {
   DATE_DESC = 'DATE_DESC'
 }
 
-export function comparatorBySortOption(option: ItemsSortOption) {
+const SortOptionMapping: { [key: number]: { asc: ItemsSortOption, desc: ItemsSortOption } } = {
+  0: { asc: ItemsSortOption.NAME_ASC, desc: ItemsSortOption.NAME_DESC },
+  1: { asc: ItemsSortOption.SIZE_ASC, desc: ItemsSortOption.SIZE_DESC },
+  2: { asc: ItemsSortOption.DATE_ASC, desc: ItemsSortOption.DATE_DESC }
+};
+
+export function comparatorBySortOption(columnIndex: number, isAscending: boolean) {
+    const mapping = SortOptionMapping[columnIndex];
+    const option = isAscending ? mapping.asc : mapping.desc;
     switch(option){
         case ItemsSortOption.NAME_ASC:
             return (a: FileBrowseNode, b: FileBrowseNode) => a.node.name.localeCompare(b.node.name);
