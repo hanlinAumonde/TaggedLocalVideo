@@ -44,6 +44,7 @@ import {
 import { Apollo } from 'apollo-angular';
 import { ValidationService } from '../validation-service/validation.service';
 import { ToastService } from '../toast-service/toast.service';
+import { ToastType } from '../../shared/models/toast.model';
 
 @Injectable({
   providedIn: 'root',
@@ -95,7 +96,7 @@ export class GqlService {
         }),
         tap(result => {
           if(result.error){
-            this.toastService.emitErrorOrWarning(`Failed GraphQL request: ${result.error}`, 'error');
+            this.toastService.emitErrorOrWarning(`Failed GraphQL request: ${result.error}`, ToastType.Error);
           }
         })
         

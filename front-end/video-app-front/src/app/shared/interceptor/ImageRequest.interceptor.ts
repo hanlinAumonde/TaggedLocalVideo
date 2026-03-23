@@ -3,6 +3,7 @@ import { inject, Injectable } from "@angular/core";
 import { environment } from "../../../environments/environment";
 import { catchError } from "rxjs";
 import { ToastService } from "../../services/toast-service/toast.service";
+import { ToastType } from "../models/toast.model";
 
 @Injectable({
   providedIn: "root",
@@ -16,12 +17,12 @@ export class ImageRequestInterceptor implements HttpInterceptor {
                 if(req.url.includes(environment.videopage_thumbnail_api)) {
                     this.toastService.emitErrorOrWarning(
                         `Failed to load video thumbnail image or video duration - video_id: ${req.params.get('video_id')}`,
-                        'error'
+                        ToastType.Error
                     );
                 }else if(req.url.includes(environment.video_stream_api)) {
                     this.toastService.emitErrorOrWarning(
                         `Failed to load video stream - video_id: ${req.params.get('video_id')}`,
-                        'error'
+                        ToastType.Error
                     );
                 }
                 throw error;

@@ -11,6 +11,7 @@ export const environment = {
     pageListSize: 5,
     refreshKey: "_refresh_key",
     scrollKey: "_scroll_position",
+    videoUpdateChannel: "video-updates",
     containerIds: {
         rootMainContainerId: "root-main-container"
     },

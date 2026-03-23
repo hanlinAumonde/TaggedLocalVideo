@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { Toast } from '../../shared/models/toast.model';
+import { Toast, ToastType } from '../../shared/models/toast.model';
 
 @Injectable({
   providedIn: 'root',
@@ -11,7 +11,7 @@ export class ToastService {
   private _toasts = signal<Toast[]>([]);
   toasts = this._toasts.asReadonly();
 
-  emitErrorOrWarning(message: string, type: 'error' | 'warning' = 'error', beyondDialog: boolean = false) {
+  emitErrorOrWarning(message: string, type: ToastType, beyondDialog: boolean = false) {
     const id = ++this.counter;
 
     const updateFn = this._toasts.update;

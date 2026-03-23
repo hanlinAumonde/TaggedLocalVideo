@@ -23,6 +23,8 @@ import { startWith, Subject, takeUntil, takeWhile } from 'rxjs';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
 import { BatchPanelData } from '../../models/panels.model';
+import { VideoUpdateEventService } from '../../../services/video-update-event-service/video-update-event.service';
+import { ToastType } from '../../models/toast.model';
 
 @Component({
   selector: 'app-batch-tags-panel',
@@ -50,6 +52,7 @@ export class BatchOperationPanel implements OnDestroy {
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
 
   readonly isVideoMode = this.data.mode === 'videos';
   readonly videoIds = this.data.videos ?? new Set<string>();
@@ -171,27 +174,29 @@ export class BatchOperationPanel implements OnDestroy {
           const resultType = result.data.result.resultType;
           switch(resultType) {
             case BatchResultType.Success:
+              this.videoUpdateEventService.emitUpdated(Array.from(this.videoIds));
               this.dialogRef.close(true);
               break;
             case BatchResultType.PartialSuccess:
+              this.videoUpdateEventService.emitUpdated(Array.from(this.videoIds));
               this.toastService.emitErrorOrWarning(
                 `Batch update partially success. Some videos may not have been updated.
-                \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`, 
-                'warning'
+                \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
+                ToastType.Warning
               );
               this.dialogRef.close(true);
               break;
             case BatchResultType.AlreadyUpToDate:
               this.toastService.emitErrorOrWarning(
                 'All selected videos are already up to date. No changes were made.', 
-                'warning'
+                ToastType.Warning
               );
               break;
           }
         } else {
           this.toastService.emitErrorOrWarning(
             'Batch update failed. Please try again.', 
-            'error', true
+            ToastType.Error, true
           );
           this.processingMessage.set('');
         }
@@ -200,7 +205,7 @@ export class BatchOperationPanel implements OnDestroy {
         this.isSaving.set(false);
         this.toastService.emitErrorOrWarning(
           'Error performing batch update: ' + err.message, 
-          'error'
+          ToastType.Error
         );
       }
     });

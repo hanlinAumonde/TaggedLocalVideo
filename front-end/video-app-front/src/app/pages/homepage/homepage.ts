@@ -1,69 +1,119 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { Router, RouterModule } from '@angular/router';
-import { 
-  SearchFrom, 
-  VideoSearchResult, 
-  VideoSortOption, 
-  VideoTag 
+import {
+  SearchFrom,
+  VideoSortOption
 } from '../../core/graphql/generated/graphql';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { SearchPageParam } from '../../shared/models/search.model';
 import { environment } from '../../../environments/environment';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
+import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
+import { VideoUpdateEvent, VideoUpdateType } from '../../shared/models/events.model';
+import { Subject, takeUntil } from 'rxjs';
+import { GetTopTagsDetail, ResultState, SearchVideosDetail } from '../../shared/models/GQL-result.model';
 
 @Component({
   selector: 'app-homepage',
   imports: [VideoCard, MatButtonModule, RouterModule],
   templateUrl: './homepage.html',
 })
-export class Homepage{
+export class Homepage implements OnDestroy {
   private gqlService = inject(GqlService);
   private router = inject(Router);
   private stateService = inject(PageStateService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
+  private destroy$ = new Subject<void>();
 
   searchPageApi = environment.searchpage_api;
 
-  INITIAL_VIDEOS_SEARCH_RESULT : VideoSearchResult = { 
-    videos: [], 
+  INITIAL_VIDEOS_SEARCH_RESULT : SearchVideosDetail = {
+    videos: [],
     pagination: {
       size: 0,
       currentPageNumber: 0,
       totalCount: 0
-    } 
+    }
   }
 
   // Loved Videos
-  lovedVideos = toSignal(
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Loved),
-    { 
-      initialValue: this.gqlService.initialSignalData<VideoSearchResult>(this.INITIAL_VIDEOS_SEARCH_RESULT) 
-    }
-  )
-  
+  lovedVideos = signal<ResultState<SearchVideosDetail>>(
+    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  );
 
   // Latest Viewed
-  latestViewedVideos = toSignal(
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Latest),
-    { 
-      initialValue: this.gqlService.initialSignalData<VideoSearchResult>(this.INITIAL_VIDEOS_SEARCH_RESULT) 
-    }
-  )
+  latestViewedVideos = signal<ResultState<SearchVideosDetail>>(
+    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  );
 
   // Most Viewed
-  mostViewedVideos = toSignal(
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.MostViewed),
-    { 
-      initialValue: this.gqlService.initialSignalData<VideoSearchResult>(this.INITIAL_VIDEOS_SEARCH_RESULT) 
-    }
-  )
+  mostViewedVideos = signal<ResultState<SearchVideosDetail>>(
+    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  );
 
   // Top Tags
-  topTags = toSignal(
-    this.gqlService.getTopTagsQuery(), { initialValue: this.gqlService.initialSignalData<VideoTag[]>([])}
-  )
+  topTags = signal<ResultState<GetTopTagsDetail>>(
+    this.gqlService.initialSignalData<GetTopTagsDetail>([])
+  );
+
+  constructor() {
+    this.loadLovedVideos();
+    this.loadLatestViewedVideos();
+    this.loadMostViewedVideos();
+    this.loadTopTags();
+
+    this.videoUpdateEventService.onEvent()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(event => {
+        const ids = new Set(event.videoIds);
+
+        const sectionContainsAffectedId = (section: ResultState<SearchVideosDetail>) =>
+          section.data?.videos.some(v => ids.has(v.id)) ?? false;
+
+        if (sectionContainsAffectedId(this.lovedVideos())) {
+          this.loadLovedVideos();
+        }
+        if (sectionContainsAffectedId(this.latestViewedVideos())) {
+          this.loadLatestViewedVideos();
+        }
+        if (sectionContainsAffectedId(this.mostViewedVideos())) {
+          this.loadMostViewedVideos();
+        }
+
+        this.loadTopTags();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  loadLovedVideos() {
+    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Loved)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(result => this.lovedVideos.set(result));
+  }
+
+  loadLatestViewedVideos() {
+    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Latest)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(result => this.latestViewedVideos.set(result));
+  }
+
+  loadMostViewedVideos() {
+    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.MostViewed)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(result => this.mostViewedVideos.set(result));
+  }
+
+  loadTopTags() {
+    this.gqlService.getTopTagsQuery()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(result => this.topTags.set(result));
+  }
 
   OnMoreClick(section: 'loved' | 'latest' | 'mostViewed'){
     const option = () => {

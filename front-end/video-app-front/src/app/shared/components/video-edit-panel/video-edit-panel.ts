@@ -25,7 +25,9 @@ import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { VideoMutationDetail } from '../../models/GQL-result.model';
 import { ValidationService } from '../../../services/validation-service/validation.service';
 import { ToastService } from '../../../services/toast-service/toast.service';
+import { VideoUpdateEventService } from '../../../services/video-update-event-service/video-update-event.service';
 import { ToastDisplayer } from "../toast-displayer/toast-displayer";
+import { ToastType } from '../../models/toast.model';
 
 @Component({
   selector: 'app-video-edit-panel',
@@ -51,6 +53,7 @@ export class VideoEditPanel implements OnInit {
   private gqlService = inject(GqlService);
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
 
   mode: VideoEditPanelMode = this.data.mode;
   video = signal<EditableVideo | undefined>(this.data.video);
@@ -186,15 +189,16 @@ export class VideoEditPanel implements OnInit {
           next: (result) => {
             this.isSaving.set(false);
             if (result.data?.success) {
+              this.videoUpdateEventService.emitUpdated([this.video()!.id]);
               this.dialogRef.close(result.data);
             } else {
               // update failed, keep the dialog open for user to retry
-              this.toastService.emitErrorOrWarning('Failed to update video metadata', 'error');
+              this.toastService.emitErrorOrWarning('Failed to update video metadata', ToastType.Error);
             }
           },
           error: (err) => {
             this.isSaving.set(false);
-            this.toastService.emitErrorOrWarning('Error updating video metadata: ' + err.message, 'error');
+            this.toastService.emitErrorOrWarning('Error updating video metadata: ' + err.message, ToastType.Error);
           }
         });
       }

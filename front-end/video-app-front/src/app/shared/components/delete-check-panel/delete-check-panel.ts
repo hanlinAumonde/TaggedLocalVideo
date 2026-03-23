@@ -15,6 +15,8 @@ import { ToastService } from '../../../services/toast-service/toast.service';
 import { BatchResultType } from '../../../core/graphql/generated/graphql';
 import { ToastDisplayer } from "../toast-displayer/toast-displayer";
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { VideoUpdateEventService } from '../../../services/video-update-event-service/video-update-event.service';
+import { ToastType } from '../../models/toast.model';
 
 @Component({
   selector: 'app-delete-check-panel',
@@ -34,6 +36,7 @@ export class DeleteCheckPanel {
   readonly data = inject<DeleteCheckPanelData>(MAT_DIALOG_DATA);
   private gqlService = inject(GqlService);
   private toastService = inject(ToastService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
   private gqlRequest$!: Observable<any>;
 
   processingMessage = signal<string>("");
@@ -57,7 +60,9 @@ export class DeleteCheckPanel {
     const type = this.data.deleteType;
     if(!this.data.videoIds && !this.data.directoryPath) {
       this.isSaving.set(false);
-      this.toastService.emitErrorOrWarning('No videoIds or directoryPath provided for deletion.', 'error');
+      this.toastService.emitErrorOrWarning(
+        'No videoIds or directoryPath provided for deletion.', ToastType.Error
+      );
       this.dialogRef.close(false);
       return;
     }
@@ -85,14 +90,18 @@ export class DeleteCheckPanel {
         break;
     }
     if(!this.gqlRequest$) {
-      this.toastService.emitErrorOrWarning('No deletion operation specified.', 'error');
+      this.toastService.emitErrorOrWarning(
+        'No deletion operation specified.', ToastType.Error
+      );
       this.dialogRef.close(false);
       return;
     }
     this.gqlRequest$.subscribe({
       error: (err) => {
         this.isSaving.set(false);
-        this.toastService.emitErrorOrWarning(`An error occurred during deletion: ${err.message || err}`, 'error');
+        this.toastService.emitErrorOrWarning(
+          `An error occurred during deletion: ${err.message || err}`, ToastType.Error
+        );
         this.dialogRef.close(false);
       }
     })
@@ -105,9 +114,12 @@ export class DeleteCheckPanel {
       tap(result => {
         this.isSaving.set(false);
         if(result.data?.success){
+          this.videoUpdateEventService.emitDeleted(
+            this.data.videoIds ? Array.from(this.data.videoIds) : []
+          );
           this.dialogRef.close(true);
         }else{
-          this.toastService.emitErrorOrWarning('Failed to delete video', 'error', true);
+          this.toastService.emitErrorOrWarning('Failed to delete video', ToastType.Error, true);
           this.dialogRef.close(false);
         }
       })
@@ -125,13 +137,19 @@ export class DeleteCheckPanel {
             const resultType = result.data.result.resultType;
             switch(resultType) {
               case BatchResultType.Success:
+                this.videoUpdateEventService.emitDeleted(
+                  this.data.videoIds ? Array.from(this.data.videoIds) : []
+                );
                 this.dialogRef.close(true);
                 break;
               case BatchResultType.PartialSuccess:
+                this.videoUpdateEventService.emitDeleted(
+                  this.data.videoIds ? Array.from(this.data.videoIds) : []
+                );
                 this.toastService.emitErrorOrWarning(
                   `Batch update partially success. Some videos may not have been updated.
-                  \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`, 
-                  'warning'
+                  \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
+                  ToastType.Warning
                 );
                 this.dialogRef.close(true);
                 break;
@@ -139,7 +157,7 @@ export class DeleteCheckPanel {
                 this.toastService.emitErrorOrWarning(
                   `Batch delete failed. Please try again.
                   \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`, 
-                  'error'
+                  ToastType.Error
                 );
                 this.dialogRef.close(false);
                 break;

@@ -1,5 +1,4 @@
 import { Component, inject, signal, computed, effect, OnDestroy } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import {
   BrowseDirectoryDetail,
@@ -9,7 +8,6 @@ import { PageStateService } from '../../services/Page-state-service/page-state.s
 import { environment } from '../../../environments/environment';
 import { 
   SortCriterion, 
-  ItemsSortOption, 
   ManagementRefreshState, 
   comparatorBySortOption
 } from '../../shared/models/management.model';
@@ -17,6 +15,10 @@ import { BottomToolbar } from '../../shared/components/bottom-toolbar/bottom-too
 import { FileBrowseTable } from '../../shared/components/file-browse-table/file-browse-table';
 import { ToastService } from '../../services/toast-service/toast.service';
 import { PathHistoryService } from '../../services/path-history-service/path-history.service';
+import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
+import { VideoUpdateEvent } from '../../shared/models/events.model';
+import { Subject, takeUntil } from 'rxjs';
+import { ToastType } from '../../shared/models/toast.model';
 
 @Component({
   selector: 'app-management',
@@ -31,7 +33,9 @@ export class Management implements OnDestroy{
   private stateService = inject(PageStateService);
   private toastService = inject(ToastService);
   
+  private videoUpdateEventService = inject(VideoUpdateEventService);
   pathHistoryService = inject(PathHistoryService)
+  private destroy$ = new Subject<void>();
 
   tableWidth = signal<number>(0);
   // true for ascending, false for descending
@@ -88,10 +92,25 @@ export class Management implements OnDestroy{
       const path = this.currentPath();
       this.loadDirectory(path);
     });
+
+    // Refresh directory when videos in current view are updated/deleted
+    this.videoUpdateEventService.onEvent().pipe(takeUntil(this.destroy$)).subscribe(event => {
+      const isAffected = (event: VideoUpdateEvent) => {
+        const ids = new Set(event.videoIds);
+        const contents = this.directoryContents().data;
+        if (!contents) return false;
+        return contents.some(item => ids.has(item.node.id));
+      }
+      if (isAffected(event)) {
+        this.refreshDirectory();
+      }
+    });
   }
 
   ngOnDestroy(): void {
     this.pathHistoryService.clearAllHistory();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   // ─── Directory Data Loading ────────────────────────────────────────
@@ -120,7 +139,7 @@ export class Management implements OnDestroy{
         this.selectedIds.set(new Set());
       },
       error: (err) => {
-        this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, 'error');
+        this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, ToastType.Error);
       }
     });
   }
@@ -156,7 +175,7 @@ export class Management implements OnDestroy{
         }
       },
       error: (err) => {
-        this.toastService.emitErrorOrWarning('Failed to refresh directory metadata: ' + err.message, 'error');
+        this.toastService.emitErrorOrWarning('Failed to refresh directory metadata: ' + err.message, ToastType.Error);
       }
     });
   }

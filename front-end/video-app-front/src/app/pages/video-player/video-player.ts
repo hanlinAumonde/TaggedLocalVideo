@@ -9,9 +9,10 @@ import {
   effect,
   viewChild,
 } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { take } from 'rxjs/operators';
+import { take, takeUntil } from 'rxjs/operators';
+import { Subject } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -33,6 +34,10 @@ import { SearchPageParam } from '../../shared/models/search.model';
 import { Title } from '@angular/platform-browser';
 import { ToastService } from '../../services/toast-service/toast.service';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
+import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
+import { VideoUpdateType } from '../../shared/models/events.model';
+import { switchMap, EMPTY } from 'rxjs';
+import { ToastType } from '../../shared/models/toast.model';
 
 @Component({
   selector: 'app-video-player',
@@ -55,8 +60,11 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   private dialog = inject(MatDialog);
   private title = inject(Title);
   private toastService = inject(ToastService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
+  private router = inject(Router);
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
+  private destroy$ = new Subject<void>();
   private videoDataLoaded = toSignal(this.route.data)
 
   searchPageApi = environment.searchpage_api;
@@ -94,6 +102,30 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
         this.title.setTitle(`${videoData.name} - Tagged Local Video App`);
       }
     })
+
+    this.videoUpdateEventService.onEvent().pipe(
+      takeUntil(this.destroy$),
+      switchMap(event => {
+        const currentId = this.videoId();
+        if (!currentId || !event.videoIds.includes(currentId)) return EMPTY;
+
+        if (event.type === VideoUpdateType.Deleted) {
+          this.toastService.emitErrorOrWarning(
+            'The video you are watching has been deleted.', 
+            ToastType.Warning
+          );
+          this.router.navigate(['/']);
+          return EMPTY;
+        }
+
+        // Re-fetch video data for updates
+        return this.gqlService.getVideoByIdQuery(currentId);
+      })
+    ).subscribe(result => {
+      if (!result.loading && result.data) {
+        this.video.set(result);
+      }
+    });
   }
 
   ngAfterViewInit() {
@@ -102,6 +134,8 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.disposePlayer();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private initializePlayer() {
@@ -161,7 +195,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       .subscribe({
         next: (result) => {
           if (!result.data?.success) {
-            this.toastService.emitErrorOrWarning('Failed to record video view', 'error');
+            this.toastService.emitErrorOrWarning('Failed to record video view', ToastType.Error);
           }else if(result.data.video){
             this.video.update(current => {
               if (!current.data) return current;
@@ -183,12 +217,13 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     ).pipe(take(1)).subscribe({
       next: (result) => {
         if (result.data?.success && result.data.video) {
+          this.videoUpdateEventService.emitUpdated([videoData.id]);
           this.video.update(current => {
             if (!current.data) return current;
             return this.toVideoDetailResultState(result.data!, current);
           })
         }else{
-          this.toastService.emitErrorOrWarning('Failed to update loved status', 'error');
+          this.toastService.emitErrorOrWarning('Failed to update loved status', ToastType.Error);
         }
       }
     });
