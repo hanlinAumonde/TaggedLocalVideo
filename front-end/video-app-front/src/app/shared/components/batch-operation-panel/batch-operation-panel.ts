@@ -1,5 +1,5 @@
-import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -19,7 +19,7 @@ import {
 } from '../../../core/graphql/generated/graphql';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { ValidationService } from '../../../services/validation-service/validation.service';
-import { startWith, Subject, takeUntil, takeWhile } from 'rxjs';
+import { startWith, takeWhile } from 'rxjs';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast-displayer";
 import { BatchPanelData } from '../../models/panels.model';
@@ -45,7 +45,7 @@ import { ToastType } from '../../models/toast.model';
 ],
   templateUrl: './batch-operation-panel.html'
 })
-export class BatchOperationPanel implements OnDestroy {
+export class BatchOperationPanel {
   private dialogRef = inject(MatDialogRef<BatchOperationPanel>);
   private data = inject<BatchPanelData>(MAT_DIALOG_DATA);
   private formBuilder = inject(FormBuilder);
@@ -53,6 +53,7 @@ export class BatchOperationPanel implements OnDestroy {
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
+  private destroyRef = inject(DestroyRef);
 
   readonly isVideoMode = this.data.mode === 'videos';
   readonly videoIds = this.data.videos ?? new Set<string>();
@@ -94,7 +95,6 @@ export class BatchOperationPanel implements OnDestroy {
   });
 
   processingMessage = signal<string>('');
-  private destroy$ = new Subject<void>();
 
   addTag(tagValue?: string) {
     const value = tagValue ?? this.tagInput.value;
@@ -162,7 +162,7 @@ export class BatchOperationPanel implements OnDestroy {
       author: author
     } as VideosBatchOperationInput).pipe(
       takeWhile(result => result.data?.result?.resultType === undefined, true),
-      takeUntil(this.destroy$)
+      takeUntilDestroyed(this.destroyRef)
     )
     .subscribe({
       next: (result) => {
@@ -209,11 +209,6 @@ export class BatchOperationPanel implements OnDestroy {
         );
       }
     });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   isInvalid = computed(() => 

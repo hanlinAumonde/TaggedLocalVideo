@@ -8,11 +8,11 @@ import {
   AfterViewInit,
   effect,
   viewChild,
+  DestroyRef,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { take, takeUntil } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { take } from 'rxjs/operators';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
@@ -62,9 +62,9 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   private toastService = inject(ToastService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
   private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
-  private destroy$ = new Subject<void>();
   private videoDataLoaded = toSignal(this.route.data)
 
   searchPageApi = environment.searchpage_api;
@@ -104,7 +104,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     })
 
     this.videoUpdateEventService.onEvent().pipe(
-      takeUntil(this.destroy$),
+      takeUntilDestroyed(),
       switchMap(event => {
         const currentId = this.videoId();
         if (!currentId || !event.videoIds.includes(currentId)) return EMPTY;
@@ -134,8 +134,6 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.disposePlayer();
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   private initializePlayer() {
@@ -191,7 +189,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
 
     this.hasRecordedView.set(true);
     this.gqlService.recordVideoViewMutation(id)
-      .pipe(take(1))
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
           if (!result.data?.success) {
@@ -214,7 +212,9 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       videoData.id,
       !videoData.loved,
       videoData.tags.map(tag => tag.name),
-    ).pipe(take(1)).subscribe({
+    )
+    .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+    .subscribe({
       next: (result) => {
         if (result.data?.success && result.data.video) {
           this.videoUpdateEventService.emitUpdated([videoData.id]);

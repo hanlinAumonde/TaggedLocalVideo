@@ -27,7 +27,8 @@ import {
   Observable, 
   of, 
   switchMap, 
-  tap } from 'rxjs';
+  tap 
+} from 'rxjs';
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
 import {
@@ -40,7 +41,8 @@ import {
   SearchVideosDetail,
   VideoDetail,
   VideoMutationDetail,
-  VideoRecordViewDetail } from '../../shared/models/GQL-result.model';
+  VideoRecordViewDetail 
+} from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 import { ValidationService } from '../validation-service/validation.service';
 import { ToastService } from '../toast-service/toast.service';
@@ -78,12 +80,13 @@ export class GqlService {
   }
 
   private toResultStateObservable<TData, TResult>(
-    gqlValueChanges: Observable<ObservableQuery.Result<TData, "empty" | "complete" | "streaming" | "partial"> | Apollo.MutateResult<TData>>,
-    dataExtractor: (data: NonNullable<TData> | NonNullable<DeepPartial<TData>>) => TResult | null
+    gqlObservable: Observable<ObservableQuery.Result<TData, "empty" | "complete" | "streaming" | "partial"> | Apollo.MutateResult<TData>>,
+    dataExtractor: (data: NonNullable<TData> | NonNullable<DeepPartial<TData>>) => TResult | null,
+    isWatchQuery: boolean = true,
   ): Observable<ResultState<TResult>> {
-    return gqlValueChanges.pipe(
+    return gqlObservable.pipe(
         map(result => ({
-          loading: result.loading ?? true,
+          loading: isWatchQuery? (result.loading ?? true) : false,
           error: result.error?.message ?? null,
           data: result.data ? dataExtractor(result.data) : null
         })),
@@ -107,12 +110,13 @@ export class GqlService {
 
   private getTopTagsAsSuggestionQuery(): Observable<ResultState<string[]>>{
     return this.toResultStateObservable(
-      this.getTopTagsAsSuggestionGQL.watch().valueChanges,
+      this.getTopTagsAsSuggestionGQL.fetch(),
       (data) => {
         return this.filterUndefinedResult(
           this.filterUndefinedResult(data?.getTopTags ?? []).map(tag => tag.name)
         );
-      }
+      },
+      false
     )
   }
 
@@ -126,7 +130,7 @@ export class GqlService {
         (field === SearchField.Tag? this.getTopTagsAsSuggestionQuery() : of(this.initialSignalData<string[]>([]))) 
         :
         this.toResultStateObservable(
-          this.getSuggestionsGQL.watch({
+          this.getSuggestionsGQL.fetch({
             variables: {
               input: {
                 keyword: {
@@ -135,9 +139,9 @@ export class GqlService {
                 suggestionType: field
               }
             } as QueryGetSuggestionsArgs
-          })
-          .valueChanges,
-          (data) => this.filterUndefinedResult(data?.getSuggestions ?? [])
+          }),
+          (data) => this.filterUndefinedResult(data?.getSuggestions ?? []),
+          false
         )        
       )
     )
@@ -145,14 +149,15 @@ export class GqlService {
 
   getTopTagsQuery(limit? : number): Observable<ResultState<GetTopTagsDetail>> {
     return this.toResultStateObservable(
-      this.getTopTagsGQL.watch().valueChanges,
+      this.getTopTagsGQL.fetch(),
       (data) => {
         const tags = this.filterUndefinedResult(
           this.filterUndefinedResult(data?.getTopTags ?? [])
             .filter(tag => tag.name && tag.count)
         ) as GetTopTagsDetail;
         return limit ? tags.slice(0, limit) : tags;
-      }
+      },
+      false
     )
   }
   
@@ -201,13 +206,14 @@ export class GqlService {
 
   getDirectoryMetadataQuery(relativePath?: string): Observable<ResultState<DirectoryMetadataDetail>> {
     return this.toResultStateObservable(
-      this.getDirectoryMetadataGQL.watch({
+      this.getDirectoryMetadataGQL.fetch({
         variables: { input: { relativePath: relativePath } }
-      }).valueChanges,
+      }),
       (data) => ({
         totalSize: data.getDirectoryMetadata?.totalSize ?? 0,
         lastModifiedTime: data.getDirectoryMetadata?.lastModifiedTime ?? ''
-      } as DirectoryMetadataDetail)
+      } as DirectoryMetadataDetail),
+      false
     )
   }
 

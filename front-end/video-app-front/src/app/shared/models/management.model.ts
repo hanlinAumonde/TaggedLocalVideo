@@ -26,9 +26,9 @@ const SortOptionMapping: { [key: number]: { asc: ItemsSortOption, desc: ItemsSor
   2: { asc: ItemsSortOption.DATE_ASC, desc: ItemsSortOption.DATE_DESC }
 };
 
-export function comparatorBySortOption(columnIndex: number, isAscending: boolean) {
-    const mapping = SortOptionMapping[columnIndex];
-    const option = isAscending ? mapping.asc : mapping.desc;
+export function comparatorBySortOption(sortCriterion: SortCriterion): (a: FileBrowseNode, b: FileBrowseNode) => number {
+    const mapping = SortOptionMapping[sortCriterion.index];
+    const option = sortCriterion.order ? mapping.asc : mapping.desc;
     switch(option){
         case ItemsSortOption.NAME_ASC:
             return (a: FileBrowseNode, b: FileBrowseNode) => a.node.name.localeCompare(b.node.name);

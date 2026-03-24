@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnDestroy, DestroyRef } from '@angular/core';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import {
   BrowseDirectoryDetail,
@@ -17,7 +17,7 @@ import { ToastService } from '../../services/toast-service/toast.service';
 import { PathHistoryService } from '../../services/path-history-service/path-history.service';
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
 import { VideoUpdateEvent } from '../../shared/models/events.model';
-import { Subject, takeUntil } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ToastType } from '../../shared/models/toast.model';
 
 @Component({
@@ -32,10 +32,10 @@ export class Management implements OnDestroy{
   private gqlService = inject(GqlService);
   private stateService = inject(PageStateService);
   private toastService = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
   
   private videoUpdateEventService = inject(VideoUpdateEventService);
   pathHistoryService = inject(PathHistoryService)
-  private destroy$ = new Subject<void>();
 
   tableWidth = signal<number>(0);
   // true for ascending, false for descending
@@ -94,7 +94,7 @@ export class Management implements OnDestroy{
     });
 
     // Refresh directory when videos in current view are updated/deleted
-    this.videoUpdateEventService.onEvent().pipe(takeUntil(this.destroy$)).subscribe(event => {
+    this.videoUpdateEventService.onEvent().pipe(takeUntilDestroyed()).subscribe(event => {
       const isAffected = (event: VideoUpdateEvent) => {
         const ids = new Set(event.videoIds);
         const contents = this.directoryContents().data;
@@ -109,51 +109,58 @@ export class Management implements OnDestroy{
 
   ngOnDestroy(): void {
     this.pathHistoryService.clearAllHistory();
-    this.destroy$.next();
-    this.destroy$.complete();
   }
 
   // ─── Directory Data Loading ────────────────────────────────────────
 
   private loadDirectory(path: string[], skipCache: boolean = false, recursiveCalculation: boolean = true) {
     const relativePath =  path.length > 0 ? path.join('/') : undefined;
-    this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation).subscribe({
-      next: (result) => {
-        // Sometimes this condition can be true twice in a single request, because of the cache update after the request
-        // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
-        if(!result.loading && result.data) {
-          const newState = this.getRefreshState();
-          if(newState?.sortCriteria){
-            this.sortCriteria.set(newState.sortCriteria);
-            this.sortItemsBy(newState.sortCriteria, result.data);
-            this.directoryContents.set({...this.directoryContents(), loading: result.loading, error: result.error});
-            setTimeout(() => {
-              if(newState !== undefined){
-                this.scrollTo(newState.scrollPosition);
-              }
-            }, 200);
+    this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          // Sometimes this condition can be true twice in a single request, because of the cache update after the request
+          // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
+          if(!result.loading && result.data) {
+            const newState = this.getRefreshState();
+            if(newState?.sortCriteria){
+              this.sortCriteria.set(newState.sortCriteria);
+              this.sortItemsBy(newState.sortCriteria, result.data);
+              this.directoryContents.set({...this.directoryContents(), loading: result.loading, error: result.error});
+              setTimeout(() => {
+                if(newState !== undefined){
+                  this.scrollTo(newState.scrollPosition);
+                }
+              }, 200);
+            }
+          }else{
+            this.directoryContents.set(result);
           }
-        }else{
-          this.directoryContents.set(result);
+          this.selectedIds.set(new Set());
+        },
+        error: (err) => {
+          this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, ToastType.Error);
         }
-        this.selectedIds.set(new Set());
-      },
-      error: (err) => {
-        this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, ToastType.Error);
-      }
-    });
+      });
   }
 
   refreshDirectory() {
     const path = this.currentPath();
-    this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, path);
+    this.setRefreshState(
+      this.getParentScrollContainer()?.scrollTop ?? 0, 
+      this.sortCriteria().index, 
+      this.sortCriteria().order, 
+      path
+    );
     this.loadDirectory(path, true, false);
   }
 
   refreshSelectedDirectory(item: FileBrowseNode) {
     this.gqlService.getDirectoryMetadataQuery(
       this.currentPath().join('/') + '/' + item.node.name
-    ).subscribe({
+    )
+    .pipe(takeUntilDestroyed(this.destroyRef))
+    .subscribe({
       next: (result) => {
         if (result.data) {
           this.directoryContents.update(contents => {
@@ -179,8 +186,6 @@ export class Management implements OnDestroy{
       }
     });
   }
-
-  
 
   // ─── Directory Navigation ──────────────────────────────────────────
 
@@ -249,7 +254,7 @@ export class Management implements OnDestroy{
     if (!contents) return;
     let sortedContents = [...contents];
 
-    const sortComparator = comparatorBySortOption(sortCriteria.index, sortCriteria.order);
+    const sortComparator = comparatorBySortOption(sortCriteria);
     sortedContents.sort(sortComparator);
     this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
   }

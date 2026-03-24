@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, signal } from '@angular/core';
+import { Component, inject, signal, WritableSignal } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
 import { GqlService } from '../../services/GQL-service/GQL.service';
@@ -11,21 +11,19 @@ import { SearchPageParam } from '../../shared/models/search.model';
 import { environment } from '../../../environments/environment';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
-import { VideoUpdateEvent, VideoUpdateType } from '../../shared/models/events.model';
-import { Subject, takeUntil } from 'rxjs';
 import { GetTopTagsDetail, ResultState, SearchVideosDetail } from '../../shared/models/GQL-result.model';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 @Component({
   selector: 'app-homepage',
   imports: [VideoCard, MatButtonModule, RouterModule],
   templateUrl: './homepage.html',
 })
-export class Homepage implements OnDestroy {
+export class Homepage {
   private gqlService = inject(GqlService);
   private router = inject(Router);
   private stateService = inject(PageStateService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
-  private destroy$ = new Subject<void>();
 
   searchPageApi = environment.searchpage_api;
 
@@ -59,13 +57,13 @@ export class Homepage implements OnDestroy {
   );
 
   constructor() {
-    this.loadLovedVideos();
-    this.loadLatestViewedVideos();
-    this.loadMostViewedVideos();
+    this.loadVideos(VideoSortOption.Loved, this.lovedVideos);
+    this.loadVideos(VideoSortOption.Latest, this.latestViewedVideos);
+    this.loadVideos(VideoSortOption.MostViewed, this.mostViewedVideos);
     this.loadTopTags();
 
     this.videoUpdateEventService.onEvent()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed())
       .subscribe(event => {
         const ids = new Set(event.videoIds);
 
@@ -73,45 +71,28 @@ export class Homepage implements OnDestroy {
           section.data?.videos.some(v => ids.has(v.id)) ?? false;
 
         if (sectionContainsAffectedId(this.lovedVideos())) {
-          this.loadLovedVideos();
+          this.loadVideos(VideoSortOption.Loved, this.lovedVideos);
         }
         if (sectionContainsAffectedId(this.latestViewedVideos())) {
-          this.loadLatestViewedVideos();
+          this.loadVideos(VideoSortOption.Latest, this.latestViewedVideos);
         }
         if (sectionContainsAffectedId(this.mostViewedVideos())) {
-          this.loadMostViewedVideos();
+          this.loadVideos(VideoSortOption.MostViewed, this.mostViewedVideos);
         }
 
         this.loadTopTags();
       });
   }
 
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  loadLovedVideos() {
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Loved)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(result => this.lovedVideos.set(result));
-  }
-
-  loadLatestViewedVideos() {
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Latest)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(result => this.latestViewedVideos.set(result));
-  }
-
-  loadMostViewedVideos() {
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.MostViewed)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(result => this.mostViewedVideos.set(result));
+  loadVideos(sortBy: VideoSortOption, signal: WritableSignal<ResultState<SearchVideosDetail>>) {
+    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, sortBy)
+      .pipe(takeUntilDestroyed())
+      .subscribe(result => signal.set(result));
   }
 
   loadTopTags() {
     this.gqlService.getTopTagsQuery()
-      .pipe(takeUntil(this.destroy$))
+      .pipe(takeUntilDestroyed())
       .subscribe(result => this.topTags.set(result));
   }
 

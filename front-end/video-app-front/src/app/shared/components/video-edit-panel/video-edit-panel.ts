@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, OnInit, signal, computed, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import {
   FormBuilder,
   ReactiveFormsModule,
@@ -54,6 +54,7 @@ export class VideoEditPanel implements OnInit {
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
+  private destroyRef = inject(DestroyRef);
 
   mode: VideoEditPanelMode = this.data.mode;
   video = signal<EditableVideo | undefined>(this.data.video);
@@ -185,7 +186,9 @@ export class VideoEditPanel implements OnInit {
           formValue.name ?? undefined,
           formValue.introduction ?? undefined,
           formValue.author ?? 'Unknown',
-        ).subscribe({
+        )
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
           next: (result) => {
             this.isSaving.set(false);
             if (result.data?.success) {

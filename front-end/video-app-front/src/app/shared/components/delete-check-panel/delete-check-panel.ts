@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { 
   MAT_DIALOG_DATA, 
@@ -31,7 +31,7 @@ import { ToastType } from '../../models/toast.model';
   ],
   templateUrl: './delete-check-panel.html',
 })
-export class DeleteCheckPanel {
+export class DeleteCheckPanel implements OnDestroy {
   readonly dialogRef = inject(MatDialogRef<DeleteCheckPanel>);
   readonly data = inject<DeleteCheckPanelData>(MAT_DIALOG_DATA);
   private gqlService = inject(GqlService);
@@ -41,6 +41,12 @@ export class DeleteCheckPanel {
 
   processingMessage = signal<string>("");
   isSaving = signal<boolean>(false);
+
+  ngOnDestroy(): void {
+    if(this.gqlRequest$) {
+      this.gqlRequest$.subscribe().unsubscribe();
+    }
+  }
 
   textToDelete = computed(() => {
     switch(this.data.deleteType){
@@ -109,7 +115,8 @@ export class DeleteCheckPanel {
 
   processDeletionMutation(){
     const gqlRequest$ = this.gqlService.deleteVideoMutation(
-          this.data.videoIds ? Array.from(this.data.videoIds)[0] : "");
+      this.data.videoIds ? Array.from(this.data.videoIds)[0] : ""
+    );
     return gqlRequest$.pipe(
       tap(result => {
         this.isSaving.set(false);

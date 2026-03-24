@@ -22,7 +22,6 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
     const toastService = inject(ToastService);
 
     const videoId = route.paramMap.get('id') ?? '';
-    console.log('Resolving video metadata for video ID:', videoId);
     if(!videoId){
         toastService.emitErrorOrWarning('Null video ID', ToastType.Error);
         return new RedirectCommand(router.parseUrl(environment.homepage_api));
@@ -37,7 +36,6 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
                 );
                 return of(new RedirectCommand(router.parseUrl(environment.homepage_api)));
             }
-            console.log('Resolved video metadata:', result);
             return of(result);
         })
     )

@@ -15,6 +15,7 @@ export const environment = {
     containerIds: {
         rootMainContainerId: "root-main-container"
     },
+    visibleTagsCountInManagement: 3,
     VALIDATION_RULES:{
         NAME_MAX_LENGTH: 200,
         AUTHOR_MAX_LENGTH: 50,

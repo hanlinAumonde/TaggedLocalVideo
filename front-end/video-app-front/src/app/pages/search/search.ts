@@ -1,5 +1,5 @@
-import { Component, inject, computed, effect, signal, OnDestroy } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, inject, computed, effect, signal, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -10,7 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatBadgeModule } from '@angular/material/badge';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDialog } from '@angular/material/dialog';
-import { map, Subject, takeUntil } from 'rxjs';
+import { map } from 'rxjs';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { Pagination } from '../../shared/components/pagination/pagination';
@@ -24,7 +24,7 @@ import { environment } from '../../../environments/environment';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { ValidationService } from '../../services/validation-service/validation.service';
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
-import { VideoUpdateEvent, VideoUpdateType } from '../../shared/models/events.model';
+import { VideoUpdateType } from '../../shared/models/events.model';
 
 @Component({
   selector: 'app-search',
@@ -44,7 +44,7 @@ import { VideoUpdateEvent, VideoUpdateType } from '../../shared/models/events.mo
 ],
   templateUrl: './search.html'
 })
-export class Search implements OnDestroy {
+export class Search {
   private gqlService = inject(GqlService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -53,7 +53,7 @@ export class Search implements OnDestroy {
   private stateService = inject(PageStateService);
   private validationService = inject(ValidationService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
-  private destroy$ = new Subject<void>();
+  private destroyRef = inject(DestroyRef);
 
   private updateSearchParamsAndForm(params: SearchPageParam) {
     this.searchParams.set({
@@ -160,29 +160,26 @@ export class Search implements OnDestroy {
       }
     });
 
-    this.videoUpdateEventService.onEvent().pipe(takeUntil(this.destroy$)).subscribe(event => {
-      if (this.hasSearched()) {
-        const currentVideos = this.searchResults().data?.videos;
+    this.videoUpdateEventService.onEvent()
+      .pipe(takeUntilDestroyed())
+      .subscribe(event => {
+        if (this.hasSearched()) {
+          const currentVideos = this.searchResults().data?.videos;
 
-        // For update events, only refresh if current results contain affected videos
-        if (event.type === VideoUpdateType.Updated) {
-          const ids = new Set(event.videoIds);
-          const affected = currentVideos?.some(v => ids.has(v.id)) ?? false;
-          if (affected) {
-            this.executeSearch(this.searchParams(), this.currentPage());
+          // For update events, only refresh if current results contain affected videos
+          if (event.type === VideoUpdateType.Updated) {
+            const ids = new Set(event.videoIds);
+            const affected = currentVideos?.some(v => ids.has(v.id)) ?? false;
+            if (affected) {
+              this.executeSearch(this.searchParams(), this.currentPage());
+            }
+            return;
           }
-          return;
+
+          // For delete events, always re-execute since pagination may shift
+          this.executeSearch(this.searchParams(), this.currentPage(), true);
         }
-
-        // For delete events, always re-execute since pagination may shift
-        this.executeSearch(this.searchParams(), this.currentPage(), true);
-      }
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+      });
   }
 
   private navigateToPage(page?:number) {
@@ -199,20 +196,22 @@ export class Search implements OnDestroy {
       params.title ?? undefined,
       page,
       params.tags ?? []
-    ).subscribe(result => {
-      this.searchResults.set(result);
+    )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(result => {
+        this.searchResults.set(result);
 
-      // After delete, current page may exceed total pages
-      if (checkPageBounds && !result.loading && result.data) {
-        const pagination = result.data.pagination;
-        if (pagination.size > 0) {
-          const maxPage = Math.max(1, Math.ceil(pagination.totalCount / pagination.size));
-          if (page > maxPage) {
-            this.navigateToPage(maxPage);
+        // After delete, current page may exceed total pages
+        if (checkPageBounds && !result.loading && result.data) {
+          const pagination = result.data.pagination;
+          if (pagination.size > 0) {
+            const maxPage = Math.max(1, Math.ceil(pagination.totalCount / pagination.size));
+            if (page > maxPage) {
+              this.navigateToPage(maxPage);
+            }
           }
         }
-      }
-    });
+      });
     this.stateService.setState<SearchPageParam>(environment.searchpage_api + environment.refreshKey, params, false);
   }
 

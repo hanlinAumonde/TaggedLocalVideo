@@ -21,7 +21,6 @@ import { ToastService } from '../../../services/toast-service/toast.service';
 import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
-import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { 
   DeleteCheckPanelData, 
   DeleteType, 
@@ -48,7 +47,7 @@ export class FileBrowseTable {
   sortCriteria = input.required<SortCriterion>();
   selectedIds = input.required<Set<string>>();
   currentPath = input.required<string[]>();
-  visibleTagsCount = input<number>(3);
+  visibleTagsCount = input<number>(environment.visibleTagsCountInManagement);
 
   // --- Outputs ---
   sort = output<number>();
@@ -65,7 +64,6 @@ export class FileBrowseTable {
   tableElement = viewChild<ElementRef<HTMLTableElement>>('tableElement');
 
   private toastService = inject(ToastService);
-  private gqlService = inject(GqlService);
   private dialog = inject(MatDialog);
 
   // --- Computed ---
