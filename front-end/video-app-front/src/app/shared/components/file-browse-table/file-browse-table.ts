@@ -1,12 +1,15 @@
-import { 
-  Component, 
-  input, 
-  output, 
-  computed, 
-  viewChild, 
-  ElementRef, 
-  effect, 
-  inject 
+import {
+  Component,
+  input,
+  output,
+  computed,
+  viewChild,
+  ElementRef,
+  effect,
+  inject,
+  signal,
+  DestroyRef,
+  afterNextRender
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -65,6 +68,25 @@ export class FileBrowseTable {
 
   private toastService = inject(ToastService);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
+
+  // --- Column Resize ---
+  private readonly MIN_COL_WIDTH = 80;
+  columnWidths = signal<number[]>([]);
+
+  colStyle = computed(() => {
+    const widths = this.columnWidths();
+    if (widths.length === 0) {
+      return ['4', '2', '2', '2', '3'];
+    }
+    return widths.map(w => `0 0 ${w}px`);
+  });
+
+  private resizingColumn = false;
+  private resizeColIndex = -1;
+  private resizeStartX = 0;
+  private resizeStartWidths: number[] = [];
+  private lastTableWidth = 0;
 
   // --- Computed ---
   isAllSelected = computed(() => {
@@ -84,9 +106,90 @@ export class FileBrowseTable {
     }
   }
 
-  constructor(){
+  private initColumnWidthsFromDOM() {
+    const tableEl = this.tableElement();
+    if (!tableEl) return;
+    const headerRow = tableEl.nativeElement.querySelector('thead tr');
+    if (!headerRow) return;
+    const ths = Array.from(headerRow.children) as HTMLElement[];
+    // ths: 0=checkbox, 1=type, 2=name, 3=size, 4=lastUpdate, 5=author, 6=tags, 7=operations
+    this.columnWidths.set([
+      ths[2].offsetWidth,
+      ths[3].offsetWidth,
+      ths[4].offsetWidth,
+      ths[5].offsetWidth,
+      ths[6].offsetWidth,
+    ]);
+    this.lastTableWidth = tableEl.nativeElement.offsetWidth;
+  }
+
+  private adjustColumnWidthsOnResize() {
+    const tableEl = this.tableElement();
+    if (!tableEl || this.resizingColumn) return;
+    const widths = this.columnWidths();
+    if (widths.length === 0 || this.lastTableWidth === 0) return;
+
+    const newTableWidth = tableEl.nativeElement.offsetWidth;
+    const oldResizable = widths.reduce((a, b) => a + b, 0);
+    const fixedWidth = this.lastTableWidth - oldResizable;
+    const newResizable = newTableWidth - fixedWidth;
+    if (oldResizable <= 0 || newResizable <= 0) return;
+
+    const ratio = newResizable / oldResizable;
+    this.columnWidths.set(widths.map(w => w * ratio));
+    this.lastTableWidth = newTableWidth;
+  }
+
+  onResizeStart(event: MouseEvent, colIndex: number) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.resizingColumn = true;
+    this.resizeColIndex = colIndex;
+    this.resizeStartX = event.clientX;
+    this.resizeStartWidths = [...this.columnWidths()];
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', this.onResizeMove);
+    document.addEventListener('mouseup', this.onResizeEnd);
+  }
+
+  private onResizeMove = (event: MouseEvent) => {
+    const diff = event.clientX - this.resizeStartX;
+    const widths = [...this.resizeStartWidths];
+    const idx = this.resizeColIndex;
+
+    const newLeft = widths[idx] + diff;
+    const newRight = widths[idx + 1] - diff;
+
+    if (newLeft >= this.MIN_COL_WIDTH && newRight >= this.MIN_COL_WIDTH) {
+      widths[idx] = newLeft;
+      widths[idx + 1] = newRight;
+      this.columnWidths.set(widths);
+    }
+  };
+
+  private onResizeEnd = () => {
+    this.resizingColumn = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', this.onResizeMove);
+    document.removeEventListener('mouseup', this.onResizeEnd);
+  };
+
+  constructor() {
     effect(() => this.resizeCallback());
-    window.addEventListener('resize', () => this.resizeCallback());
+
+    const handleResize = () => {
+      this.resizeCallback();
+      this.adjustColumnWidthsOnResize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    afterNextRender(() => this.initColumnWidthsFromDOM());
+
+    this.destroyRef.onDestroy(() => {
+      window.removeEventListener('resize', handleResize);
+    });
   }
 
   openEditPanel(video: BrowsedVideo) {

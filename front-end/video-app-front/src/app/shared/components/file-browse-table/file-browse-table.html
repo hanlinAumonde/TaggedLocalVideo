@@ -13,7 +13,8 @@
           />
         </th>
         <th class="w-16 shrink-0 px-4 py-3 flex items-center font-medium">Type</th>
-        <th class="flex-4 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
+        <th class="min-w-0 px-4 py-3 flex items-center self-stretch font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors relative"
+            [style.flex]="colStyle()[0]"
             (click)="sort.emit(0)">
           Name
           @if (sortCriteria().index === 0 && sortCriteria().order) {
@@ -23,8 +24,12 @@
           }@else {
             <mat-icon fontIcon="unfold_more"></mat-icon>
           }
+          <div class="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/50 z-20"
+               (mousedown)="onResizeStart($event, 0)"
+               (click)="$event.stopPropagation()"></div>
         </th>
-        <th class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
+        <th class="min-w-0 px-4 py-3 flex items-center self-stretch font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors relative"
+            [style.flex]="colStyle()[1]"
             (click)="sort.emit(1)">
           Size
           @if (sortCriteria().index === 1 && sortCriteria().order) {
@@ -34,8 +39,12 @@
           }@else {
             <mat-icon fontIcon="unfold_more"></mat-icon>
           }
+          <div class="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/50 z-20"
+               (mousedown)="onResizeStart($event, 1)"
+               (click)="$event.stopPropagation()"></div>
         </th>
-        <th class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors"
+        <th class="min-w-0 px-4 py-3 flex items-center self-stretch font-medium cursor-pointer select-none hover:bg-gray-300 dark:hover:bg-neutral-600 transition-colors relative"
+            [style.flex]="colStyle()[2]"
             (click)="sort.emit(2)">
           Last update
           @if (sortCriteria().index === 2 && sortCriteria().order) {
@@ -45,17 +54,22 @@
           }@else {
             <mat-icon fontIcon="unfold_more"></mat-icon>
           }
+          <div class="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/50 z-20"
+               (mousedown)="onResizeStart($event, 2)"
+               (click)="$event.stopPropagation()"></div>
         </th>
-        <th
-          class="flex-2 min-w-0 px-4 py-3 flex items-center font-medium"
-        >
+        <th class="min-w-0 px-4 py-3 flex items-center self-stretch font-medium relative"
+            [style.flex]="colStyle()[3]">
           Author
+          <div class="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400/50 z-20"
+               (mousedown)="onResizeStart($event, 3)"
+               (click)="$event.stopPropagation()"></div>
         </th>
-        <th
-          class="flex-3 min-w-0 px-4 py-3 flex items-center font-medium">
+        <th class="min-w-0 px-4 py-3 flex items-center self-stretch font-medium"
+            [style.flex]="colStyle()[4]">
           Tags
         </th>
-        <th class="flex items-center px-4 py-3">
+        <th class="w-14 shrink-0 flex items-center justify-center px-4 py-3">
           <mat-icon
             class="hover:bg-neutral-300 dark:hover:bg-neutral-600 cursor-pointer"
             fontIcon="refresh" [matTooltip]="'refresh'"
@@ -164,7 +178,7 @@
             </td>
 
             <!-- Name -->
-            <td class="flex-4 min-w-0 px-4 py-3 flex items-center">
+            <td class="min-w-0 px-4 py-3 flex items-center" [style.flex]="colStyle()[0]">
               @if (item.node.isDir) {
                 <span
                   class="truncate text-blue-600 dark:text-blue-400 font-medium hover:underline hover:text-blue-700 dark:hover:text-blue-300"
@@ -178,7 +192,7 @@
             </td>
 
             <!-- Size -->
-            <td class="flex-2 min-w-0 px-4 py-3 flex items-center text-gray-600 dark:text-gray-400">
+            <td class="min-w-0 px-4 py-3 flex items-center text-gray-600 dark:text-gray-400" [style.flex]="colStyle()[1]">
               @if(item.node.size > 0){
                 <span class="truncate"
                   [matTooltip]="formatSize(item.node.size)">
@@ -191,7 +205,7 @@
             </td>
 
             <!-- Last Update -->
-            <td class="flex-2 min-w-0 px-4 py-3 flex items-center text-gray-600 dark:text-gray-400">
+            <td class="min-w-0 px-4 py-3 flex items-center text-gray-600 dark:text-gray-400" [style.flex]="colStyle()[2]">
               @if(item.node.lastModifyTime > 0){
                 <span class="truncate"
                   [matTooltip]="formatDate(item.node.lastModifyTime)">
@@ -204,7 +218,7 @@
             </td>
 
             <!-- Author -->
-            <td class="flex-2 min-w-0 px-4 py-3 flex items-center">
+            <td class="min-w-0 px-4 py-3 flex items-center" [style.flex]="colStyle()[3]">
               @if(!item.node.isDir && item.node.author){
                 <span
                   class="truncate bg-neutral-200 dark:bg-neutral-600 rounded-lg px-2"
@@ -217,7 +231,7 @@
             </td>
 
             <!-- Tags -->
-            <td class="flex-3 min-w-0 px-4 py-3 flex items-center">
+            <td class="min-w-0 px-4 py-3 flex items-center" [style.flex]="colStyle()[4]">
               <div class="flex gap-1 flex-wrap overflow-hidden">
                 @if (!item.node.isDir) {
                   @for (tag of getVisibleTags(item.node); track tag) {

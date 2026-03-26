@@ -133,6 +133,12 @@ export class Management implements OnDestroy{
                 }
               }, 200);
             }
+            this.setRefreshState(
+              newState?.scrollPosition ?? 0, 
+              newState?.sortCriteria?.index ?? 0, 
+              newState?.sortCriteria?.order ?? true, 
+              newState?.currentPath ?? (path.length > 0 ? path : this.currentPath())
+            );
           }else{
             this.directoryContents.set(result);
           }
