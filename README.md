@@ -2,12 +2,14 @@ English | [中文](README.cn.md)
 
 # Video App - Full-Stack Video Management Application
 
-A simple local video metadata management, streaming, and browsing web UI application with support for video categorization, tag management, search, and web playback.
+- A simple local video metadata management, streaming, and browsing web UI application with support for video categorization, tag management, search, and web playback. 
+
+- By mapping your existing video directories to the application in the configuration, it will automatically scan, generate thumbnails, and allow you to manage video metadata (title, favorites, tags, etc.) through a user-friendly interface.
 
 ## ✨ Features
 
 - 🏷️ **Tag Management** - Video tagging system with batch operations support
-- 📁 **Directory Browsing** - Local file system directory browsing
+- 📁 **Directory Browsing** - Multi-source file system browsing with category-level classification
 - 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg
 - ❤️ **Favorites** - Video favorites and view statistics
 - 📱 **Responsive Design** - Adapts to various screen sizes
@@ -21,7 +23,7 @@ A simple local video metadata management, streaming, and browsing web UI applica
 | Strawberry | GraphQL Server |
 | MongoDB | Database |
 | Beanie | MongoDB ODM |
-| pytest | Unit Testing |
+| pytest | Unit Testing (Refactoring in progress) |
 
 ### Frontend
 | Technology | Purpose |
@@ -39,33 +41,6 @@ A simple local video metadata management, streaming, and browsing web UI applica
 | docker-compose | Container Orchestration |
 | ffmpeg | Thumbnail Generation |
 
-## 📁 Project Structure
-
-```
-video-app/
-├── main.py                    # Backend entry (localhost:12000)
-├── config.yaml               # Configuration file
-├── Dockerfile                # Docker image config
-├── docker-compose.yml        # Docker compose config
-├── src/                      # Backend source code
-│   ├── app.py               # FastAPI application factory
-│   ├── config.py            # Configuration management
-│   ├── errors.py            # Custom exceptions
-│   ├── db/                  # Database layer
-│   │   ├── setup_mongo.py   # MongoDB connection
-│   │   └── models/          # Data models
-│   ├── router/              # HTTP routes
-│   ├── schema/              # GraphQL Schema
-│   └── resolvers/           # GraphQL resolvers
-├── tests/                    # Test files
-└── front-end/               # Frontend project
-    └── video-app-front/
-        └── src/app/
-            ├── core/graphql/    # GraphQL operations
-            ├── pages/           # Page components
-            ├── services/        # Service layer
-            └── shared/          # Shared components
-```
 
 ## 🚀 Quick Start
 
@@ -91,17 +66,18 @@ backend:
   volumes:
     - ./logs:/app/logs
     # Map host video directories to container
-    # Format: host_path:container_path
-    - /your/video/path1:/app/resources/Resource-1
-    - /your/video/path2:/app/resources/Resource-2
+    # Format: host_path:/app/resources/CategoryName/PseudoName
+    - /your/video/path1:/app/resources/Local-resource/Resource-1
+    - /your/video/path2:/app/resources/Local-resource/Resource-2
 ```
 
 Edit `config.yaml` to ensure `resource_paths` matches the container paths:
 
 ```yaml
 resource_paths:
-  Resource-1: /your/video/path1
-  Resource-2: /your/video/path2
+  Local-resource:              # category name
+    Resource-1: /your/video/path1   # pseudo_name: host_path
+    Resource-2: /your/video/path2
 
 root_path: /app/resources
 ```
@@ -155,8 +131,9 @@ Edit `config.yaml`:
 ```yaml
 # Video resource paths (use local absolute paths)
 resource_paths:
-  Resource-1: /your/video/path1
-  Resource-2: /your/video/path2
+  Local-resource:                    # category name
+    Resource-1: /your/video/path1   # pseudo_name: local absolute path
+    Resource-2: /your/video/path2
 
 # Comment out root_path for local development
 # root_path: /app/resources
@@ -214,22 +191,27 @@ Frontend will run at `http://localhost:4200`
 ### Full config.yaml Configuration
 
 ```yaml
-# Video resource path mapping
-# Docker deployment: use container paths (must match docker-compose.yml volumes)
-# Manual installation: use local absolute paths
+# Video resource path mapping (category -> pseudo_name -> host_path)
+# Docker deployment: host_path is the host machine path, requires docker-compose.yml volumes + root_path
+# Manual installation: host_path is the local absolute path, comment out root_path
 resource_paths:
-  Resource-1: /app/resources/Resource-1  # Docker
-  Resource-2: /app/resources/Resource-2
-  # Resource-1: D:/videos/folder1        # Manual installation example
-  # Resource-2: E:/videos/folder2
+  Local-resource:                              # category name
+    Resource-1: /app/resources/Resource-1      # Docker deployment
+    Resource-2: /app/resources/Resource-2
+    # Resource-1: D:/videos/folder1            # Manual installation example
+    # Resource-2: E:/videos/folder2
 
 # Required for Docker deployment, comment out for manual installation
 root_path: /app/resources
 
 # Cache configuration
 cache_config:
-  max_size: 2048    # Maximum cache entries
-  ttl: 300          # Cache expiration time (seconds)
+  max_size: 2048        # Maximum cache entries
+  ttl: 300              # Cache expiration time (seconds)
+  cache_type: cachetools # Cache implementation type
+
+# ffmpeg/ffprobe concurrency limit
+ffmpeg_semaphore_limit: 4
 
 # Pagination configuration
 page_size_default:
@@ -294,7 +276,123 @@ backend_api: "http://localhost:12000"  // Points to local backend
 backend_api: ""  // Empty string, uses relative path (nginx proxy)
 ```
 
-## 📖 API Documentation
+## 📖 Reference
+
+### Project Structure
+
+#### Backend
+
+```
+video-app/
+├── main.py                          # Backend entry (localhost:12000)
+├── config.yaml                      # Configuration file
+├── Dockerfile                       # Docker image config
+├── docker-compose.yml               # Docker compose config
+├── migrations/                      # Database migration scripts
+│   └── add_category_field.py       # Category field migration
+├── src/
+│   ├── app.py                      # FastAPI app factory, CORS, lifespan
+│   ├── config.py                   # Configuration management (Settings)
+│   ├── errors.py                   # Custom exceptions
+│   ├── logger.py                   # Logging config (loguru)
+│   ├── db/
+│   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie init
+│   │   └── models/
+│   │       ├── Video_model.py     # VideoModel (with category field)
+│   │       ├── VideoTag_model.py  # VideoTagModel
+│   │       └── DirMetadata_model.py # DirMetadataModel (with category field)
+│   ├── router/
+│   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
+│   ├── schema/
+│   │   ├── query_schema.py        # GraphQL query root
+│   │   ├── mutation_schema.py     # GraphQL mutation root
+│   │   ├── subscription_schema.py # GraphQL subscription root
+│   │   ├── strawberry_schema.py   # Schema assembly
+│   │   └── types/
+│   │       ├── video_type.py      # Video, VideoTag types
+│   │       ├── search_type.py     # Search-related types
+│   │       ├── fileBrowse_type.py # File browse types
+│   │       └── pydantic_types/    # Input validation models (Pydantic)
+│   │           ├── video_type.py
+│   │           ├── search_type.py
+│   │           ├── fileBrowe_type.py   # RelativePath parsing (3-level path)
+│   │           └── batch_operation_type.py
+│   ├── resolvers/
+│   │   ├── query_resolver.py          # Query resolvers
+│   │   ├── mutation_resolver.py       # Mutation resolvers
+│   │   ├── subscription_resolver.py   # Subscription resolvers (batch ops)
+│   │   └── video_stream_resolver.py   # Video streaming (Range, chunked)
+│   └── services/
+│       ├── browse_file_service.py     # Directory browsing (3-level nav)
+│       ├── batch_operation_service.py # Batch update/delete
+│       ├── dir_metadata_service.py    # Directory metadata (size/mtime)
+│       ├── tag_operation_service.py   # Tag count management
+│       ├── thumbnail_service.py       # Thumbnail generation (ffmpeg/ffprobe)
+│       ├── path_convert_service.py    # AbsolutePath abstraction
+│       ├── cache/                     # Cache service
+│       │   ├── base_cache.py         # Cache abstract base class
+│       │   ├── cachetools_cache.py   # cachetools implementation
+│       │   └── cache_service.py      # Cache factory/dispatcher
+│       └── resource_handler/          # Resource handler (IO abstraction)
+│           ├── base_resource_handler.py  # Abstract base class
+│           ├── base_file_entry.py        # File entry abstraction + FileStat
+│           ├── resource_handler_service.py # Handler factory/dispatcher
+│           └── local_fs/                  # Local filesystem implementation
+│               ├── local_fs_handler.py    # LocalFS handler
+│               └── local_fs_file_entry.py # LocalFS file entry
+└── tests/                           # Test files
+```
+
+#### Frontend
+
+```
+front-end/video-app-front/src/app/
+├── app.ts, app.routes.ts, app.config.ts   # Root component, routes, Apollo config
+├── core/graphql/
+│   ├── documents/                         # GraphQL operation documents
+│   │   ├── queries.graphql.ts
+│   │   ├── mutations.graphql.ts
+│   │   └── subscription.graphql.ts
+│   └── generated/graphql.ts              # graphql-codegen auto-generated
+├── pages/
+│   ├── homepage/                          # Home (Loved/Latest/MostViewed + Top tags)
+│   ├── search/                            # Search page
+│   ├── video-player/                      # Video player (video.js)
+│   └── management/                        # Management (directory browse/batch ops)
+├── services/
+│   ├── GQL-service/                       # GraphQL operations service
+│   ├── Http-client-service/               # HTTP client service
+│   ├── Page-state-service/                # Page state management
+│   ├── path-history-service/              # Path history management
+│   ├── theme-service/                     # Theme switching
+│   ├── toast-service/                     # Toast notifications
+│   ├── validation-service/                # Input validation service
+│   └── video-update-event-service/        # Video update events
+├── shared/
+│   ├── components/
+│   │   ├── video-card/                    # 16:9 thumbnail + skeleton card
+│   │   ├── video-edit-panel/              # Dual-mode (full/filter) edit panel
+│   │   ├── batch-operation-panel/         # Batch tag operation panel
+│   │   ├── delete-check-panel/            # Delete confirmation dialog
+│   │   ├── file-browse-table/             # File browse table (resizable columns)
+│   │   ├── pagination/                    # Pagination (loading state support)
+│   │   ├── bottom-toolbar/                # Bottom toolbar
+│   │   ├── toast-displayer/               # Toast display component
+│   │   ├── sidebar/                       # Sidebar
+│   │   └── header/                        # Top navigation bar
+│   ├── interceptor/
+│   │   └── ImageRequest.interceptor.ts    # Image request interceptor
+│   └── models/                            # Type definitions
+│       ├── GQL-result.model.ts            # ResultState<T>
+│       ├── management.model.ts
+│       ├── search.model.ts
+│       ├── events.model.ts
+│       ├── panels.model.ts
+│       └── toast.model.ts
+├── route-resolver/
+│   └── video-player.resolver.ts           # Route guard
+└── environments/                          # Environment config
+```
 
 ### GraphQL Endpoint
 
@@ -306,20 +404,27 @@ http://localhost:12000/graphql
 
 | Query | Description |
 |-------|-------------|
-| `SearchVideos` | Search videos |
+| `SearchVideos` | Search videos (with category filtering) |
 | `getTopTags` | Get top tags |
 | `getSuggestions` | Get search suggestions |
 | `getVideoById` | Get video by ID |
-| `browseDirectory` | Browse directory |
+| `browseDirectory` | Browse directory (category -> pseudo_name -> subdirs) |
+| `directoryMetadata` | Get directory metadata (size/mtime) |
 
 ### Mutations
 
 | Mutation | Description |
 |----------|-------------|
 | `updateVideoMetadata` | Update video metadata |
-| `batchUpdate` | Batch update |
-| `recordVideoView` | Record view count |
 | `deleteVideo` | Delete video |
+| `recordVideoView` | Record view count |
+
+### Subscriptions
+
+| Subscription | Description |
+|--------------|-------------|
+| `batchUpdate` | Batch update videos (streaming progress) |
+| `batchDelete` | Batch delete videos (streaming progress) |
 
 ### HTTP Endpoints
 

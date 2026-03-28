@@ -2,12 +2,14 @@
 
 # Video App - 全栈视频管理应用
 
-一个简单的本地视频元数据管理、流传输和浏览webUI应用，支持视频分类、标签管理、搜索和网页播放。
+- 一个简单的本地视频元数据管理、流传输和浏览webUI应用，支持视频分类、标签管理、搜索和网页播放。
+
+- 只需在配置中将已有的想要管理的视频目录映射到应用，即可自动扫描、生成缩略图，然后即可管理视频元数据（标题，收藏，tag等）。
 
 ## ✨ 功能特性
 
 - 🏷️ **标签管理** - 视频标签系统，支持批量操作
-- 📁 **目录浏览** - 本地文件系统目录浏览
+- 📁 **目录浏览** - 多源文件系统目录浏览，支持 category 层级分类
 - 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成
 - ❤️ **收藏功能** - 视频收藏与播放统计
 - 📱 **响应式设计** - 适配多种屏幕尺寸
@@ -21,7 +23,7 @@
 | Strawberry | GraphQL服务 |
 | MongoDB | 数据库 |
 | Beanie | MongoDB ODM |
-| pytest | 单元测试 |
+| pytest | 单元测试（重构中） |
 
 ### 前端
 | 技术 | 用途 |
@@ -39,33 +41,6 @@
 | docker-compose | 容器编排 |
 | ffmpeg | 缩略图生成 |
 
-## 📁 项目结构
-
-```
-video-app/
-├── main.py                    # 后端入口 (localhost:12000)
-├── config.yaml               # 配置文件
-├── Dockerfile                # Docker镜像配置
-├── docker-compose.yml        # Docker编排配置
-├── src/                      # 后端源码
-│   ├── app.py               # FastAPI应用工厂
-│   ├── config.py            # 配置管理
-│   ├── errors.py            # 自定义异常
-│   ├── db/                  # 数据库层
-│   │   ├── setup_mongo.py   # MongoDB连接
-│   │   └── models/          # 数据模型
-│   ├── router/              # HTTP路由
-│   ├── schema/              # GraphQL Schema
-│   └── resolvers/           # GraphQL解析器
-├── tests/                    # 测试文件
-└── front-end/               # 前端项目
-    └── video-app-front/
-        └── src/app/
-            ├── core/graphql/    # GraphQL操作
-            ├── pages/           # 页面组件
-            ├── services/        # 服务层
-            └── shared/          # 共享组件
-```
 
 ## 🚀 快速开始
 
@@ -91,17 +66,18 @@ backend:
   volumes:
     - ./logs:/app/logs
     # 将宿主机的视频目录映射到容器内
-    # 格式: 宿主机路径:容器内路径
-    - /your/video/path1:/app/resources/Resource-1
-    - /your/video/path2:/app/resources/Resource-2
+    # 格式: 宿主机路径:/app/resources/Category名称/PseudoName名称
+    - /your/video/path1:/app/resources/Local-resource/Resource-1
+    - /your/video/path2:/app/resources/Local-resource/Resource-2
 ```
 
 编辑 `config.yaml`，确保 `resource_paths` 与容器内路径一致：
 
 ```yaml
 resource_paths:
-  Resource-1: /your/video/path1
-  Resource-2: /your/video/path2
+  Local-resource:              # category 名称
+    Resource-1: /your/video/path1   # pseudo_name: 宿主机路径
+    Resource-2: /your/video/path2
 
 root_path: /app/resources
 ```
@@ -156,8 +132,9 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 ```yaml
 # 视频资源路径（使用本地绝对路径）
 resource_paths:
-  Resource-1: /your/video/path1
-  Resource-2: /your/video/path2
+  Local-resource:                    # category 名称
+    Resource-1: /your/video/path1   # pseudo_name: 本地绝对路径
+    Resource-2: /your/video/path2
 
 # 本地开发时注释掉 root_path
 # root_path: /app/resources
@@ -215,22 +192,27 @@ npm start
 ### config.yaml 完整配置
 
 ```yaml
-# 视频资源路径映射
-# Docker部署: 使用容器内路径 (需配合docker-compose.yml的volumes)
-# 手动安装: 使用本地绝对路径
+# 视频资源路径映射 (category -> pseudo_name -> host_path)
+# Docker部署: host_path 填宿主机路径, 需配合 docker-compose.yml volumes 和 root_path
+# 手动安装: host_path 填本地绝对路径, 注释掉 root_path
 resource_paths:
-  Resource-1: /app/resources/Resource-1  # Docker
-  Resource-2: /app/resources/Resource-2
-  # Resource-1: D:/videos/folder1        # 手动安装示例
-  # Resource-2: E:/videos/folder2
+  Local-resource:                              # category 名称
+    Resource-1: /app/resources/Resource-1      # Docker 部署
+    Resource-2: /app/resources/Resource-2
+    # Resource-1: D:/videos/folder1            # 手动安装示例
+    # Resource-2: E:/videos/folder2
 
 # Docker部署时需要设置，手动安装时注释掉
 root_path: /app/resources
 
 # 缓存配置
 cache_config:
-  max_size: 2048    # 最大缓存条目数
-  ttl: 300          # 缓存过期时间（秒）
+  max_size: 2048        # 最大缓存条目数
+  ttl: 300              # 缓存过期时间（秒）
+  cache_type: cachetools # 缓存实现类型
+
+# ffmpeg/ffprobe 并发限制
+ffmpeg_semaphore_limit: 4
 
 # 分页配置
 page_size_default:
@@ -295,7 +277,123 @@ backend_api: "http://localhost:12000"  // 指向本地后端
 backend_api: ""  // 空字符串，使用相对路径（nginx代理）
 ```
 
-## 📖 API 文档
+## 📖 参考
+
+### 项目结构
+
+#### 后端
+
+```
+video-app/
+├── main.py                          # 后端入口 (localhost:12000)
+├── config.yaml                      # 配置文件
+├── Dockerfile                       # Docker镜像配置
+├── docker-compose.yml               # Docker编排配置
+├── migrations/                      # 数据库迁移脚本
+│   └── add_category_field.py       # category 字段迁移
+├── src/
+│   ├── app.py                      # FastAPI应用工厂、CORS、lifespan
+│   ├── config.py                   # 配置管理 (Settings)
+│   ├── errors.py                   # 自定义异常
+│   ├── logger.py                   # 日志配置 (loguru)
+│   ├── db/
+│   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie 初始化
+│   │   └── models/
+│   │       ├── Video_model.py     # VideoModel (含 category 字段)
+│   │       ├── VideoTag_model.py  # VideoTagModel
+│   │       └── DirMetadata_model.py # DirMetadataModel (含 category 字段)
+│   ├── router/
+│   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
+│   ├── schema/
+│   │   ├── query_schema.py        # GraphQL 查询根
+│   │   ├── mutation_schema.py     # GraphQL 变更根
+│   │   ├── subscription_schema.py # GraphQL 订阅根
+│   │   ├── strawberry_schema.py   # Schema 组装
+│   │   └── types/
+│   │       ├── video_type.py      # Video, VideoTag 类型
+│   │       ├── search_type.py     # 搜索相关类型
+│   │       ├── fileBrowse_type.py # 文件浏览相关类型
+│   │       └── pydantic_types/    # 输入验证模型 (Pydantic)
+│   │           ├── video_type.py
+│   │           ├── search_type.py
+│   │           ├── fileBrowe_type.py   # RelativePath 解析 (三级路径)
+│   │           └── batch_operation_type.py
+│   ├── resolvers/
+│   │   ├── query_resolver.py          # 查询解析器
+│   │   ├── mutation_resolver.py       # 变更解析器
+│   │   ├── subscription_resolver.py   # 订阅解析器 (批量操作)
+│   │   └── video_stream_resolver.py   # 视频流 (Range请求, 分块传输)
+│   └── services/
+│       ├── browse_file_service.py     # 目录浏览 (三级导航)
+│       ├── batch_operation_service.py # 批量更新/删除
+│       ├── dir_metadata_service.py    # 目录元数据 (大小/修改时间)
+│       ├── tag_operation_service.py   # 标签计数管理
+│       ├── thumbnail_service.py       # 缩略图生成 (ffmpeg/ffprobe)
+│       ├── path_convert_service.py    # AbsolutePath 路径抽象
+│       ├── cache/                     # 缓存服务
+│       │   ├── base_cache.py         # 缓存抽象基类
+│       │   ├── cachetools_cache.py   # cachetools 实现
+│       │   └── cache_service.py      # 缓存工厂/分发
+│       └── resource_handler/          # 资源处理器 (IO抽象层)
+│           ├── base_resource_handler.py  # 抽象基类
+│           ├── base_file_entry.py        # 文件条目抽象 + FileStat
+│           ├── resource_handler_service.py # 处理器工厂/分发
+│           └── local_fs/                  # 本地文件系统实现
+│               ├── local_fs_handler.py    # LocalFS 处理器
+│               └── local_fs_file_entry.py # LocalFS 文件条目
+└── tests/                           # 测试文件
+```
+
+#### 前端
+
+```
+front-end/video-app-front/src/app/
+├── app.ts, app.routes.ts, app.config.ts   # 根组件、路由、Apollo配置
+├── core/graphql/
+│   ├── documents/                         # GraphQL 操作文档
+│   │   ├── queries.graphql.ts
+│   │   ├── mutations.graphql.ts
+│   │   └── subscription.graphql.ts
+│   └── generated/graphql.ts              # graphql-codegen 自动生成
+├── pages/
+│   ├── homepage/                          # 首页 (Loved/Latest/MostViewed + Top标签)
+│   ├── search/                            # 搜索页面
+│   ├── video-player/                      # 视频播放 (video.js)
+│   └── management/                        # 管理页面 (目录浏览/批量操作)
+├── services/
+│   ├── GQL-service/                       # GraphQL 操作统一服务
+│   ├── Http-client-service/               # HTTP 客户端服务
+│   ├── Page-state-service/                # 页面状态管理
+│   ├── path-history-service/              # 路径历史管理
+│   ├── theme-service/                     # 主题切换
+│   ├── toast-service/                     # Toast 通知
+│   ├── validation-service/                # 输入验证服务
+│   └── video-update-event-service/        # 视频更新事件
+├── shared/
+│   ├── components/
+│   │   ├── video-card/                    # 16:9缩略图+skeleton双态卡片
+│   │   ├── video-edit-panel/              # 双模式(full/filter)编辑面板
+│   │   ├── batch-operation-panel/         # 批量标签操作面板
+│   │   ├── delete-check-panel/            # 删除确认对话框
+│   │   ├── file-browse-table/             # 文件浏览表格 (支持列宽调整)
+│   │   ├── pagination/                    # 分页组件 (支持加载状态)
+│   │   ├── bottom-toolbar/                # 底部工具栏
+│   │   ├── toast-displayer/               # Toast 显示组件
+│   │   ├── sidebar/                       # 侧边栏
+│   │   └── header/                        # 顶部导航栏
+│   ├── interceptor/
+│   │   └── ImageRequest.interceptor.ts    # 图片请求拦截器
+│   └── models/                            # 类型定义
+│       ├── GQL-result.model.ts            # ResultState<T>
+│       ├── management.model.ts
+│       ├── search.model.ts
+│       ├── events.model.ts
+│       ├── panels.model.ts
+│       └── toast.model.ts
+├── route-resolver/
+│   └── video-player.resolver.ts           # 路由守卫
+└── environments/                          # 环境配置
+```
 
 ### GraphQL 端点
 
@@ -308,20 +406,27 @@ http://localhost:12000/graphql
 
 | 查询 | 描述 |
 |------|------|
-| `SearchVideos` | 搜索视频 |
+| `SearchVideos` | 搜索视频（支持按 category 过滤） |
 | `getTopTags` | 获取热门标签 |
 | `getSuggestions` | 获取搜索建议 |
 | `getVideoById` | 根据ID获取视频 |
-| `browseDirectory` | 浏览目录 |
+| `browseDirectory` | 浏览目录（category -> pseudo_name -> 子目录） |
+| `directoryMetadata` | 获取目录元数据（大小/修改时间） |
 
 ### 变更 (Mutations)
 
 | 变更 | 描述 |
 |------|------|
 | `updateVideoMetadata` | 更新视频元数据 |
-| `batchUpdate` | 批量更新 |
-| `recordVideoView` | 记录播放次数 |
 | `deleteVideo` | 删除视频 |
+| `recordVideoView` | 记录播放次数 |
+
+### 订阅 (Subscriptions)
+
+| 订阅 | 描述 |
+|------|------|
+| `batchUpdate` | 批量更新视频（流式返回进度） |
+| `batchDelete` | 批量删除视频（流式返回进度） |
 
 ### HTTP 端点
 
@@ -329,6 +434,3 @@ http://localhost:12000/graphql
 |------|------|------|
 | `/video/stream/{id}` | GET | 视频流（支持Range请求，1MB分块） |
 | `/video/thumbnail` | GET | 获取缩略图 |
-
-
-
