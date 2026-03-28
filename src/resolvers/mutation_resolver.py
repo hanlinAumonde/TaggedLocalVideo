@@ -11,6 +11,7 @@ from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperati
 from src.services.dir_metadata_service import get_dir_metadata_service
 from src.services.path_convert_service import AbsolutePath
 from src.services.tag_operation_service import get_tag_operation_service
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("mutation_resolver")
 
@@ -20,6 +21,7 @@ class MutationResolver:
     def __init__(self):
         self.tagOperationService = get_tag_operation_service()
         self.dirMetadataService = get_dir_metadata_service()
+        self.resourceHandlerService = get_resource_handler_service()
 
     async def resolve_update_video_metadata(self,input: UpdateVideoMetadataInput) -> VideoMutationResult:
         """
@@ -118,19 +120,20 @@ class MutationResolver:
                 raise VideoNotFoundError(str(videoId))
 
             old_tags = set(video_model.tags or [])
-            video_path = AbsolutePath.from_existing_path(video_model.path)
+            video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category)
 
             await video_model.delete()
             await self.tagOperationService.update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
             video_FS_path = video_path.FS_format_path()
 
-            os.remove(video_FS_path)
+            handler = self.resourceHandlerService.get_handler(video_model.category)
+            handler.delete_file(video_FS_path)
 
             directory_path = os.path.dirname(video_FS_path)
             if directory_path:
                 await self.dirMetadataService.update_directory_metadata_forward(
-                    AbsolutePath.from_existing_path(directory_path)
+                    AbsolutePath.from_existing_path(directory_path, video_model.category)
                 )
                 
             return VideoMutationResult(success=True, video=None)

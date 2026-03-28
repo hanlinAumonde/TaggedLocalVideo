@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+from src.config import get_settings
 from src.db.models.VideoTag_model import VideoTagModel
 from src.logger import get_logger
 
@@ -9,6 +10,8 @@ logger = get_logger("tag_operation_service")
 class TagOperationService:
 
     async def get_top_tag_docs(self, limit: int, findQuery=None) -> list[VideoTagModel]:
+        if len(get_settings().get_valid_categories()) == 0:
+            return []
         if not findQuery:
             findQuery = VideoTagModel.find()
         return await findQuery.sort([("count", -1)]).limit(limit).to_list()

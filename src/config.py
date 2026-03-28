@@ -46,7 +46,7 @@ class LoggingConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    resource_paths: dict[str, str] = Field(default_factory=dict)
+    resource_paths: dict[str, dict[str, str]] = Field(default_factory=dict)
     ROOT_PATH: Optional[str] = None
     cache_config: CacheConfig = CacheConfig()
     ffmpeg_semaphore_limit: int = 4
@@ -56,6 +56,28 @@ class Settings(BaseSettings):
     mongo: MongoConfig = MongoConfig()
     validation: ValidationConfig = ValidationConfig()
     logging: LoggingConfig = LoggingConfig()
+
+    def get_valid_categories(self) -> list[str]:
+        return list(self.resource_paths.keys())
+
+    def get_all_host_paths(self) -> set[str]:
+        """Flatten all host paths across all categories."""
+        return {
+            host_path
+            for pseudo_paths in self.resource_paths.values()
+            for host_path in pseudo_paths.values()
+        }
+
+    def get_host_path(self, category: str, pseudo_name: str) -> str:
+        return self.resource_paths[category][pseudo_name]
+
+    def find_category_by_host_path(self, host_path: str) -> str | None:
+        """Reverse lookup: find category by matching host path prefix."""
+        for category, pseudo_paths in self.resource_paths.items():
+            for pseudo_name, configured_path in pseudo_paths.items():
+                if host_path == configured_path or host_path.startswith(configured_path + "/"):
+                    return category
+        return None
 
 
 @lru_cache

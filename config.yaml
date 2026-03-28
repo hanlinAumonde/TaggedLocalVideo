@@ -1,6 +1,7 @@
 resource_paths:
-  Resource-1: path1
-  Resource-2: path2
+  Local-resource:
+    Resource-1: host_path_1
+    Resource-2: host_path_2
 
 cache_config:
   max_size: 2048

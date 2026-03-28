@@ -1,11 +1,11 @@
 from functools import lru_cache
 import os
 from pymongo import UpdateOne
-from src.services.cache_service import get_cache_service, CacheService
+from src.services.cache.cache_service import get_cache_service, CacheService
 from src.config import get_settings
 from src.db.models.DirMetadata_model import DirMetadataModel
 from src.logger import get_logger
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
 
 logger = get_logger("dir_metadata_service")
 
@@ -15,44 +15,52 @@ class DirMetadataService:
     def __init__(self):
         self.settings = get_settings()
         self._cache: CacheService = get_cache_service()
-        self.pathHelper = get_path_service()
 
-    async def get_metadata(self, path: str) -> tuple[float, float] | None:
+    def _cache_key(self, category: str, path: str) -> str:
+        return f"{category}:{path}"
+
+    async def get_metadata(self, category: str, path: str) -> tuple[float, float] | None:
         """Cache-Aside read: cache -> database -> None"""
-        cached = self._cache.get(path)
+        cache_key = self._cache_key(category, path)
+        cached = self._cache.get(cache_key)
         if cached is not None:
             return cached
 
-        doc = await DirMetadataModel.find_one(DirMetadataModel.path == path)
+        doc = await DirMetadataModel.find_one(
+            DirMetadataModel.category == category,
+            DirMetadataModel.path == path
+        )
         if doc is not None:
             result = (doc.total_size, doc.last_modified_time)
-            self._cache.set(path, result)
+            self._cache.set(cache_key, result)
             return result
 
         return None
 
-    async def set_metadata(self, path: str, total_size: float, last_modified_time: float) -> None:
+    async def set_metadata(self, category: str, path: str, total_size: float, last_modified_time: float) -> None:
         """Single upsert to database + update cache."""
         await DirMetadataModel.get_pymongo_collection().update_one(
-            {"path": path},
+            {"category": category, "path": path},
             {"$set": {
+                "category": category,
                 "path": path,
                 "total_size": total_size,
                 "last_modified_time": last_modified_time,
             }},
             upsert=True
         )
-        self._cache.set(path, (total_size, last_modified_time))
+        self._cache.set(self._cache_key(category, path), (total_size, last_modified_time))
 
-    async def bulk_set_metadata(self, entries: dict[str, tuple[float, float]]) -> None:
+    async def bulk_set_metadata(self, category: str, entries: dict[str, tuple[float, float]]) -> None:
         """Bulk upsert to database, then batch update cache."""
         if not entries:
             return
 
         operations = [
             UpdateOne(
-                {"path": path},
+                {"category": category, "path": path},
                 {"$set": {
+                    "category": category,
                     "path": path,
                     "total_size": total_size,
                     "last_modified_time": last_modified_time,
@@ -68,24 +76,19 @@ class DirMetadataService:
             logger.exception(f"Bulk write error during dir metadata upsert: {e}")
 
         for path, value in entries.items():
-            self._cache.set(path, value)
+            self._cache.set(self._cache_key(category, path), value)
 
-    async def calculate_directory_metadata(self, 
-                                           directory_path: AbsolutePath, 
+    async def calculate_directory_metadata(self,
+                                           directory_path: AbsolutePath,
                                            skipCache: bool = False,
                                            recursiveCalculation: bool = True) -> tuple[float, float]:
-        """
-        Get total size and last modified time of all video files under the given directory.
-        Uses Cache-Aside pattern: cache -> database -> filesystem scan.
+        category = directory_path.category
+        if category is None:
+            return (0.0, 0.0)
 
-        :param directory_path: Absolute path of the directory to calculate metadata for
-        :param skipCache: If True, bypass cache and get fresh data from filesystem
-        :param recursiveCalculation: If True, calculate metadata recursively for all subdirectories; if False, only calculate for the specified directory without going into subdirectories
-        :return: Tuple of (total size in bytes, last modified time as timestamp)
-        :rtype: tuple[float, float]
-        """
+        db_path = directory_path.DB_format_path()
         if not skipCache:
-            cached = await self.get_metadata(directory_path.DB_format_path())
+            cached = await self.get_metadata(category, db_path)
             if cached is not None:
                 return cached
 
@@ -93,38 +96,40 @@ class DirMetadataService:
         result = await self._calculate_directory_metadata_impl(
             directory_path, collected, recursiveCalculation
         )
-        collected[directory_path.DB_format_path()] = result
-        await self.bulk_set_metadata(collected)
+        collected[db_path] = result
+        await self.bulk_set_metadata(category, collected)
         return result
 
-    async def _calculate_directory_metadata_impl(self, 
-                                           directory_path: AbsolutePath, 
+    async def _calculate_directory_metadata_impl(self,
+                                           directory_path: AbsolutePath,
                                            collected: dict[str, tuple[float, float]],
                                            recursiveCalculation: bool) -> tuple[float, float]:
         total_size = 0.0
         last_modified_time = 0.0
+        category = directory_path.category
 
         try:
-            with os.scandir(directory_path.FS_format_path()) as entries:
+            from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+            handler = get_resource_handler_service().get_handler(category)
+            with handler.list_directory(directory_path.FS_format_path()) as entries:
                 for entry in entries:
                     if entry.is_dir():
-                        sub_path = AbsolutePath.from_existing_path(entry.path)
+                        sub_path = AbsolutePath.from_existing_path(entry.path, category)
                         if recursiveCalculation:
                             dir_size, dir_mtime = await self._calculate_directory_metadata_impl(
                                 sub_path, collected, recursiveCalculation
                             )
                         else:
-                            dir_size, dir_mtime = await self.get_metadata(sub_path.DB_format_path()) or (0.0, 0.0)
+                            dir_size, dir_mtime = await self.get_metadata(category, sub_path.DB_format_path()) or (0.0, 0.0)
                         collected[sub_path.DB_format_path()] = (dir_size, dir_mtime)
                         total_size += dir_size
                         last_modified_time = max(last_modified_time, dir_mtime)
-                    elif entry.is_file() and self.pathHelper.is_video_file(entry.name):
+                    elif entry.is_file() and handler.is_video_file(entry.name):
                         stat = entry.stat()
-                        total_size += stat.st_size
-                        last_modified_time = max(last_modified_time, stat.st_mtime)
+                        total_size += stat.size
+                        last_modified_time = max(last_modified_time, stat.mtime)
 
         except (OSError, Exception):
-            # On error, log and return -1 to indicate failure
             logger.exception(f"Error accessing directory {directory_path} to calculate size and last modified time.")
             total_size = -1.0
             last_modified_time = -1.0
@@ -133,23 +138,19 @@ class DirMetadataService:
 
     async def update_directory_metadata_forward(self, directory_path: AbsolutePath) -> None:
         current_path = directory_path
+        category = directory_path.category
 
         while True:
             total_size, last_modified_time = await self.calculate_directory_metadata(
                 current_path, skipCache=True, recursiveCalculation=False
             )
-            # If calculation failed, stop propagation
             if total_size == -1.0 and last_modified_time == -1.0:
                 logger.exception(f"Failed to calculate metadata for {current_path.get_path()}. Stopping forward update.")
                 break
-            # Here we don't use bulkwrite to update both cache and database to ensure consistency 
-            # so that for each iteration the method calculation_directory_metadata can get the newly updated metadata
-            await self.set_metadata(current_path.DB_format_path(), total_size, last_modified_time)
-            
-            # resource_paths.values() is a set of host path (DB format), 
-            # so we have to use DB_format_path() to compare with it. 
+            await self.set_metadata(category, current_path.DB_format_path(), total_size, last_modified_time)
+
             current_db_path = current_path.DB_format_path()
-            if current_db_path in self.settings.resource_paths.values():
+            if current_db_path in self.settings.get_all_host_paths():
                 break
             current_path.update_path(os.path.dirname(current_db_path))
 

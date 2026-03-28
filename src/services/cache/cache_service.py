@@ -1,8 +1,8 @@
 from functools import lru_cache
 from typing import Optional
-from src.cache.base_cache import BaseCache, K, V
+from src.services.cache.base_cache import BaseCache, K, V
+from src.services.cache.cachetools_cache import CachetoolsCache
 from src.config import get_settings
-
 
 class CacheService(BaseCache[K, V]):
     """Cache service that delegates to a concrete cache implementation based on config."""
@@ -14,7 +14,6 @@ class CacheService(BaseCache[K, V]):
     @staticmethod
     def _create_impl(cache_type: str, maxsize: int, ttl: int) -> BaseCache:
         if cache_type == "cachetools":
-            from src.cache.cachetools_cache import CachetoolsCache
             return CachetoolsCache(maxsize=maxsize, ttl=ttl)
         raise ValueError(f"Unsupported cache type: {cache_type}")
 

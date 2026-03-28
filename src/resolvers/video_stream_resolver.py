@@ -5,7 +5,8 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("video_stream_resolver")
 
@@ -13,7 +14,7 @@ class VideoResolver:
     def __init__(
         self,
     ):
-        self.pathHepler = get_path_service()
+        self.resourceHandlerService = get_resource_handler_service()
 
     async def video_stream_resolver(self,video_id: str, request: Request) -> StreamingResponse:
         """
@@ -30,9 +31,10 @@ class VideoResolver:
         if not video:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
-        video_path = AbsolutePath.from_existing_path(video.path)
+        handler = self.resourceHandlerService.get_handler(video.category)
+        video_path = AbsolutePath.from_existing_path(video.path, video.category)
         video_fs_path = video_path.FS_format_path()
-        if not os.path.exists(video_fs_path):
+        if not handler.file_exists(video_fs_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 
         file_size = os.path.getsize(video_fs_path)
@@ -108,7 +110,7 @@ class VideoResolver:
         Returns:
             str: MIME type string
         """
-        ext = self.pathHepler.get_file_extension(file_path).lower()
+        ext = os.path.splitext(file_path)[1].lower()
         mime_types = {
             ".mp4": "video/mp4",
             ".webm": "video/webm",

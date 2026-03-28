@@ -71,12 +71,12 @@ export class Management implements OnDestroy{
   }
 
   constructor() {
-    const hasStatePredicate = (state: ManagementRefreshState | undefined) =>
+    const hasValidState = (state: ManagementRefreshState | undefined) =>
       state && Array.isArray(state.currentPath);
 
     const state = this.getRefreshState();
 
-    if (hasStatePredicate(state)) {
+    if (hasValidState(state)) {
       this.currentPath.set(state!.currentPath!);
     }
 
@@ -208,6 +208,7 @@ export class Management implements OnDestroy{
 
   navigateToPath(path: string[]) {
     this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, path);
+    console.log('Navigating to path:', path);
     this.currentPath.set(path);
   }
 

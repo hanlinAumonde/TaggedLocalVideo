@@ -27,10 +27,11 @@ services:
       - ./logs:/app/logs
       # mount resource paths
       # make sure that these paths are same as those defined in config.yaml
+      # format: /host/path:/app/resources/<category>/<pseudo_name>
 
       # e.g.:
-      # /path/on/host:/app/resources/Resource-1
-      # /another/path/on/host:/app/resources/Resource-2
+      # /path/on/host:/app/resources/Local-resource/Resource-1
+      # /another/path/on/host:/app/resources/Local-resource/Resource-2
     environment:
       - ROOT_PATH=/app/resources
       - MONGO_HOST=mongodb

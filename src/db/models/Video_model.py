@@ -1,15 +1,19 @@
 from typing import Optional
-from beanie import Document, Indexed
+from beanie import Document, Indexed, before_event, Insert, Replace
 import pymongo
 
+from src.config import get_settings
+
+
 class VideoModel(Document):
-    path: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore 
+    category: str
+    path: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore
     isDir: bool
     lastModifyTime: Indexed(float, pymongo.DESCENDING)  # type: ignore
     name: str
     size: float
-    tags: list[str]  
-    
+    tags: list[str]
+
     author: Optional[str] = "Unknown"
     introduction: Optional[str] = ""
     loved: Optional[bool] = False
@@ -18,9 +22,16 @@ class VideoModel(Document):
     thumbnail: Optional[str] = None
     duration: Optional[float] = 0.0
 
+    @before_event(Insert, Replace)
+    def validate_category(self):
+        valid = get_settings().get_valid_categories()
+        if self.category not in valid:
+            raise ValueError(f"Invalid category '{self.category}'. Must be one of {valid}")
+
     class Settings:
         name = "videos"
         indexes = [
+            [("category", pymongo.ASCENDING)],
             [("tags", pymongo.ASCENDING)],
             [("viewCount", pymongo.DESCENDING)],
             [("lastViewTime", pymongo.DESCENDING)],

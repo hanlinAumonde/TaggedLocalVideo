@@ -5,7 +5,7 @@ from src.config import get_settings
 from src.logger import get_logger
 from src.services.browse_file_service import get_browse_file_service
 from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
@@ -30,7 +30,6 @@ class QueryResolver:
 
     def __init__(self):
         self.settings = get_settings()
-        self.pathHepler = get_path_service()
         self.tagOperationService = get_tag_operation_service()
         self.thumbnailService = get_thumbnail_service()
         self.browseFileService = get_browse_file_service()
@@ -53,6 +52,18 @@ class QueryResolver:
 
         settings = get_settings()
         query_filters = {}
+
+        # Exclude videos from categories not in current config
+        valid_categories = settings.get_valid_categories()
+        if len(valid_categories) == 0:
+            return VideoSearchResult(
+                pagination=Pagination(
+                    size=0,totalCount=0,currentPageNumber=1
+                ),
+                videos=[]
+            )
+        if valid_categories:
+            query_filters["category"] = {"$in": valid_categories}
 
         # build query
         if validated_input.titleKeyword.keyWord:
@@ -87,7 +98,7 @@ class QueryResolver:
 
             async def get_video(video_model: VideoModel):
                 if video_model.duration is None or video_model.duration == 0.0:
-                    video_path = AbsolutePath.from_existing_path(video_model.path).FS_format_path()
+                    video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category).FS_format_path()
                     duration = await self.thumbnailService.get_video_duration(video_path)
                     video_model.duration = duration
                     await video_model.save()

@@ -1,6 +1,5 @@
 import asyncio
 from functools import lru_cache
-import os
 from typing import AsyncGenerator
 from bson import ObjectId
 from fastapi.concurrency import run_in_threadpool
@@ -10,13 +9,15 @@ from src.db.models.Video_model import VideoModel
 from src.errors import DatabaseOperationError, FileBrowseError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import (
-    BatchOperationStatus, 
-    VideosBatchOperationResult, 
+    BatchOperationStatus,
+    VideosBatchOperationResult,
     BatchResultType
 )
 from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.base_file_entry import BaseFileEntry
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 
@@ -25,13 +26,13 @@ logger = get_logger("batch_operation_service")
 class BatchOperationService:
 
     def __init__(self):
-        self.pathHepler = get_path_service()
         self.dirMetadataService = get_dir_metadata_service()
         self.tagOperationService = get_tag_operation_service()
         self.thumbnailService = get_thumbnail_service()
+        self.resourceHandlerService = get_resource_handler_service()
 
-    def constructBatchOperationStatus(self, resultType: BatchResultType | None = None, 
-                                   message: str | None = None, 
+    def constructBatchOperationStatus(self, resultType: BatchResultType | None = None,
+                                   message: str | None = None,
                                    status: str | None = None) -> BatchOperationStatus:
         if resultType is None or message is None:
             return BatchOperationStatus(
@@ -45,30 +46,24 @@ class BatchOperationService:
             ),
             status=status
         )
-    
-    async def batch_delete(self, 
+
+    async def batch_delete(self,
                            dir_path: AbsolutePath,
                            videoIds: list[str],
-                           fileEntries: list[os.DirEntry[str]] | None) -> AsyncGenerator[BatchOperationStatus, None]:
-        """
-        Batch delete videos based on provided video IDs or paths.
-
-        :param videoIds: List of video IDs to delete.
-        :param fileEntries: List of file entries to delete.
-        :return: Number of documents deleted.
-        """
+                           fileEntries: list[BaseFileEntry] | None) -> AsyncGenerator[BatchOperationStatus, None]:
         if (not videoIds and not fileEntries) or dir_path.get_path() is None:
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Failure,
                 message="No video IDs or file entries provided for batch delete"
             )
-        
+
+        category = dir_path.category
+
         try:
             if videoIds is not None:
                 videos = await VideoModel.find_many(
                     {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIds]}}
                 ).to_list()
-                # delete by IDs
                 result = await VideoModel.get_pymongo_collection().delete_many(
                     {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIds]}}
                 )
@@ -80,58 +75,50 @@ class BatchOperationService:
                 ).to_list()
                 not_deleted_ids = {v.id for v in videos_not_deleted}
                 actually_deleted = [v for v in videos if v.id not in not_deleted_ids]
-                await self._remove_videos_and_update_tags(actually_deleted)
+                await self._remove_videos_and_update_tags(actually_deleted, category)
 
             else:
-                # delete by paths
-                paths = [self.pathHepler.convert_to_DB_format_path(fe.path) for fe in fileEntries]
+                handler = self.resourceHandlerService.get_handler(category)
+                paths = [handler.convert_to_DB_format_path(
+                    handler.get_path_standard_format(fe.path)
+                ) for fe in fileEntries]
                 videos_before_delete = await VideoModel.find_many(
-                    {"path": {"$in": paths}}
+                    {"category": category, "path": {"$in": paths}}
                 ).to_list()
                 result = await VideoModel.get_pymongo_collection().delete_many(
-                    {"path": {"$in": paths}}
+                    {"category": category, "path": {"$in": paths}}
                 )
                 yield self.constructBatchOperationStatus(
                     status=f"Deleted {result.deleted_count} videos based on paths"
                 )
                 videos_not_deleted = await VideoModel.find_many(
-                    {"path": {"$in": paths}}
+                    {"category": category, "path": {"$in": paths}}
                 ).to_list()
                 not_deleted_paths = {v.path for v in videos_not_deleted}
                 actually_deleted = [v for v in videos_before_delete if v.path not in not_deleted_paths]
-                await self._remove_videos_and_update_tags(actually_deleted)
-            
+                await self._remove_videos_and_update_tags(actually_deleted, category)
+
             await self.dirMetadataService.update_directory_metadata_forward(dir_path)
 
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Success if (result.deleted_count == len(videoIds) if videoIds else result.deleted_count == len(fileEntries)) else \
-                        BatchResultType.PartialSuccess if result.deleted_count > 0 
+                        BatchResultType.PartialSuccess if result.deleted_count > 0
                         else BatchResultType.Failure,
                 message=f"Deleted {result.deleted_count} out of {(len(videoIds) if videoIds else len(fileEntries))} videos" if result.deleted_count > 0 else None
             )
 
         except FileBrowseError:
-            raise 
+            raise
         except Exception as e:
             logger.exception(f"Error during batch delete: {e}")
             raise DatabaseOperationError("batch_delete", "general_failure")
 
-    async def batch_update(self, 
+    async def batch_update(self,
+                           category: str,
                            videoIDs: list[str] | None,
-                           fileEntries: list[os.DirEntry[str]] | None,
+                           fileEntries: list[BaseFileEntry] | None,
                            author: str | None,
                            tagsOperation: TagsOperationMappingInputModel) -> AsyncGenerator[BatchOperationStatus, None]:
-        """
-        Batch update videos' metadata based on provided video IDs or paths.
-        Uses upsert for path-based queries to create new documents if they don't exist.
-
-        :param videoIDs: List of video IDs to update.
-        :param fileEntries: List of file entries to update.
-        :param author: New author name to set (if provided).
-        :param tagsOperation: Tags operation to append or remove.
-        :param findById: If True, treat videos as IDs; if False, treat as paths (with upsert).
-        :return: Number of documents modified or upserted.
-        """
         if not videoIDs and not fileEntries:
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Failure,
@@ -145,17 +132,16 @@ class BatchOperationService:
 
         try:
             if videoIDs is not None:
-                # find by IDs
                 video_models = await VideoModel.find_many(
                     {"_id": {"$in": [ObjectId(str(vid)) for vid in videoIDs]}}
                 ).to_list()
                 no_need_update_flag = await self._update_existing_videos_operations(
-                    video_models, 
-                    findById=True, 
-                    author=author, 
-                    tagsOperation=tagsOperation, 
-                    update_tags=update_tags, 
-                    operations=operations, 
+                    video_models,
+                    findById=True,
+                    author=author,
+                    tagsOperation=tagsOperation,
+                    update_tags=update_tags,
+                    operations=operations,
                     no_need_update_flag=no_need_update_flag
                 )
                 yield self.constructBatchOperationStatus(
@@ -163,36 +149,39 @@ class BatchOperationService:
                 )
 
             else:
-                # find by paths with upsert
-                paths = [self.pathHepler.convert_to_DB_format_path(fe.path) for fe in fileEntries]
+                handler = self.resourceHandlerService.get_handler(category)
+                paths = [handler.convert_to_DB_format_path(
+                    handler.get_path_standard_format(fe.path)
+                ) for fe in fileEntries]
                 video_models = await VideoModel.find_many(
-                    {"path": {"$in": paths}}
+                    {"category": category, "path": {"$in": paths}}
                 ).to_list()
                 existing_paths = {vm.path for vm in video_models}
 
-                # process existing documents
                 no_need_update_flag = await self._update_existing_videos_operations(
-                    video_models, 
-                    findById=False, 
-                    author=author, 
-                    tagsOperation=tagsOperation, 
-                    update_tags=update_tags, 
-                    operations=operations, 
+                    video_models,
+                    findById=False,
+                    author=author,
+                    tagsOperation=tagsOperation,
+                    update_tags=update_tags,
+                    operations=operations,
                     no_need_update_flag=no_need_update_flag
                 )
 
-                # process new documents in parallel with ffprobe duration extraction
                 new_entries = [
                     entry for entry in fileEntries
-                    if self.pathHepler.convert_to_DB_format_path(entry.path) not in existing_paths
+                    if handler.convert_to_DB_format_path(
+                        handler.get_path_standard_format(entry.path)
+                    ) not in existing_paths
                 ]
 
                 if new_entries:
                     new_operations = await asyncio.gather(*[
                         self._process_new_video_entry(
-                            entry=entry, 
-                            author=author, 
-                            tagsOperation=tagsOperation, 
+                            entry=entry,
+                            category=category,
+                            author=author,
+                            tagsOperation=tagsOperation,
                             update_tags=update_tags,
                         )
                         for entry in new_entries
@@ -231,8 +220,8 @@ class BatchOperationService:
             logger.exception(f"Error during batch update: {e}")
             raise DatabaseOperationError("batch_update", "general_failure")
 
-    async def _update_existing_videos_operations(self, 
-                                                 video_models: list[VideoModel], 
+    async def _update_existing_videos_operations(self,
+                                                 video_models: list[VideoModel],
                                                  findById: bool,
                                                  author: str | None,
                                                  tagsOperation: TagsOperationMappingInputModel,
@@ -259,67 +248,62 @@ class BatchOperationService:
                     update_query["tags"] = list(new_tags)
 
             if video_model.duration is None or video_model.duration == 0.0:
+                video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category)
                 duration = await self.thumbnailService.get_video_duration(
-                    self.pathHepler.convert_to_FS_format_path(video_model.path)
-                )     
+                    video_path.FS_format_path()
+                )
                 if duration is not None and duration > 0.0:
                     update_query["duration"] = duration
 
             if update_query:
                 operations.append(UpdateOne(filter_query, {"$set": update_query}))
-        
+
         if len(operations) == 0 and len(video_models) > 0:
             no_need_update_flag = True
 
         return no_need_update_flag
-    
-    async def _remove_videos_and_update_tags(self, actually_deleted: list[VideoModel]):
+
+    async def _remove_videos_and_update_tags(self, actually_deleted: list[VideoModel], category: str):
         paths_to_delete = [v.path for v in actually_deleted]
-        await run_in_threadpool(self._remove_videos_by_paths, paths_to_delete)
+        await run_in_threadpool(self._remove_videos_by_paths, paths_to_delete, category)
 
         update_tags: dict[str, tuple[int, bool]] = {}
         for video in actually_deleted:
             self.tagOperationService.track_tag_change(update_tags, set(video.tags or []), False)
         if update_tags:
             await self.tagOperationService.update_tag_counts(update_tags=update_tags)
-    
-    def _remove_videos_by_paths(self, paths: list[str]):
+
+    def _remove_videos_by_paths(self, paths: list[str], category: str):
         try:
+            handler = self.resourceHandlerService.get_handler(category)
             for path in paths:
-                os.remove(self.pathHepler.convert_to_FS_format_path(path))
+                handler.delete_file(handler.convert_to_FS_format_path(path))
         except Exception as e:
             logger.exception(f"Error removing video files: {e}")
             raise FileBrowseError("Error removing video files.")
-        
+
     async def _process_new_video_entry(
         self,
-        entry: os.DirEntry[str],
+        entry: BaseFileEntry,
+        category: str,
         author: str | None,
         tagsOperation: TagsOperationMappingInputModel | None,
         update_tags: dict[str, tuple[int,bool]]
     ) -> UpdateOne:
-        """
-        Process a single new video entry: get duration via ffprobe and build upsert operation.
-
-        :param entry: Directory entry for the video file
-        :param author: Author name to set (if provided)
-        :param tagsOperation: Tags operation to apply
-        :param track_tag_change: Callback to track tag changes
-        :return: UpdateOne operation for bulk write
-        """
-        entry_path = AbsolutePath.from_existing_path(entry.path)
+        entry_path = AbsolutePath.from_existing_path(entry.path, category)
+        handler = self.resourceHandlerService.get_handler(category)
         filter_query = {"path": entry_path.DB_format_path()}
 
-        # Get video duration with semaphore to limit concurrent ffprobe processes
         duration = await self.thumbnailService.get_video_duration(entry_path.FS_format_path()) or 0.0
 
         stat = entry.stat()
         set_on_insert = VideoModel(
-            name=entry.name,
+            category=category,
+            name=handler.get_filename_without_extension(entry.name),
             path=entry_path.DB_format_path(),
             isDir=False,
-            lastModifyTime=stat.st_mtime,
-            size=stat.st_size,
+            lastModifyTime=stat.mtime,
+            size=stat.size,
             duration=duration,
             tags=[]
         ).model_dump()

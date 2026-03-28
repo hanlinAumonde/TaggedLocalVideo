@@ -1,7 +1,6 @@
 from typing import Optional
 from cachetools import TTLCache
-from src.cache.base_cache import BaseCache, K, V
-
+from src.services.cache.base_cache import BaseCache, K, V
 
 class CachetoolsCache(BaseCache[K, V]):
 

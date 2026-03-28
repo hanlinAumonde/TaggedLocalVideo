@@ -9,7 +9,7 @@ from src.schema.types.fileBrowse_type import (
 )
 from src.services.batch_operation_service import get_batch_operation_service
 from src.services.browse_file_service import get_browse_file_service
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
 
 
 logger = get_logger("SubscriptionResolver")
@@ -17,7 +17,6 @@ logger = get_logger("SubscriptionResolver")
 class SubscriptionResolver:
 
     def __init__(self):
-        self.pathHepler = get_path_service()
         self.browseFileService = get_browse_file_service()
         self.batchOperationService = get_batch_operation_service()
 
@@ -39,11 +38,13 @@ class SubscriptionResolver:
             raise InputValidationError(field="VideosBatchOperationInput", issue="Invalid input data for batch updating videos")
         
         dir_path = AbsolutePath.from_relative_path(validated_input.relativePath.parsedPath)
+        category = dir_path.category
         if validated_input.videoIds is None or len(validated_input.videoIds) == 0:
             videoIDs = None
             entries = await run_in_threadpool(
-                self.browseFileService.get_all_video_entries_in_directory, 
-                dir_path.FS_format_path()
+                self.browseFileService.get_all_video_entries_in_directory,
+                dir_path.FS_format_path(),
+                category
             )
             yield self.batchOperationService.constructBatchOperationStatus(
                 status=f"Found {len(entries)} video entries in directory '{validated_input.relativePath.relativePath}' for batch update"
@@ -51,12 +52,13 @@ class SubscriptionResolver:
         else:
             videoIDs = validated_input.videoIds
             entries = None
-        
+
         if update:
             async for status in self.batchOperationService.batch_update(
+                category=category,
                 videoIDs=videoIDs,
                 fileEntries=entries,
-                author=validated_input.author, 
+                author=validated_input.author,
                 tagsOperation=validated_input.tagsOperation,
             ):
                 yield status

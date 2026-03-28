@@ -10,7 +10,8 @@ from starlette.responses import StreamingResponse
 from src.config import get_settings
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.path_convert_service import AbsolutePath, get_path_service
+from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("thumbnail_service")
 
@@ -25,7 +26,7 @@ class ThumbnailService:
                 os.cpu_count() // 2
             )
         )
-        self.pathHepler = get_path_service()
+        self.resourceHandlerService = get_resource_handler_service()
         
     async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
         if not video_id:
@@ -37,9 +38,10 @@ class ThumbnailService:
                 logger.warning(f"Video metadata not found for video_id: {video_id}")
                 raise HTTPException(status_code=404, detail="Video not found")
 
-            video_path = AbsolutePath.from_existing_path(video.path)
+            handler = self.resourceHandlerService.get_handler(video.category)
+            video_path = AbsolutePath.from_existing_path(video.path, video.category)
             video_fs_path = video_path.FS_format_path()
-            if not os.path.exists(video_fs_path):
+            if not handler.file_exists(video_fs_path):
                 logger.warning(f"Video file not found at path: {video_fs_path}")
                 raise HTTPException(status_code=404, detail="Video file doesn't exist")
             
