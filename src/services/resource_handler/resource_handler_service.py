@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from src.config import get_settings
+from src.config import Settings, get_settings
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
 
@@ -14,18 +14,22 @@ class ResourceHandlerService:
 
         for category, pseudo_paths in settings.resource_paths.items():
             self._handlers[category] = self._create_handler(
-                category, pseudo_paths, settings.ROOT_PATH
+                category, pseudo_paths, settings
             )
 
     @staticmethod
     def _create_handler(
         category: str,
         pseudo_paths: dict[str, str],
-        root_path: str | None
+        settings: Settings,
     ) -> BaseResourceHandler:
-        # Currently only local filesystem is supported.
-        # Future: inspect category name or config to select S3Handler, etc.
-        return LocalFSResourceHandler(category, pseudo_paths, root_path)
+        handler_configs = settings.handler_config.get(category, {})
+
+        if handler_configs:
+            from src.services.resource_handler.s3.s3_handler import S3ResourceHandler
+            return S3ResourceHandler(category, pseudo_paths, handler_configs)
+        else:
+            return LocalFSResourceHandler(category, pseudo_paths, settings.ROOT_PATH)
 
     def get_handler(self, category: str) -> BaseResourceHandler:
         handler = self._handlers.get(category)

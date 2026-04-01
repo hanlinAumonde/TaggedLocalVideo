@@ -1,5 +1,4 @@
 from functools import lru_cache
-import os
 import strawberry
 from bson import ObjectId
 import time
@@ -130,7 +129,7 @@ class MutationResolver:
             handler = self.resourceHandlerService.get_handler(video_model.category)
             handler.delete_file(video_FS_path)
 
-            directory_path = os.path.dirname(video_FS_path)
+            directory_path = handler.dirname(video_FS_path)
             if directory_path:
                 await self.dirMetadataService.update_directory_metadata_forward(
                     AbsolutePath.from_existing_path(directory_path, video_model.category)

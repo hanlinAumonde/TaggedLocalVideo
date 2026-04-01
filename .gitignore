@@ -13,4 +13,7 @@ uv.lock
 # Logs
 logs/
 
+.vscode/
+
 mongodb-data/
+rustfs_data/

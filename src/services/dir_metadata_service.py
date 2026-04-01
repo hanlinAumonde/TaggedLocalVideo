@@ -1,11 +1,11 @@
 from functools import lru_cache
-import os
 from pymongo import UpdateOne
 from src.services.cache.cache_service import get_cache_service, CacheService
 from src.config import get_settings
 from src.db.models.DirMetadata_model import DirMetadataModel
 from src.logger import get_logger
 from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("dir_metadata_service")
 
@@ -14,6 +14,7 @@ class DirMetadataService:
 
     def __init__(self):
         self.settings = get_settings()
+        self.resourceHandlerService = get_resource_handler_service()
         self._cache: CacheService = get_cache_service()
 
     def _cache_key(self, category: str, path: str) -> str:
@@ -139,6 +140,7 @@ class DirMetadataService:
     async def update_directory_metadata_forward(self, directory_path: AbsolutePath) -> None:
         current_path = directory_path
         category = directory_path.category
+        handler = self.resourceHandlerService.get_handler(category)
 
         while True:
             total_size, last_modified_time = await self.calculate_directory_metadata(
@@ -150,9 +152,12 @@ class DirMetadataService:
             await self.set_metadata(category, current_path.DB_format_path(), total_size, last_modified_time)
 
             current_db_path = current_path.DB_format_path()
-            if current_db_path in self.settings.get_all_host_paths():
+            if current_db_path in self.settings.get_all_logical_root_paths():
                 break
-            current_path.update_path(os.path.dirname(current_db_path))
+            parent = handler.dirname(current_db_path)
+            if not parent or parent == current_db_path:
+                break
+            current_path.update_path(parent)
 
 
 @lru_cache

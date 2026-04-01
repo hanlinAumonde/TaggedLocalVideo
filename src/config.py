@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Optional
-from pydantic import BaseModel, Field
-import yaml
+from pydantic import BaseModel, ConfigDict, Field
+from envyaml import EnvYAML
 from pydantic_settings import BaseSettings
 
 class CacheConfig(BaseModel):
@@ -45,8 +45,25 @@ class LoggingConfig(BaseModel):
     retention: str = "30 days"
 
 
+class S3HandlerConfig(BaseModel):
+    endpoint_url: str
+    access_key: str
+    secret_key: str
+    bucket: str
+    region: str = ""
+
+
+class ThumbnailConfig(BaseModel):
+    storage_category: str = ""
+    storage_pseudo_name: str = ""
+
+
 class Settings(BaseSettings):
+    model_config = ConfigDict(extra="ignore")
+
     resource_paths: dict[str, dict[str, str]] = Field(default_factory=dict)
+    handler_config: dict[str, dict[str, S3HandlerConfig]] = Field(default_factory=dict)
+    thumbnail_config: ThumbnailConfig = ThumbnailConfig()
     ROOT_PATH: Optional[str] = None
     cache_config: CacheConfig = CacheConfig()
     ffmpeg_semaphore_limit: int = 4
@@ -79,30 +96,18 @@ class Settings(BaseSettings):
                     return category
         return None
 
+    def get_all_logical_root_paths(self) -> set[str]:
+        """Get all logical root paths in format '{category}/{pseudo_name}'."""
+        return {
+            f"{category}/{pseudo_name}"
+            for category, pseudo_paths in self.resource_paths.items()
+            for pseudo_name in pseudo_paths
+        }
+
 
 @lru_cache
 def get_settings() -> Settings:
-    import os
-    with open("config.yaml", "r", encoding="utf-8") as file:
-        config: dict = yaml.safe_load(file) or {}
-
-    # override settings with environment variables if they exist
-    if "ROOT_PATH" in os.environ:
-        config["ROOT_PATH"] = os.getenv("ROOT_PATH")
-        
-    if "mongo" not in config:
-        config["mongo"] = {}
-    if os.getenv("MONGO_HOST"):
-        config["mongo"]["host"] = os.getenv("MONGO_HOST")
-    if os.getenv("MONGO_PORT"):
-        config["mongo"]["port"] = int(os.getenv("MONGO_PORT"))
-    if os.getenv("MONGO_USERNAME"):
-        config["mongo"]["username"] = os.getenv("MONGO_USERNAME")
-    if os.getenv("MONGO_PASSWORD"):
-        config["mongo"]["password"] = os.getenv("MONGO_PASSWORD")
-    if os.getenv("MONGO_DATABASE"):
-        config["mongo"]["database"] = os.getenv("MONGO_DATABASE")
-
+    config = dict(EnvYAML("config.yaml"))
     return Settings.model_validate(config)
 
 

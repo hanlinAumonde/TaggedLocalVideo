@@ -2,6 +2,8 @@ from contextlib import contextmanager
 from typing import Iterator
 import os
 
+import aiofiles
+
 from src.config import get_settings
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.base_file_entry import BaseFileEntry
@@ -38,43 +40,117 @@ class LocalFSResourceHandler(BaseResourceHandler):
     def delete_file(self, path: str) -> None:
         os.remove(path)
 
+    def get_size(self, path: str) -> float:
+        """get size of file directly via os.path to avoid unnecessary FileEntry creation"""
+        return os.path.getsize(path)
+
+    # --- File content read/write ---
+
+    async def read_file_chunk(self, path: str, offset: int, length: int) -> bytes:
+        async with aiofiles.open(path, "rb") as f:
+            await f.seek(offset)
+            return await f.read(length)
+
+    async def write_file(self, path: str, data: bytes) -> None:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        async with aiofiles.open(path, "wb") as f:
+            await f.write(data)
+
+    # --- Path resolution ---
+
+    def resolve_path(self, category: str, pseudo_name: str | None, sub_path: str | None) -> str:
+        if pseudo_name is None:
+            return category
+
+        if self._root_path:
+            abs_resource_path = self.join_path(self._root_path, category, pseudo_name)
+        else:
+            abs_resource_path = self.get_path_standard_format(self._pseudo_paths[pseudo_name])
+
+        if sub_path is None:
+            return abs_resource_path
+        return self.get_path_standard_format(os.path.join(abs_resource_path, sub_path.lstrip("/")))
+
     # --- Path conversion ---
 
     def convert_to_DB_format_path(self, path: str) -> str:
-        """Convert mounted container path to absolute host path (DB storage format)."""
-        db_path = path
+        """
+        Convert any path to DB logical format: {category}/{pseudo_name}/{relative}.
+        Auto-detects input: if already logical, returns as-is; if FS path, converts.
+        """
+        path = self.get_path_standard_format(path)
+
+        # Already in logical format
+        if path.startswith(self._category + "/"):
+            return path
+
+        # FS path → logical path
         if self._root_path:
-            for pseudo_name, host_path in self._pseudo_paths.items():
+            for pseudo_name in self._pseudo_paths:
                 mounted_root = self.get_path_standard_format(
                     os.path.join(self._root_path, self._category, pseudo_name)
                 )
-                if db_path.startswith(mounted_root):
-                    relative_sub = db_path[len(mounted_root):]
-                    return self.get_path_standard_format(
-                        os.path.join(host_path, relative_sub.lstrip("/"))
-                    )
-        return self.get_path_standard_format(db_path)
+                if path == mounted_root or path.startswith(mounted_root + "/"):
+                    relative = path[len(mounted_root):].lstrip("/")
+                    if relative:
+                        return f"{self._category}/{pseudo_name}/{relative}"
+                    return f"{self._category}/{pseudo_name}"
+        else:
+            for pseudo_name, host_path in self._pseudo_paths.items():
+                normalized = self.get_path_standard_format(host_path)
+                if path == normalized or path.startswith(normalized + "/"):
+                    relative = path[len(normalized):].lstrip("/")
+                    if relative:
+                        return f"{self._category}/{pseudo_name}/{relative}"
+                    return f"{self._category}/{pseudo_name}"
+
+        return path
 
     def convert_to_FS_format_path(self, path: str) -> str:
-        """Convert absolute host path (DB format) to mounted container path (FS access format)."""
-        fs_path = path
-        if self._root_path:
-            for pseudo_name, host_path in self._pseudo_paths.items():
-                if fs_path.startswith(host_path):
-                    relative_sub = fs_path[len(host_path):]
-                    return self.get_path_standard_format(
-                        os.path.join(self._root_path, self._category, pseudo_name, relative_sub.lstrip("/"))
-                    )
-        return self.get_path_standard_format(fs_path)
+        """
+        Convert any path to FS-accessible format.
+        Auto-detects input: if logical path, converts to FS; if already FS, returns as-is.
+        """
+        path_std = self.get_path_standard_format(path)
+
+        # Logical path → FS path
+        if path_std.startswith(self._category + "/"):
+            rest = path_std[len(self._category) + 1:]
+            parts = rest.split("/", 1)
+            pseudo_name = parts[0]
+            relative = parts[1] if len(parts) > 1 else ""
+
+            if pseudo_name in self._pseudo_paths:
+                if self._root_path:
+                    base = os.path.join(self._root_path, self._category, pseudo_name)
+                else:
+                    base = self._pseudo_paths[pseudo_name]
+
+                if relative:
+                    return self.get_path_standard_format(os.path.join(base, relative))
+                return self.get_path_standard_format(base)
+
+        # Already FS path or unknown format
+        return self.get_path_standard_format(path)
 
     def get_path_standard_format(self, path: str) -> str:
         return os.path.normpath(path).replace("\\", "/")
 
-    # --- File utilities ---
+    # --- File utilities (static) ---
 
-    def is_video_file(self, filename: str) -> bool:
+    @staticmethod
+    def is_video_file(filename: str) -> bool:
         _, ext = os.path.splitext(filename.lower())
         return ext in get_settings().video_extensions
 
-    def get_filename_without_extension(self, filename: str) -> str:
+    @staticmethod
+    def get_filename_without_extension(filename: str) -> str:
         return os.path.splitext(os.path.basename(filename))[0]
+
+    @staticmethod
+    def join_path(*parts: str) -> str:
+        return os.path.normpath(os.path.join(*parts)).replace("\\", "/")
+
+    @staticmethod
+    def dirname(path: str) -> str:
+        return os.path.dirname(path).replace("\\", "/")

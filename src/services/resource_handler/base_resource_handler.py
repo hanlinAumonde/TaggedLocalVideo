@@ -22,11 +22,57 @@ class BaseResourceHandler(ABC):
         ...
 
     @abstractmethod
+    def get_size(self, path: str) -> float:
+        """Get the size of a file at the given path."""
+        ...
+
+    @abstractmethod
     def file_exists(self, path: str) -> bool:
+        """Check if a file exists at the given path."""
         ...
 
     @abstractmethod
     def delete_file(self, path: str) -> None:
+        """Delete the file at the given path."""
+        ...
+
+    # --- File content read/write ---
+
+    @abstractmethod
+    async def read_file_chunk(self, path: str, offset: int, length: int) -> bytes:
+        """
+        Read a chunk of file data from [offset, offset+length).
+
+        :param path: FS-format path (filesystem path for LocalFS, object key for S3)
+        :param offset: Starting byte offset
+        :param length: Number of bytes to read
+        :return: The bytes read
+        """
+        ...
+
+    @abstractmethod
+    async def write_file(self, path: str, data: bytes) -> None:
+        """
+        Write a complete file (for small files like thumbnails).
+
+        :param path: FS-format path
+        :param data: File content bytes
+        """
+        ...
+
+    # --- Path resolution ---
+
+    @abstractmethod
+    def resolve_path(self, category: str, pseudo_name: str | None, sub_path: str | None) -> str:
+        """
+        Resolve a parsed relative path (from GraphQL request) into the handler's
+        internal absolute/logical path representation.
+
+        :param category: Resource category (e.g. "Local-resource", "S3-resource")
+        :param pseudo_name: Pseudo name within category, or None for category-level
+        :param sub_path: Remaining sub-path after pseudo_name, or None
+        :return: Resolved path in the handler's native format
+        """
         ...
 
     # --- Path conversion ---
@@ -46,14 +92,28 @@ class BaseResourceHandler(ABC):
         """Normalize path to standard format (forward slashes)."""
         ...
 
-    # --- File utilities ---
+    # --- File utilities (static) ---
 
+    @staticmethod
     @abstractmethod
-    def is_video_file(self, filename: str) -> bool:
+    def is_video_file(filename: str) -> bool:
         """Check if a file is a video based on its extension."""
         ...
 
+    @staticmethod
     @abstractmethod
-    def get_filename_without_extension(self, filename: str) -> str:
+    def get_filename_without_extension(filename: str) -> str:
         """Get file name without extension."""
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def join_path(*parts: str) -> str:
+        """Join path parts using the handler's path separator."""
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def dirname(path: str) -> str:
+        """Get the parent directory of a path."""
         ...

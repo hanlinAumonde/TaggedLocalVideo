@@ -1,11 +1,10 @@
-import os
 from typing import Annotated
-import aiofiles
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
 from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("video_stream_resolver")
@@ -24,7 +23,7 @@ class VideoResolver:
             video_id: The MongoDB ID of the video
             request: A FastAPI Request object used to retrieve the range header
 
-        Returns: 
+        Returns:
             StreamingResponse: The video stream response
         """
         video = await VideoModel.get(video_id)
@@ -32,12 +31,11 @@ class VideoResolver:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
         handler = self.resourceHandlerService.get_handler(video.category)
-        video_path = AbsolutePath.from_existing_path(video.path, video.category)
-        video_fs_path = video_path.FS_format_path()
+        video_fs_path = AbsolutePath.from_existing_path(video.path, video.category).FS_format_path()
         if not handler.file_exists(video_fs_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 
-        file_size = os.path.getsize(video_fs_path)
+        file_size = handler.get_size(video_fs_path)
 
         range_header = request.headers.get("Range")
 
@@ -59,7 +57,7 @@ class VideoResolver:
                 content_length = end - start + 1
 
                 return StreamingResponse(
-                    self.iter_file(video_fs_path, 1024*1024, start, content_length),
+                    self._iter_file_chunks(handler, video_fs_path, 1024*1024, start, content_length),
                     status_code=206,
                     headers={
                         "Content-Range": f"bytes {start}-{end}/{file_size}",
@@ -72,7 +70,7 @@ class VideoResolver:
 
             else:
                 return StreamingResponse(
-                    self.iter_file(video_fs_path, chunk_size=1024*1024, with_range=False),
+                    self._iter_file_chunks(handler, video_fs_path, 1024*1024, 0, int(file_size)),
                     headers={
                         "Accept-Ranges": "bytes",
                         "Content-Length": str(file_size),
@@ -83,23 +81,22 @@ class VideoResolver:
         except Exception as e:
             logger.exception(f"Error while processing video stream request: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
-        
-    async def iter_file(self, video_path: str, chunk_size: int = 1024*1024, start: int = 0, content_length: int | None = None, with_range: bool = True):
-        async with aiofiles.open(video_path, "rb") as video_file:
-            if with_range:
-                await video_file.seek(start)
-                remaining = content_length
-                while remaining > 0:
-                    chunk = await video_file.read(min(chunk_size, remaining))
-                    if not chunk:
-                        break
-                    remaining -= len(chunk)
-                    yield chunk
-            else:
-                while chunk := await video_file.read(chunk_size):
-                    yield chunk          
-    
-    
+
+    async def _iter_file_chunks(
+        self, handler: BaseResourceHandler, path: str,
+        chunk_size: int, start: int, content_length: int
+    ):
+        remaining = content_length
+        offset = start
+        while remaining > 0:
+            read_size = min(chunk_size, remaining)
+            chunk = await handler.read_file_chunk(path, offset, read_size)
+            if not chunk:
+                break
+            offset += len(chunk)
+            remaining -= len(chunk)
+            yield chunk
+
     def get_video_mime_type(self, file_path: str) -> str:
         """
         Returns the correct MIME type based on the file extension.
@@ -110,22 +107,7 @@ class VideoResolver:
         Returns:
             str: MIME type string
         """
-        ext = os.path.splitext(file_path)[1].lower()
-        mime_types = {
-            ".mp4": "video/mp4",
-            ".webm": "video/webm",
-            ".ogg": "video/ogg",
-            ".ogv": "video/ogg",
-            ".avi": "video/x-msvideo",
-            ".mov": "video/quicktime",
-            ".wmv": "video/x-ms-wmv",
-            ".flv": "video/x-flv",
-            ".mkv": "video/x-matroska",
-            ".m4v": "video/x-m4v",
-            ".mpg": "video/mpeg",
-            ".mpeg": "video/mpeg",
-        }
-        return mime_types.get(ext, "video/mp4")
+        return "video/mp4"
 
 
 def get_video_resolver():
