@@ -2,15 +2,16 @@
 
 # Video App - 全栈视频管理应用
 
-- 一个简单的本地视频元数据管理、流传输和浏览webUI应用，支持视频分类、标签管理、搜索和网页播放。
+- 一个全栈视频元数据管理、流传输和浏览webUI应用，支持视频分类、标签管理、搜索和网页播放。同时支持本地文件系统和S3兼容存储（MinIO、RustFS等）。
 
-- 只需在配置中将已有的想要管理的视频目录映射到应用，即可自动扫描、生成缩略图，然后即可管理视频元数据（标题，收藏，tag等）。
+- 只需在配置中将已有的视频目录或S3存储桶映射到应用，即可自动扫描、生成缩略图，然后即可管理视频元数据（标题，收藏，tag等）。
 
 ## ✨ 功能特性
 
 - 🏷️ **标签管理** - 视频标签系统，支持批量操作
 - 📁 **目录浏览** - 多源文件系统目录浏览，支持 category 层级分类
-- 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成
+- 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成，支持可选的S3持久化存储
+- ☁️ **S3兼容存储** - 通过策略模式支持S3兼容存储后端（MinIO、RustFS等）
 - ❤️ **收藏功能** - 视频收藏与播放统计
 - 📱 **响应式设计** - 适配多种屏幕尺寸
 
@@ -40,6 +41,7 @@
 | Docker | 容器化 |
 | docker-compose | 容器编排 |
 | ffmpeg | 缩略图生成 |
+| RustFS / MinIO | S3兼容对象存储（可选） |
 
 
 ## 🚀 快速开始
@@ -59,7 +61,7 @@ cd video-app
 
 **2. 配置视频资源路径**
 
-编辑 `docker-compose.yml`，修改后端服务的 volumes 映射：
+编辑 `docker-compose.yml`，修改后端服务的 volumes 和 environment 映射：
 
 ```yaml
 backend:
@@ -69,18 +71,27 @@ backend:
     # 格式: 宿主机路径:/app/resources/Category名称/PseudoName名称
     - /your/video/path1:/app/resources/Local-resource/Resource-1
     - /your/video/path2:/app/resources/Local-resource/Resource-2
+  environment:
+    - ROOT_PATH=/app/resources
+    - MONGO_HOST=mongodb
+    - MONGO_PORT=27017
+    # S3 存储（可选，覆盖 config.yaml 中的默认值以适配 Docker 网络）
+    # - S3_RESOURCE_1_ENDPOINT_URL=http://rustfs:9000
+    # - S3_RESOURCE_1_ACCESS_KEY=rustfsadmin
+    # - S3_RESOURCE_1_SECRET_KEY=rustfsadmin
+    # - S3_RESOURCE_1_BUCKET=video-app
 ```
 
-编辑 `config.yaml`，确保 `resource_paths` 与容器内路径一致：
+编辑 `config.yaml` 配置资源路径（支持 envyaml `$VAR|default` 语法）：
 
 ```yaml
 resource_paths:
   Local-resource:              # category 名称
     Resource-1: /your/video/path1   # pseudo_name: 宿主机路径
     Resource-2: /your/video/path2
-
-root_path: /app/resources
 ```
+
+> **注意**：`docker-compose.yml` 默认包含 RustFS 服务（S3兼容存储）。要启用S3存储，请取消上方S3环境变量的注释，并取消 `config.yaml` 中 `handler_config` / `thumbnail_config` 部分的注释。
 
 **3. 启动服务**
 ```bash
@@ -127,25 +138,28 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 **3. 配置后端**
 
-编辑 `config.yaml`：
+编辑 `config.yaml`（使用 [envyaml](https://github.com/thesimj/envyaml) `$VAR|default` 语法）：
 
 ```yaml
+# 本地开发时 ROOT_PATH 留空
+ROOT_PATH: $ROOT_PATH|
+
 # 视频资源路径（使用本地绝对路径）
 resource_paths:
   Local-resource:                    # category 名称
     Resource-1: /your/video/path1   # pseudo_name: 本地绝对路径
     Resource-2: /your/video/path2
 
-# 本地开发时注释掉 root_path
-# root_path: /app/resources
-
 # MongoDB 配置
 mongo:
-  host: localhost
-  port: 27017
-  database: video_tag_db
-  username: your_username    # 如无认证可留空
-  password: your_password    # 如无认证可留空
+  host: $MONGO_HOST|localhost
+  port: $MONGO_PORT|27017
+  database: $MONGO_DATABASE|video_tag_db
+  username: $MONGO_USERNAME|         # 如无认证可留空
+  password: $MONGO_PASSWORD|
+
+# 可选：S3兼容存储（MinIO、RustFS等）
+# 详见"config.yaml 完整配置"章节
 ```
 
 **4. 启动后端**
@@ -191,19 +205,36 @@ npm start
 
 ### config.yaml 完整配置
 
-```yaml
-# 视频资源路径映射 (category -> pseudo_name -> host_path)
-# Docker部署: host_path 填宿主机路径, 需配合 docker-compose.yml volumes 和 root_path
-# 手动安装: host_path 填本地绝对路径, 注释掉 root_path
-resource_paths:
-  Local-resource:                              # category 名称
-    Resource-1: /app/resources/Resource-1      # Docker 部署
-    Resource-2: /app/resources/Resource-2
-    # Resource-1: D:/videos/folder1            # 手动安装示例
-    # Resource-2: E:/videos/folder2
+配置使用 [envyaml](https://github.com/thesimj/envyaml) 语法：`$ENV_VAR|default_value` 表示环境变量替换及默认值。
 
-# Docker部署时需要设置，手动安装时注释掉
-root_path: /app/resources
+```yaml
+# 容器挂载基路径（Docker 部署时通过环境变量设置，本地开发留空）
+ROOT_PATH: $ROOT_PATH|
+
+# 视频资源路径映射 (category -> pseudo_name -> host_path)
+resource_paths:
+  Local-resource:                              # 本地文件系统 category
+    Resource-1: /your/video/path1             # pseudo_name: 宿主机路径
+    Resource-2: /your/video/path2
+  # S3-resource:                              # S3兼容存储 category
+  #   Resource-1: /                           # S3 不使用 host_path
+
+# S3 处理器配置（仅用于需要 S3 的 category）
+# 有 handler_config 的 category 使用 S3ResourceHandler，否则使用 LocalFSResourceHandler
+# handler_config:
+#   S3-resource:
+#     Resource-1:
+#       endpoint_url: $S3_RESOURCE_1_ENDPOINT_URL|http://localhost:9000
+#       access_key: $S3_RESOURCE_1_ACCESS_KEY|admin
+#       secret_key: $S3_RESOURCE_1_SECRET_KEY|admin
+#       bucket: $S3_RESOURCE_1_BUCKET|video-app
+#       region: $S3_RESOURCE_1_REGION|us-east-1
+
+# 缩略图持久化存储（可选，需要 S3 兼容存储）
+# 未配置时，缩略图由 ffmpeg 实时生成（不持久化）
+# thumbnail_config:
+#   storage_category: S3-resource
+#   storage_pseudo_name: Resource-1
 
 # 缓存配置
 cache_config:
@@ -256,13 +287,12 @@ logging:
   retention: "30 days"
 
 # MongoDB 配置
-# Docker部署时会通过环境变量覆盖 host
 mongo:
-  host: localhost       # Docker时会被MONGO_HOST环境变量覆盖
-  port: 27017
-  database: video_tag_db
-  username: ""          # 如无认证可留空
-  password: ""
+  host: $MONGO_HOST|localhost
+  port: $MONGO_PORT|27017
+  database: $MONGO_DATABASE|video_tag_db
+  username: $MONGO_USERNAME|
+  password: $MONGO_PASSWORD|
 ```
 
 ### 前端环境配置
@@ -286,14 +316,16 @@ backend_api: ""  // 空字符串，使用相对路径（nginx代理）
 ```
 video-app/
 ├── main.py                          # 后端入口 (localhost:12000)
-├── config.yaml                      # 配置文件
+├── config.yaml                      # 配置文件 (envyaml 语法)
 ├── Dockerfile                       # Docker镜像配置
 ├── docker-compose.yml               # Docker编排配置
+├── scripts/
+│   └── migrate_paths.py            # DB 路径迁移 (绝对路径 → 逻辑路径)
 ├── migrations/                      # 数据库迁移脚本
 │   └── add_category_field.py       # category 字段迁移
 ├── src/
 │   ├── app.py                      # FastAPI应用工厂、CORS、lifespan
-│   ├── config.py                   # 配置管理 (Settings)
+│   ├── config.py                   # 配置管理 (Settings, envyaml)
 │   ├── errors.py                   # 自定义异常
 │   ├── logger.py                   # 日志配置 (loguru)
 │   ├── db/
@@ -328,19 +360,22 @@ video-app/
 │       ├── batch_operation_service.py # 批量更新/删除
 │       ├── dir_metadata_service.py    # 目录元数据 (大小/修改时间)
 │       ├── tag_operation_service.py   # 标签计数管理
-│       ├── thumbnail_service.py       # 缩略图生成 (ffmpeg/ffprobe)
+│       ├── thumbnail_service.py       # 缩略图生成 (ffmpeg + S3 存储)
 │       ├── path_convert_service.py    # AbsolutePath 路径抽象
 │       ├── cache/                     # 缓存服务
 │       │   ├── base_cache.py         # 缓存抽象基类
 │       │   ├── cachetools_cache.py   # cachetools 实现
 │       │   └── cache_service.py      # 缓存工厂/分发
-│       └── resource_handler/          # 资源处理器 (IO抽象层)
+│       └── resource_handler/          # 资源处理器 (策略模式)
 │           ├── base_resource_handler.py  # 抽象基类
 │           ├── base_file_entry.py        # 文件条目抽象 + FileStat
 │           ├── resource_handler_service.py # 处理器工厂/分发
-│           └── local_fs/                  # 本地文件系统实现
-│               ├── local_fs_handler.py    # LocalFS 处理器
-│               └── local_fs_file_entry.py # LocalFS 文件条目
+│           ├── local_fs/                  # 本地文件系统实现
+│           │   ├── local_fs_handler.py    # LocalFS 处理器
+│           │   └── local_fs_file_entry.py # LocalFS 文件条目
+│           └── s3/                        # S3 兼容存储实现
+│               ├── s3_handler.py          # S3 处理器 (boto3 resource API)
+│               └── s3_file_entry.py       # S3 文件条目
 └── tests/                           # 测试文件
 ```
 

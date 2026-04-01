@@ -2,15 +2,16 @@ English | [中文](README.cn.md)
 
 # Video App - Full-Stack Video Management Application
 
-- A simple local video metadata management, streaming, and browsing web UI application with support for video categorization, tag management, search, and web playback. 
+- A full-stack video metadata management, streaming, and browsing web UI application with support for video categorization, tag management, search, and web playback. Supports both local filesystem and S3-compatible storage (MinIO, RustFS, etc.).
 
-- By mapping your existing video directories to the application in the configuration, it will automatically scan, generate thumbnails, and allow you to manage video metadata (title, favorites, tags, etc.) through a user-friendly interface.
+- By mapping your existing video directories or S3 buckets to the application in the configuration, it will automatically scan, generate thumbnails, and allow you to manage video metadata (title, favorites, tags, etc.) through a user-friendly interface.
 
 ## ✨ Features
 
 - 🏷️ **Tag Management** - Video tagging system with batch operations support
 - 📁 **Directory Browsing** - Multi-source file system browsing with category-level classification
-- 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg
+- 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg, with optional S3 persistent storage
+- ☁️ **S3-Compatible Storage** - Support for S3-compatible storage backends (MinIO, RustFS, etc.) via Strategy Pattern
 - ❤️ **Favorites** - Video favorites and view statistics
 - 📱 **Responsive Design** - Adapts to various screen sizes
 
@@ -40,6 +41,7 @@ English | [中文](README.cn.md)
 | Docker | Containerization |
 | docker-compose | Container Orchestration |
 | ffmpeg | Thumbnail Generation |
+| RustFS / MinIO | S3-Compatible Object Storage (optional) |
 
 
 ## 🚀 Quick Start
@@ -69,18 +71,26 @@ backend:
     # Format: host_path:/app/resources/CategoryName/PseudoName
     - /your/video/path1:/app/resources/Local-resource/Resource-1
     - /your/video/path2:/app/resources/Local-resource/Resource-2
+  environment:
+    - ROOT_PATH=/app/resources
+    - MONGO_HOST=mongodb
+    # S3 storage (optional, override config.yaml defaults for Docker networking)
+    # - S3_RESOURCE_1_ENDPOINT_URL=http://rustfs:9000
+    # - S3_RESOURCE_1_ACCESS_KEY=rustfsadmin
+    # - S3_RESOURCE_1_SECRET_KEY=rustfsadmin
+    # - S3_RESOURCE_1_BUCKET=video-app
 ```
 
-Edit `config.yaml` to ensure `resource_paths` matches the container paths:
+Edit `config.yaml` to configure resource paths (envyaml `$VAR|default` syntax is supported):
 
 ```yaml
 resource_paths:
   Local-resource:              # category name
     Resource-1: /your/video/path1   # pseudo_name: host_path
     Resource-2: /your/video/path2
-
-root_path: /app/resources
 ```
+
+> **Note**: The `docker-compose.yml` includes a RustFS service (S3-compatible storage) by default. To enable S3 storage, uncomment the S3 environment variables above and the `handler_config` / `thumbnail_config` sections in `config.yaml`.
 
 **3. Start services**
 ```bash
@@ -126,25 +136,28 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 **3. Configure backend**
 
-Edit `config.yaml`:
+Edit `config.yaml` (uses [envyaml](https://github.com/thesimj/envyaml) `$VAR|default` syntax):
 
 ```yaml
+# ROOT_PATH should be empty for local development
+ROOT_PATH: $ROOT_PATH|
+
 # Video resource paths (use local absolute paths)
 resource_paths:
   Local-resource:                    # category name
     Resource-1: /your/video/path1   # pseudo_name: local absolute path
     Resource-2: /your/video/path2
 
-# Comment out root_path for local development
-# root_path: /app/resources
-
 # MongoDB configuration
 mongo:
-  host: localhost
-  port: 27017
-  database: video_tag_db
-  username: your_username    # Leave empty if no auth
-  password: your_password    # Leave empty if no auth
+  host: $MONGO_HOST|localhost
+  port: $MONGO_PORT|27017
+  database: $MONGO_DATABASE|video_tag_db
+  username: $MONGO_USERNAME|         # Leave empty if no auth
+  password: $MONGO_PASSWORD|
+
+# Optional: S3-compatible storage (MinIO, RustFS, etc.)
+# See "Full config.yaml Configuration" section for details
 ```
 
 **4. Start backend**
@@ -190,19 +203,36 @@ Frontend will run at `http://localhost:4200`
 
 ### Full config.yaml Configuration
 
-```yaml
-# Video resource path mapping (category -> pseudo_name -> host_path)
-# Docker deployment: host_path is the host machine path, requires docker-compose.yml volumes + root_path
-# Manual installation: host_path is the local absolute path, comment out root_path
-resource_paths:
-  Local-resource:                              # category name
-    Resource-1: /app/resources/Resource-1      # Docker deployment
-    Resource-2: /app/resources/Resource-2
-    # Resource-1: D:/videos/folder1            # Manual installation example
-    # Resource-2: E:/videos/folder2
+Configuration uses [envyaml](https://github.com/thesimj/envyaml) syntax: `$ENV_VAR|default_value` for environment variable substitution with defaults.
 
-# Required for Docker deployment, comment out for manual installation
-root_path: /app/resources
+```yaml
+# Container mount base path (set via env var in Docker, leave empty for local dev)
+ROOT_PATH: $ROOT_PATH|
+
+# Video resource path mapping (category -> pseudo_name -> host_path)
+resource_paths:
+  Local-resource:                              # Local filesystem category
+    Resource-1: /your/video/path1             # pseudo_name: host_path
+    Resource-2: /your/video/path2
+  # S3-resource:                              # S3-compatible storage category
+  #   Resource-1: /                           # host_path is unused for S3
+
+# S3 handler configuration (only for categories that need it)
+# Categories with handler_config use S3ResourceHandler; others use LocalFSResourceHandler
+# handler_config:
+#   S3-resource:
+#     Resource-1:
+#       endpoint_url: $S3_RESOURCE_1_ENDPOINT_URL|http://localhost:9000
+#       access_key: $S3_RESOURCE_1_ACCESS_KEY|admin
+#       secret_key: $S3_RESOURCE_1_SECRET_KEY|admin
+#       bucket: $S3_RESOURCE_1_BUCKET|video-app
+#       region: $S3_RESOURCE_1_REGION|us-east-1
+
+# Thumbnail persistent storage (optional, requires S3-compatible storage)
+# If not configured, thumbnails are generated on-the-fly with ffmpeg (no persistence)
+# thumbnail_config:
+#   storage_category: S3-resource
+#   storage_pseudo_name: Resource-1
 
 # Cache configuration
 cache_config:
@@ -255,13 +285,12 @@ logging:
   retention: "30 days"
 
 # MongoDB configuration
-# Docker deployment will override host via environment variable
 mongo:
-  host: localhost       # Overridden by MONGO_HOST env var in Docker
-  port: 27017
-  database: video_tag_db
-  username: ""          # Leave empty if no auth
-  password: ""
+  host: $MONGO_HOST|localhost
+  port: $MONGO_PORT|27017
+  database: $MONGO_DATABASE|video_tag_db
+  username: $MONGO_USERNAME|
+  password: $MONGO_PASSWORD|
 ```
 
 ### Frontend Environment Configuration
@@ -285,14 +314,16 @@ backend_api: ""  // Empty string, uses relative path (nginx proxy)
 ```
 video-app/
 ├── main.py                          # Backend entry (localhost:12000)
-├── config.yaml                      # Configuration file
+├── config.yaml                      # Configuration file (envyaml syntax)
 ├── Dockerfile                       # Docker image config
 ├── docker-compose.yml               # Docker compose config
+├── scripts/
+│   └── migrate_paths.py            # DB path migration (absolute → logical)
 ├── migrations/                      # Database migration scripts
 │   └── add_category_field.py       # Category field migration
 ├── src/
 │   ├── app.py                      # FastAPI app factory, CORS, lifespan
-│   ├── config.py                   # Configuration management (Settings)
+│   ├── config.py                   # Configuration management (Settings, envyaml)
 │   ├── errors.py                   # Custom exceptions
 │   ├── logger.py                   # Logging config (loguru)
 │   ├── db/
@@ -327,19 +358,22 @@ video-app/
 │       ├── batch_operation_service.py # Batch update/delete
 │       ├── dir_metadata_service.py    # Directory metadata (size/mtime)
 │       ├── tag_operation_service.py   # Tag count management
-│       ├── thumbnail_service.py       # Thumbnail generation (ffmpeg/ffprobe)
+│       ├── thumbnail_service.py       # Thumbnail generation (ffmpeg + S3 storage)
 │       ├── path_convert_service.py    # AbsolutePath abstraction
 │       ├── cache/                     # Cache service
 │       │   ├── base_cache.py         # Cache abstract base class
 │       │   ├── cachetools_cache.py   # cachetools implementation
 │       │   └── cache_service.py      # Cache factory/dispatcher
-│       └── resource_handler/          # Resource handler (IO abstraction)
+│       └── resource_handler/          # Resource handler (Strategy Pattern)
 │           ├── base_resource_handler.py  # Abstract base class
 │           ├── base_file_entry.py        # File entry abstraction + FileStat
 │           ├── resource_handler_service.py # Handler factory/dispatcher
-│           └── local_fs/                  # Local filesystem implementation
-│               ├── local_fs_handler.py    # LocalFS handler
-│               └── local_fs_file_entry.py # LocalFS file entry
+│           ├── local_fs/                  # Local filesystem implementation
+│           │   ├── local_fs_handler.py    # LocalFS handler
+│           │   └── local_fs_file_entry.py # LocalFS file entry
+│           └── s3/                        # S3-compatible storage implementation
+│               ├── s3_handler.py          # S3 handler (boto3 resource API)
+│               └── s3_file_entry.py       # S3 file entry
 └── tests/                           # Test files
 ```
 
