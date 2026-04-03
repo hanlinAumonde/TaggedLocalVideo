@@ -3,8 +3,8 @@
   <!-- Toggle Button -->
   <div class="flex justify-center">
     <div 
-      class="px-6 py-1 bg-neutral-200 dark:bg-neutral-600 hover:bg-neutral-300 dark:hover:bg-neutral-500 text-white 
-             rounded-t-lg cursor-pointer transition-colors shadow-lg"
+      class="px-6 py-1 bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-500 text-white 
+             rounded-t-lg cursor-pointer transition-colors shadow-2xl"
       (click)="toggleToolbar()"
     >
       <button matIconButton>
@@ -19,10 +19,10 @@
   <!-- Toolbar Content -->
   <div
     class="overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out"
-    [style.max-height]="toolbarVisible() ? '120px' : '0px'"
+    [style.max-height]="toolbarVisible() ? '160px' : '0px'"
     [style.opacity]="toolbarVisible() ? '1' : '0'"
   >
-    <div class="flex items-center justify-between px-6 py-3 bg-neutral-300 dark:bg-neutral-600 text-white">
+    <div class="flex items-center justify-between px-6 py-3 bg-neutral-300 dark:bg-neutral-700 text-white">
       <div class="flex-1 flex items-center">
         <div class="gap-2 flex items-center">
           <button
@@ -40,12 +40,12 @@
             <mat-icon fontIcon="arrow_forward"></mat-icon>
           </button>
         </div>
-        <span class="bg-gray-400 dark:bg-neutral-700 mx-4 px-4 py-2 rounded-lg font-medium">Current path:</span>
-        <strong class="font-mono text-gray-200 flex items-center">
-          @for(pathElement of paths(); track $index) { 
-            <span class="text-black dark:text-white">/</span>
-            <span 
-              class="bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700 transition-colors"
+        <span class="bg-gray-400 dark:bg-neutral-600 mx-4 px-4 py-2 rounded-lg font-medium">Current path:</span>
+        <strong class="font-mono text-gray-200 flex flex-wrap items-center gap-y-1">
+          @for(pathElement of paths(); track $index) {
+            <span class="text-black dark:text-white whitespace-nowrap">/</span>
+            <span
+              class="bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700 transition-colors whitespace-nowrap"
               (click)="navigateOnClickPathElement($index)">
               {{pathElement}}
             </span>
