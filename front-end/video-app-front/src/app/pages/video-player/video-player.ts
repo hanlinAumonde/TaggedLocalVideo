@@ -91,7 +91,7 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
       const url = this.videoStreamUrl();
       this.hasRecordedView.set(false);
       if (url && this.player) {
-        this.player.src({ type: 'video/mp4', src: url });
+        this.player.src({ src: url });
       }
       this.initializePlayer();
     });

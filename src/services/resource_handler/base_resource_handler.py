@@ -92,12 +92,28 @@ class BaseResourceHandler(ABC):
         """Normalize path to standard format (forward slashes)."""
         ...
 
+    # --- External tool access ---
+
+    def get_ffmpeg_accessible_path(self, path: str) -> str | None:
+        """
+        Return a path/URL that ffmpeg can use as -i input.
+        Local handlers return the filesystem path; S3 handlers return a pre-signed URL.
+        Returns None if the handler cannot provide direct access (pipe stdin will be used as fallback).
+        """
+        return None
+
     # --- File utilities (static) ---
 
     @staticmethod
     @abstractmethod
     def is_video_file(filename: str) -> bool:
         """Check if a file is a video based on its extension."""
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def get_file_extension(filename: str) -> str:
+        """Get the file extension from a filename."""
         ...
 
     @staticmethod

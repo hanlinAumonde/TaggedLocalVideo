@@ -244,6 +244,24 @@ class S3ResourceHandler(BaseResourceHandler):
         return path.replace("\\", "/")
 
     # ------------------------------------------------------------------
+    # External tool access
+    # ------------------------------------------------------------------
+
+    def get_ffmpeg_accessible_path(self, path: str) -> str | None:
+        """Generate a pre-signed URL that ffmpeg can use as HTTP input."""
+        try:
+            pseudo_name, _ = self._get_pseudo_name_from_key(path)
+            bucket = self._get_bucket(pseudo_name)
+            client = bucket.meta.client
+            return client.generate_presigned_url(
+                "get_object",
+                Params={"Bucket": bucket.name, "Key": path},
+                ExpiresIn=3600,
+            )
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------------
     # File utilities (static)
     # ------------------------------------------------------------------
 
@@ -252,6 +270,11 @@ class S3ResourceHandler(BaseResourceHandler):
         name = filename.rstrip("/").rsplit("/", 1)[-1]
         _, ext = posixpath.splitext(name.lower())
         return ext in get_settings().video_extensions
+    
+    @staticmethod
+    def get_file_extension(filename: str) -> str:
+        name = filename.rstrip("/").rsplit("/", 1)[-1]
+        return posixpath.splitext(name)[1][1:]  # Exclude the dot
 
     @staticmethod
     def get_filename_without_extension(filename: str) -> str:

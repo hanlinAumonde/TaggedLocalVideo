@@ -136,12 +136,21 @@ class LocalFSResourceHandler(BaseResourceHandler):
     def get_path_standard_format(self, path: str) -> str:
         return os.path.normpath(path).replace("\\", "/")
 
+    # --- External tool access ---
+
+    def get_ffmpeg_accessible_path(self, path: str) -> str | None:
+        return path
+
     # --- File utilities (static) ---
 
     @staticmethod
     def is_video_file(filename: str) -> bool:
         _, ext = os.path.splitext(filename.lower())
         return ext in get_settings().video_extensions
+    
+    @staticmethod
+    def get_file_extension(filename: str) -> str:
+        return os.path.splitext(filename)[1][1:]  # Exclude the dot
 
     @staticmethod
     def get_filename_without_extension(filename: str) -> str:
