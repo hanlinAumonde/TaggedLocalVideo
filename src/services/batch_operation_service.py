@@ -15,6 +15,7 @@ from src.schema.types.fileBrowse_type import (
 )
 from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
 from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.ffmpeg_service import get_ffmpeg_service
 from src.services.path_convert_service import AbsolutePath
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
@@ -30,6 +31,7 @@ class BatchOperationService:
         self.tagOperationService = get_tag_operation_service()
         self.thumbnailService = get_thumbnail_service()
         self.resourceHandlerService = get_resource_handler_service()
+        self.ffmpegService = get_ffmpeg_service()
 
     def constructBatchOperationStatus(self, resultType: BatchResultType | None = None,
                                    message: str | None = None,
@@ -249,7 +251,8 @@ class BatchOperationService:
 
             if video_model.duration is None or video_model.duration == 0.0:
                 video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category)
-                duration = await self.thumbnailService.get_video_duration(
+                duration = await self.ffmpegService.get_video_duration(
+                    self.resourceHandlerService.get_handler(video_model.category),
                     video_path.FS_format_path()
                 )
                 if duration is not None and duration > 0.0:
@@ -294,7 +297,10 @@ class BatchOperationService:
         handler = self.resourceHandlerService.get_handler(category)
         filter_query = {"path": entry_path.DB_format_path()}
 
-        duration = await self.thumbnailService.get_video_duration(entry_path.FS_format_path()) or 0.0
+        duration = await self.ffmpegService.get_video_duration(
+            handler,
+            entry_path.FS_format_path()
+        ) or 0.0
 
         stat = entry.stat()
         set_on_insert = VideoModel(

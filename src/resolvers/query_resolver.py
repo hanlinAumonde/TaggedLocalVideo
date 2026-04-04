@@ -5,7 +5,9 @@ from src.config import get_settings
 from src.logger import get_logger
 from src.services.browse_file_service import get_browse_file_service
 from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.ffmpeg_service import get_ffmpeg_service
 from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
@@ -34,6 +36,8 @@ class QueryResolver:
         self.thumbnailService = get_thumbnail_service()
         self.browseFileService = get_browse_file_service()
         self.dirMetadataService = get_dir_metadata_service()
+        self.ffmpegService = get_ffmpeg_service()
+        self.resourceHandlerService = get_resource_handler_service()
     
     async def resolve_search_videos(self,input: VideoSearchInput) -> VideoSearchResult:
         """
@@ -99,7 +103,8 @@ class QueryResolver:
             async def get_video(video_model: VideoModel):
                 if video_model.duration is None or video_model.duration == 0.0:
                     video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category).FS_format_path()
-                    duration = await self.thumbnailService.get_video_duration(video_path)
+                    handler = self.resourceHandlerService.get_handler(video_model.category)
+                    duration = await self.ffmpegService.get_video_duration(handler, video_path)
                     video_model.duration = duration
                     await video_model.save()
                 return await Video.from_mongoDB(video_model)
