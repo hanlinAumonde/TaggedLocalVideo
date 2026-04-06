@@ -1,4 +1,4 @@
-import { Component, inject, signal, WritableSignal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { VideoCard } from '../../shared/components/video-card/video-card';
 import { MatButtonModule } from '@angular/material/button';
 import { GqlService } from '../../services/GQL-service/GQL.service';
@@ -12,7 +12,8 @@ import { environment } from '../../../environments/environment';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
 import { GetTopTagsDetail, ResultState, SearchVideosDetail } from '../../shared/models/GQL-result.model';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { filter, Subject, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-homepage',
@@ -25,9 +26,7 @@ export class Homepage {
   private stateService = inject(PageStateService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
 
-  searchPageApi = environment.searchpage_api;
-
-  INITIAL_VIDEOS_SEARCH_RESULT : SearchVideosDetail = {
+  private readonly INITIAL_VIDEOS_SEARCH_RESULT : SearchVideosDetail = {
     videos: [],
     pagination: {
       size: 0,
@@ -36,31 +35,54 @@ export class Homepage {
     }
   }
 
+  private SearchTrigger = new Subject<VideoSortOption>();
+  private tagsTrigger = new Subject<void>();
+
+  private triggerObservable(category: VideoSortOption) {
+    return this.SearchTrigger.asObservable().pipe(
+      filter(triggerCategory => triggerCategory === category)
+    );
+  }
+
+  searchPageApi = environment.searchpage_api;
+
   // Loved Videos
-  lovedVideos = signal<ResultState<SearchVideosDetail>>(
-    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  lovedVideos = toSignal(
+    this.triggerObservable(VideoSortOption.Loved).pipe(
+      switchMap(() => this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Loved))
+    ),
+    { initialValue: this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT) }
   );
 
   // Latest Viewed
-  latestViewedVideos = signal<ResultState<SearchVideosDetail>>(
-    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  latestViewedVideos = toSignal(
+    this.triggerObservable(VideoSortOption.Latest).pipe(
+      switchMap(() => this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.Latest))
+    ),
+    { initialValue: this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT) }
   );
 
   // Most Viewed
-  mostViewedVideos = signal<ResultState<SearchVideosDetail>>(
-    this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT)
+  mostViewedVideos = toSignal(
+    this.triggerObservable(VideoSortOption.MostViewed).pipe(
+      switchMap(() => this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, VideoSortOption.MostViewed))
+    ),
+    { initialValue: this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_VIDEOS_SEARCH_RESULT) }
   );
 
   // Top Tags
-  topTags = signal<ResultState<GetTopTagsDetail>>(
-    this.gqlService.initialSignalData<GetTopTagsDetail>([])
+  topTags = toSignal(
+    this.tagsTrigger.asObservable().pipe(
+      switchMap(() => this.gqlService.getTopTagsQuery())
+    ),
+    { initialValue: this.gqlService.initialSignalData<GetTopTagsDetail>([]) }
   );
 
   constructor() {
-    this.loadVideos(VideoSortOption.Loved, this.lovedVideos);
-    this.loadVideos(VideoSortOption.Latest, this.latestViewedVideos);
-    this.loadVideos(VideoSortOption.MostViewed, this.mostViewedVideos);
-    this.loadTopTags();
+    this.SearchTrigger.next(VideoSortOption.Loved);
+    this.SearchTrigger.next(VideoSortOption.Latest);
+    this.SearchTrigger.next(VideoSortOption.MostViewed);
+    this.tagsTrigger.next();
 
     this.videoUpdateEventService.onEvent()
       .pipe(takeUntilDestroyed())
@@ -71,29 +93,17 @@ export class Homepage {
           section.data?.videos.some(v => ids.has(v.id)) ?? false;
 
         if (sectionContainsAffectedId(this.lovedVideos())) {
-          this.loadVideos(VideoSortOption.Loved, this.lovedVideos);
+          this.SearchTrigger.next(VideoSortOption.Loved);
         }
         if (sectionContainsAffectedId(this.latestViewedVideos())) {
-          this.loadVideos(VideoSortOption.Latest, this.latestViewedVideos);
+          this.SearchTrigger.next(VideoSortOption.Latest);
         }
         if (sectionContainsAffectedId(this.mostViewedVideos())) {
-          this.loadVideos(VideoSortOption.MostViewed, this.mostViewedVideos);
+          this.SearchTrigger.next(VideoSortOption.MostViewed);
         }
 
-        this.loadTopTags();
+        this.tagsTrigger.next();
       });
-  }
-
-  loadVideos(sortBy: VideoSortOption, signal: WritableSignal<ResultState<SearchVideosDetail>>) {
-    this.gqlService.searchVideosQuery(SearchFrom.FrontalPage, sortBy)
-      .pipe(takeUntilDestroyed())
-      .subscribe(result => signal.set(result));
-  }
-
-  loadTopTags() {
-    this.gqlService.getTopTagsQuery()
-      .pipe(takeUntilDestroyed())
-      .subscribe(result => this.topTags.set(result));
   }
 
   OnMoreClick(section: 'loved' | 'latest' | 'mostViewed'){

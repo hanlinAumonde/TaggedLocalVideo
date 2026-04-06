@@ -1,5 +1,6 @@
 import { Component, inject, computed, effect, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { debounceTime, Subject, switchMap } from 'rxjs';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormBuilder, FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -53,7 +54,6 @@ export class Search {
   private stateService = inject(PageStateService);
   private validationService = inject(ValidationService);
   private videoUpdateEventService = inject(VideoUpdateEventService);
-  private destroyRef = inject(DestroyRef);
 
   private updateSearchParamsAndForm(params: SearchPageParam) {
     this.searchParams.set({
@@ -121,7 +121,34 @@ export class Search {
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   );
 
-  searchResults = signal(this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_SEARCH_RESULT));
+  searchTrigger = new Subject<SearchPageParam>();
+  searchResults = toSignal(
+    this.searchTrigger.asObservable().pipe(
+      debounceTime(300),
+      switchMap(params => 
+        this.gqlService.searchVideosQuery(
+          SearchFrom.SearchPage,
+          params.sortBy,
+          params.author ?? undefined,
+          params.title ?? undefined,
+          params.currentPage ?? 1,
+          params.tags ?? []
+        ).pipe(map(result => {
+          if(params.checkPageBounds && !result.loading && result.data) {
+            const pagination = result.data.pagination;
+            if (pagination.size > 0) {
+              const maxPage = Math.max(1, Math.ceil(pagination.totalCount / pagination.size));
+              if (params.currentPage && params.currentPage > maxPage) {
+                this.navigateToPage(maxPage);
+              }
+            }
+          }
+          return result;
+        }))
+      )
+    ),
+    { initialValue: this.gqlService.initialSignalData<SearchVideosDetail>(this.INITIAL_SEARCH_RESULT) }
+  )
 
   selectedTagsCount = computed(() => this.searchParams().tags?.length ?? 0);
 
@@ -154,9 +181,12 @@ export class Search {
 
     effect(() => {
       const params = this.searchParams();
-      const page = this.currentPage();
       if (this.hasSearched()) {
-        this.executeSearch(params, page);
+        this.searchTrigger.next({ 
+          ...params, 
+          checkPageBounds: false, 
+          currentPage: this.currentPage(),
+        });
       }
     });
 
@@ -165,19 +195,25 @@ export class Search {
       .subscribe(event => {
         if (this.hasSearched()) {
           const currentVideos = this.searchResults().data?.videos;
-
           // For update events, only refresh if current results contain affected videos
           if (event.type === VideoUpdateType.Updated) {
             const ids = new Set(event.videoIds);
             const affected = currentVideos?.some(v => ids.has(v.id)) ?? false;
             if (affected) {
-              this.executeSearch(this.searchParams(), this.currentPage());
+              this.searchTrigger.next({ 
+                ...this.searchParams(), 
+                checkPageBounds: false, 
+                currentPage: this.currentPage(), 
+              });
             }
             return;
           }
-
           // For delete events, always re-execute since pagination may shift
-          this.executeSearch(this.searchParams(), this.currentPage(), true);
+          this.searchTrigger.next({ 
+            ...this.searchParams(),
+            checkPageBounds: false, 
+            currentPage: this.currentPage() 
+          });
         }
       });
   }
@@ -186,33 +222,6 @@ export class Search {
     this.router.navigate([environment.searchpage_api], {
       queryParams: { currentPageNumber: page ?? this.currentPage() },
     });
-  }
-
-  private executeSearch(params: SearchPageParam, page: number, checkPageBounds: boolean = false) {
-    this.gqlService.searchVideosQuery(
-      SearchFrom.SearchPage,
-      params.sortBy,
-      params.author ?? undefined,
-      params.title ?? undefined,
-      page,
-      params.tags ?? []
-    )
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(result => {
-        this.searchResults.set(result);
-
-        // After delete, current page may exceed total pages
-        if (checkPageBounds && !result.loading && result.data) {
-          const pagination = result.data.pagination;
-          if (pagination.size > 0) {
-            const maxPage = Math.max(1, Math.ceil(pagination.totalCount / pagination.size));
-            if (page > maxPage) {
-              this.navigateToPage(maxPage);
-            }
-          }
-        }
-      });
-    this.stateService.setState<SearchPageParam>(environment.searchpage_api + environment.refreshKey, params, false);
   }
 
   onSearch() {
@@ -224,7 +233,7 @@ export class Search {
       title: formValue.title ?? '',
       author: formValue.author ?? ''
     };
-    this.searchParams.set(newParams);
+    this.updateSearchParamsAndForm(newParams);
 
     if (!this.hasSearched()) {
       this.hasSearched.set(true);
@@ -249,11 +258,7 @@ export class Search {
 
   onSortChange(sortBy: VideoSortOption) {
     const newParams: SearchPageParam = { ...this.searchParams(), sortBy };
-    this.updateSearchForm({ 
-      title: this.searchParams().title, 
-      author: this.searchParams().author 
-    });
-    this.searchParams.set(newParams);
+    this.updateSearchParamsAndForm(newParams);
     //when sort by loved, the total count may change
     if(sortBy === VideoSortOption.Loved) {
       this.navigateToPage(1);
@@ -272,7 +277,7 @@ export class Search {
     dialogRef.afterClosed().subscribe((result: string[] | undefined) => {
       if (result !== undefined) {
         const newParams: SearchPageParam = { ...this.searchParams(), tags: result };
-        this.searchParams.set(newParams);
+        this.updateSearchParamsAndForm(newParams);
         this.navigateToPage(1);
       }
     });

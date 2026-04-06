@@ -5,4 +5,6 @@ export type SearchPageParam = {
     tags?: string[],
     title?: string,
     author?: string,
+    currentPage?: number,
+    checkPageBounds?: boolean
 }

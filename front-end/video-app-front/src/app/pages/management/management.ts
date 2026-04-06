@@ -18,6 +18,7 @@ import { PathHistoryService } from '../../services/path-history-service/path-his
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
 import { VideoUpdateEvent } from '../../shared/models/events.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subscription } from 'rxjs';
 import { ToastType } from '../../shared/models/toast.model';
 
 @Component({
@@ -46,6 +47,8 @@ export class Management implements OnDestroy{
   currentPath = signal<string[]>([]);
   directoryContents = signal(this.gqlService.initialSignalData<BrowseDirectoryDetail>([]));
   selectedIds = signal<Set<string>>(new Set());
+
+  private directorySubscription: Subscription | null = null;
 
   isAtRoot = computed(() => this.currentPath().length === 0);
   selectedCount = computed(() => this.selectedIds().size);
@@ -114,13 +117,12 @@ export class Management implements OnDestroy{
   // ─── Directory Data Loading ────────────────────────────────────────
 
   private loadDirectory(path: string[], skipCache: boolean = false, recursiveCalculation: boolean = true) {
+    this.directorySubscription?.unsubscribe();
     const relativePath =  path.length > 0 ? path.join('/') : undefined;
-    this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation)
+    this.directorySubscription = this.gqlService.browseDirectoryQuery(relativePath, skipCache, recursiveCalculation)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
-          // Sometimes this condition can be true twice in a single request, because of the cache update after the request
-          // So for the second time, newState will be undefined, and we shoudn't apply the sorting and scrolling again
           if(!result.loading && result.data) {
             const newState = this.getRefreshState();
             if(newState?.sortCriteria){
@@ -208,7 +210,6 @@ export class Management implements OnDestroy{
 
   navigateToPath(path: string[]) {
     this.setRefreshState(0, this.sortCriteria().index, this.sortCriteria().order, path);
-    console.log('Navigating to path:', path);
     this.currentPath.set(path);
   }
 
