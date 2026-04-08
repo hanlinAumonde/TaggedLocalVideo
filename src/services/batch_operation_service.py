@@ -131,6 +131,7 @@ class BatchOperationService:
         operations = []
         update_tags: dict[str, tuple[int, bool]] = {}
         no_need_update_flag = False
+        new_entries = []
 
         try:
             if videoIDs is not None:
@@ -202,6 +203,16 @@ class BatchOperationService:
                 )
 
                 await self.tagOperationService.update_tag_counts(update_tags=update_tags)
+
+                if new_entries:
+                    handler = self.resourceHandlerService.get_handler(category)
+                    new_dir_db_paths = list({
+                        handler.dirname(
+                            handler.convert_to_DB_format_path(handler.get_path_standard_format(entry.path))
+                        )
+                        for entry in new_entries
+                    })
+                    await self.dirMetadataService.batch_update_metadata_forward(category, new_dir_db_paths)
 
                 yield self.constructBatchOperationStatus(
                     resultType=BatchResultType.Success if successful_updates == len(operations) else \

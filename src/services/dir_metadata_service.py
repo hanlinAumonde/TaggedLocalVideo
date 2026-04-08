@@ -137,9 +137,36 @@ class DirMetadataService:
 
         return total_size, last_modified_time
 
+    async def batch_update_metadata_forward(self, category: str, dir_db_paths: list[str]) -> None:
+        """collect all parent directories of the given paths, then batch update their metadata"""
+        if not dir_db_paths:
+            return
+
+        handler = self.resourceHandlerService.get_handler(category)
+        logical_roots = self.settings.get_all_logical_root_paths()
+
+        all_paths: set[str] = set()
+        for db_path in dir_db_paths:
+            current = db_path
+            while current not in all_paths:
+                all_paths.add(current)
+                if current in logical_roots:
+                    break
+                parent = handler.dirname(current)
+                if not parent or parent == current:
+                    break
+                current = parent
+
+        for db_path in sorted(all_paths, key=lambda p: p.count('/'), reverse=True):
+            abs_path = AbsolutePath.from_existing_path(db_path, category)
+            await self.calculate_directory_metadata(abs_path, skipCache=True, recursiveCalculation=False)
+
     async def update_directory_metadata_forward(self, directory_path: AbsolutePath) -> None:
         current_path = directory_path
         category = directory_path.category
+        if current_path.category in self.settings.get_all_logical_root_paths():
+            return
+        
         handler = self.resourceHandlerService.get_handler(category)
 
         while True:

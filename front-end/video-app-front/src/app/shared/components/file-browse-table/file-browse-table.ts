@@ -238,8 +238,11 @@ export class FileBrowseTable {
 
   openBatchOperationPanel(dirName:string) {
     if(!dirName) return;
+    
+    const selectedDirectoryPath = this.currentPath().length > 0 ?
+      this.currentPath().join('/') + '/' + dirName : dirName;
 
-    const data = { mode: 'directory', selectedDirectoryPath: this.currentPath().join('/') + '/' + dirName! };
+    const data = { mode: 'directory', selectedDirectoryPath: selectedDirectoryPath };
     
     this.toastService.clearAllToasts();
 

@@ -14,6 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { 
   BatchResultType, 
+  RelativePathInput, 
   SearchField, 
   VideosBatchOperationInput 
 } from '../../../core/graphql/generated/graphql';
@@ -155,9 +156,11 @@ export class BatchOperationPanel {
       ? this.form.value.authorInput.trim()
       : undefined;
 
+    const relativePath: RelativePathInput = this.isVideoMode ? {} : { relativePath: this.directoryPath };
+    console.log("relativePath:", relativePath, "tagsOperation:", tagsOperation, "author:", author);
     this.gqlService.batchUpdateVideosSubscription({
       videoIds: Array.from(this.videoIds),
-      relativePath: {},
+      relativePath: relativePath,
       tagsOperation: tagsOperation,
       author: author
     } as VideosBatchOperationInput).pipe(

@@ -147,7 +147,6 @@ class BrowseFileService:
                         )
         except (OSError, Exception):
             logger.exception(f"Error accessing directory {mounted_directory_path} to get video entries.")
-
         return video_entries
 
 @lru_cache
