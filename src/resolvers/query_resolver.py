@@ -6,8 +6,9 @@ from src.logger import get_logger
 from src.services.browse_file_service import get_browse_file_service
 from src.services.dir_metadata_service import get_dir_metadata_service
 from src.services.ffmpeg_service import get_ffmpeg_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.series_service import get_series_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
@@ -38,6 +39,7 @@ class QueryResolver:
         self.dirMetadataService = get_dir_metadata_service()
         self.ffmpegService = get_ffmpeg_service()
         self.resourceHandlerService = get_resource_handler_service()
+        self.seriesService = get_series_service()
     
     async def resolve_search_videos(self,input: VideoSearchInput) -> VideoSearchResult:
         """
@@ -248,6 +250,47 @@ class QueryResolver:
             recursiveCalculation=relativePathInputModel.recursiveCalculation
         )
 
+    async def resolve_search_series_by_prefix(self, prefix: str, limit: int) -> list[str]:
+        """
+        Resolve function to look up series names by prefix (case-insensitive). Used for the
+        autocomplete dropdown in the video edit panel.
+
+        :param prefix: The prefix to search for.
+        :type prefix: str
+        :param limit: The maximum number of series names to return.
+        :type limit: int
+        :return: List of series names matching the prefix.
+        :rtype: list[str]
+        """
+        if limit <= 0:
+            return []
+        try:
+            return await self.seriesService.search_by_prefix(prefix or "", limit)
+        except Exception as e:
+            logger.exception(f"Database operation error during search series by prefix: {e}")
+            raise DatabaseOperationError(operation="search series by prefix",
+                                         details=f"Prefix-{prefix}, Limit-{limit}")
+
+    async def resolve_get_series_videos(self, name: str) -> list[Video]:
+        """
+        Resolve function to retrieve all videos belonging to a series, ordered by seriesOrder
+        ascending. Videos outside the currently configured categories are excluded.
+
+        :param name: The name of the series to retrieve videos for.
+        :type name: str
+        :return: List of videos in the specified series.
+        :rtype: list[Video]
+        """
+        if not name:
+            return []
+        try:
+            valid_categories = self.settings.get_valid_categories()
+            video_models = await self.seriesService.get_videos_in_series(name, valid_categories)
+            return [await Video.from_mongoDB(vm) for vm in video_models]
+        except Exception as e:
+            logger.exception(f"Database operation error during get series videos: {e}")
+            raise DatabaseOperationError(operation="get series videos", details=f"Name-{name}")
+
     async def resolve_directory_metadata(self,input: RelativePathInput) -> DirectoryMetadataResult:
         """
         Resolve function to get metadata of a directory specified by a relative path.
@@ -263,8 +306,15 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
+        abs_path = AbsolutePath.from_relative_path(relativePathInputModel.parsedPath)
+        if abs_path.is_root_level() or abs_path.is_category_level():
+            return DirectoryMetadataResult(
+                totalSize=0.0,
+                lastModifiedTime=0.0
+            )
+
         size, last_update_time = await self.dirMetadataService.calculate_directory_metadata(
-            AbsolutePath.from_relative_path(relativePathInputModel.parsedPath),
+            abs_path,
             skipCache=True,
             recursiveCalculation=True
         )

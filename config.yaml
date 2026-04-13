@@ -57,6 +57,7 @@ validation:
   max_tags_count: 50
   page_number_min: 1
   page_number_max: 10000
+  series_name_max_length: 100
 
 # Logging config
 logging:

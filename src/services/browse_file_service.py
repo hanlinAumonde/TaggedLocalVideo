@@ -6,7 +6,7 @@ from src.db.models.Video_model import VideoModel
 from src.errors import FileBrowseError
 from src.logger import get_logger
 from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 from src.schema.types.fileBrowse_type import FileBrowseNode
@@ -25,6 +25,18 @@ class BrowseFileService:
                                          skipCache: bool = False,
                                          recursiveCalculation: bool = True
                                          ) -> list[FileBrowseNode]:
+        """
+        Get a list of FileBrowseNode objects representing the files and directories under the specified absolute path.
+        
+        :param abs_path: The absolute path for which to retrieve the file and directory nodes.
+        :type abs_path: AbsolutePath
+        :param skipCache: Whether to skip cache when calculating directory metadata. Default is False.
+        :type skipCache: bool
+        :param recursiveCalculation: Whether to calculate directory metadata recursively. Default is True.
+        :type recursiveCalculation: bool
+        :return: A list of FileBrowseNode objects representing the files and directories under the specified absolute path.
+        :rtype: list[FileBrowseNode]
+        """
         fileBrowse_nodes: list[FileBrowseNode] = []
         try:
             if abs_path.is_root_level():
@@ -110,7 +122,21 @@ class BrowseFileService:
                                   name: str,
                                   fileBrowse_nodes: list[FileBrowseNode],
                                   skipCache: bool,
-                                  recursiveCalculation: bool):
+                                  recursiveCalculation: bool) -> None:
+        """
+        Helper method to get a FileBrowseNode for a directory, calculating its metadata and adding it to the list.
+
+        :param path: The absolute path of the directory.
+        :type path: AbsolutePath
+        :param name: The name of the directory.
+        :type name: str
+        :param fileBrowse_nodes: The list to which the resulting FileBrowseNode will be added.
+        :type fileBrowse_nodes: list[FileBrowseNode]
+        :param skipCache: Whether to skip cache when calculating directory metadata.
+        :type skipCache: bool
+        :param recursiveCalculation: Whether to calculate directory metadata recursively.
+        :type recursiveCalculation: bool    
+        """
         total_size, last_modified_time = await self.dirMetadataService.calculate_directory_metadata(
             directory_path=path,
             skipCache=skipCache,
@@ -130,7 +156,16 @@ class BrowseFileService:
             )
 
     def get_all_video_entries_in_directory(self, mounted_directory_path: str, category: str) -> list[BaseFileEntry]:
-        """Get all video file entries under the given directory and its subdirectories."""
+        """
+        Get all video file entries under the given directory and its subdirectories.
+
+        :param mounted_directory_path: The path of the mounted directory.
+        :type mounted_directory_path: str
+        :param category: The category of the video files.
+        :type category: str
+        :return: A list of video file entries.
+        :rtype: list[BaseFileEntry]
+        """
         video_entries: list[BaseFileEntry] = []
         handler = self.resourceHandlerService.get_handler(category)
         try:

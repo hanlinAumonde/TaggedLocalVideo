@@ -18,11 +18,21 @@ class ResourceHandlerService:
             )
 
     @staticmethod
-    def _create_handler(
-        category: str,
-        pseudo_paths: dict[str, str],
-        settings: Settings,
-    ) -> BaseResourceHandler:
+    def _create_handler(category: str,
+                        pseudo_paths: dict[str, str],
+                        settings: Settings) -> BaseResourceHandler:
+        """
+        Factory method to create a resource handler instance based on category and config.
+
+        :param category: The category of the resource handler to create.
+        :type category: str
+        :param pseudo_paths: The mapping of pseudo paths for the category.
+        :type pseudo_paths: dict[str, str]
+        :param settings: The application settings containing handler configurations.
+        :type settings: Settings
+        :return: An instance of a resource handler for the specified category.
+        :rtype: BaseResourceHandler
+        """
         handler_configs = settings.handler_config.get(category, {})
 
         if handler_configs:
@@ -32,15 +42,34 @@ class ResourceHandlerService:
             return LocalFSResourceHandler(category, pseudo_paths, settings.ROOT_PATH)
 
     def get_handler(self, category: str) -> BaseResourceHandler:
+        """
+        Get the resource handler for the specified category.
+
+        :param category: The category for which to retrieve the resource handler.
+        :type category: str
+        :return: The resource handler instance for the specified category.
+        :rtype: BaseResourceHandler
+        :raises ValueError: If no resource handler is found for the specified category.
+        """
         handler = self._handlers.get(category)
         if handler is None:
             raise ValueError(f"No resource handler for category '{category}'")
         return handler
 
     def get_all_categories(self) -> list[str]:
+        """Get a list of all categories that have resource handlers."""
         return list(self._handlers.keys())
 
     def get_pseudo_names(self, category: str) -> list[str]:
+        """
+        Get a list of all pseudo names for the specified category.
+
+        :param category: The category for which to retrieve pseudo names.
+        :type category: str
+        :return: A list of pseudo names for the specified category.
+        :rtype: list[str]
+        :raises ValueError: If the category is not found in the configuration.
+        """
         settings = get_settings()
         if category not in settings.resource_paths:
             raise ValueError(f"Category '{category}' not found in config")

@@ -3,7 +3,10 @@ import strawberry
 
 from src.db.models.Video_model import VideoModel
 from src.db.models.VideoTag_model import VideoTagModel
-from src.schema.types.pydantic_types.video_type import UpdateVideoMetadataInputModel
+from src.schema.types.pydantic_types.video_type import (
+    SeriesFieldInputModel,
+    UpdateVideoMetadataInputModel,
+)
 
 @strawberry.type
 class VideoTag:
@@ -26,8 +29,10 @@ class Video:
     duration: float
 
     # if None use default thumbnail in public/static/default_thumbnail.jpg
-    # TODO: determine how to handle video thumbnails
-    thumbnail: Optional[str] = None 
+    thumbnail: Optional[str] = None
+
+    seriesName: Optional[str] = None
+    seriesOrder: Optional[int] = None
 
     @classmethod
     async def from_mongoDB(cls, videoModel: VideoModel, getTagsCount: bool = False) -> "Video":
@@ -58,7 +63,9 @@ class Video:
                 for tag_name in tag_names
             ],
             thumbnail=videoModel.thumbnail,
-            duration=videoModel.duration or 0.0
+            duration=videoModel.duration or 0.0,
+            seriesName=videoModel.seriesName,
+            seriesOrder=videoModel.seriesOrder,
         )
     
     @classmethod
@@ -79,9 +86,19 @@ class Video:
             size=size,
             tags=[],
             thumbnail=None,
-            duration=duration
+            duration=duration,
+            seriesName=None,
+            seriesOrder=None,
         )
-    
+
+
+@strawberry.experimental.pydantic.input(model=SeriesFieldInputModel)
+class SeriesFieldInput:
+    name: strawberry.auto
+    order: strawberry.auto
+    clear: strawberry.auto
+
+
 @strawberry.experimental.pydantic.input(model=UpdateVideoMetadataInputModel)
 class UpdateVideoMetadataInput:
     videoId: strawberry.auto
@@ -90,3 +107,4 @@ class UpdateVideoMetadataInput:
     author: strawberry.auto
     tags: strawberry.auto
     loved: strawberry.auto
+    series: Optional[SeriesFieldInput] = None

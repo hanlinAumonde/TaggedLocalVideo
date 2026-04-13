@@ -9,7 +9,7 @@ from src.schema.types.fileBrowse_type import (
 )
 from src.services.batch_operation_service import get_batch_operation_service
 from src.services.browse_file_service import get_browse_file_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 
@@ -42,7 +42,23 @@ class SubscriptionResolver:
         dir_path = AbsolutePath.from_relative_path(validated_input.relativePath.parsedPath)
         category = dir_path.category
 
-        if validated_input.videoIds is not None and len(validated_input.videoIds) > 0:
+        series_operation = validated_input.seriesOperation
+        by_ids = validated_input.videoIds is not None and len(validated_input.videoIds) > 0
+
+        if series_operation is not None:
+            if not update:
+                raise InputValidationError(field="seriesOperation", issue="Series operation is only allowed in batch update, not delete")
+            if not by_ids:
+                raise InputValidationError(field="seriesOperation", issue="Series operation requires an explicit videoIds list")
+            if not series_operation.clear:
+                if not series_operation.name:
+                    raise InputValidationError(field="seriesOperation", issue="Series name is required when clear is false")
+                orders_ids = {entry.videoId for entry in series_operation.orders}
+                selected_ids = set(validated_input.videoIds)
+                if orders_ids != selected_ids:
+                    raise InputValidationError(field="seriesOperation", issue="Series orders must cover exactly the selected video IDs")
+
+        if by_ids:
             # By video IDs — single batch call, no path expansion needed
             if update:
                 async for status in self.batchOperationService.batch_update(
@@ -51,6 +67,7 @@ class SubscriptionResolver:
                     fileEntries=None,
                     author=validated_input.author,
                     tagsOperation=validated_input.tagsOperation,
+                    seriesOperation=series_operation,
                 ):
                     yield status
             else:
@@ -99,7 +116,14 @@ class SubscriptionResolver:
                 yield status
 
     def _expand_directory_path(self, dir_path: AbsolutePath) -> list[tuple[str, AbsolutePath]]:
-        """Expand a virtual directory path (root/category level) into real mounted paths."""
+        """
+        Expand a virtual directory path (root/category level) into real mounted paths.
+
+        :param dir_path: The virtual directory path to expand
+        :type dir_path: AbsolutePath
+        :return: A list of tuples containing the category and the corresponding absolute path
+        :rtype: list[tuple[str, AbsolutePath]]
+        """
         if dir_path.is_root_level():
             return [
                 (cat, AbsolutePath.from_relative_path((cat, pn, None)))

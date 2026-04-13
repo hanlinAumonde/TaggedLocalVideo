@@ -4,7 +4,7 @@ from src.services.cache.cache_service import get_cache_service, CacheService
 from src.config import get_settings
 from src.db.models.DirMetadata_model import DirMetadataModel
 from src.logger import get_logger
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
 logger = get_logger("dir_metadata_service")
@@ -21,7 +21,16 @@ class DirMetadataService:
         return f"{category}:{path}"
 
     async def get_metadata(self, category: str, path: str) -> tuple[float, float] | None:
-        """Cache-Aside read: cache -> database -> None"""
+        """
+        Cache-Aside read: cache -> database -> None
+
+        :param category: The category of the directory.
+        :type category: str
+        :param path: The path of the directory.
+        :type path: str
+        :return: A tuple containing the total size and last modified time, or None if not found.
+        :rtype: tuple[float, float] | None
+        """
         cache_key = self._cache_key(category, path)
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -39,7 +48,18 @@ class DirMetadataService:
         return None
 
     async def set_metadata(self, category: str, path: str, total_size: float, last_modified_time: float) -> None:
-        """Single upsert to database + update cache."""
+        """
+        Single upsert to database + update cache.
+
+        :param category: The category of the directory.
+        :type category: str
+        :param path: The path of the directory.
+        :type path: str
+        :param total_size: The total size of the directory.
+        :type total_size: float
+        :param last_modified_time: The last modified time of the directory.
+        :type last_modified_time: float
+        """
         await DirMetadataModel.get_pymongo_collection().update_one(
             {"category": category, "path": path},
             {"$set": {
@@ -53,7 +73,14 @@ class DirMetadataService:
         self._cache.set(self._cache_key(category, path), (total_size, last_modified_time))
 
     async def bulk_set_metadata(self, category: str, entries: dict[str, tuple[float, float]]) -> None:
-        """Bulk upsert to database, then batch update cache."""
+        """
+        Bulk upsert to database, then batch update cache.
+
+        :param category: The category of the directory.
+        :type category: str
+        :param entries: A dictionary mapping directory paths to their metadata (total size, last modified time).
+        :type entries: dict[str, tuple[float, float]]
+        """
         if not entries:
             return
 
@@ -83,6 +110,18 @@ class DirMetadataService:
                                            directory_path: AbsolutePath,
                                            skipCache: bool = False,
                                            recursiveCalculation: bool = True) -> tuple[float, float]:
+        """
+        Calculate the total size and last modified time for a directory, with optional cache usage and recursive calculation.
+        
+        :param directory_path: The absolute path of the directory.
+        :type directory_path: AbsolutePath
+        :param skipCache: Whether to skip cache when calculating metadata. Default is False.
+        :type skipCache: bool
+        :param recursiveCalculation: Whether to calculate metadata recursively for subdirectories. Default is True.
+        :type recursiveCalculation: bool
+        :return: A tuple containing the total size and last modified time of the directory.
+        :rtype: tuple[float, float]
+        """
         category = directory_path.category
         if category is None:
             return (0.0, 0.0)
@@ -105,6 +144,18 @@ class DirMetadataService:
                                            directory_path: AbsolutePath,
                                            collected: dict[str, tuple[float, float]],
                                            recursiveCalculation: bool) -> tuple[float, float]:
+        """
+        Internal implementation of directory metadata calculation, which can be called recursively.
+
+        :param directory_path: The absolute path of the directory.
+        :type directory_path: AbsolutePath
+        :param collected: A dictionary to collect metadata results for directories, used for batch updating later.
+        :type collected: dict[str, tuple[float, float]]
+        :param recursiveCalculation: Whether to calculate metadata recursively for subdirectories.
+        :type recursiveCalculation: bool
+        :return: A tuple containing the total size and last modified time of the directory.
+        :rtype: tuple[float, float]
+        """
         total_size = 0.0
         last_modified_time = 0.0
         category = directory_path.category
@@ -138,7 +189,14 @@ class DirMetadataService:
         return total_size, last_modified_time
 
     async def batch_update_metadata_forward(self, category: str, dir_db_paths: list[str]) -> None:
-        """collect all parent directories of the given paths, then batch update their metadata"""
+        """
+        Collect all parent directories of the given paths, then batch update their metadata.
+
+        :param category: The category of the directories.
+        :type category: str
+        :param dir_db_paths: A list of directory paths in DB format that need their metadata updated.
+        :type dir_db_paths: list[str]
+        """
         if not dir_db_paths:
             return
 
@@ -162,6 +220,12 @@ class DirMetadataService:
             await self.calculate_directory_metadata(abs_path, skipCache=True, recursiveCalculation=False)
 
     async def update_directory_metadata_forward(self, directory_path: AbsolutePath) -> None:
+        """
+        Update metadata for the given directory and all its parent directories.
+
+        :param directory_path: The absolute path of the directory that has been updated.
+        :type directory_path: AbsolutePath
+        """
         current_path = directory_path
         category = directory_path.category
         if current_path.category in self.settings.get_all_logical_root_paths():

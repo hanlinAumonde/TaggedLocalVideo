@@ -1,8 +1,30 @@
 from typing import Optional
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from src.config import get_settings
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
+
+
+class SeriesOrderEntryInputModel(BaseModel):
+    videoId: str
+    order: int
+
+
+class SeriesOperationInputModel(BaseModel):
+    name: Optional[str] = None
+    clear: bool = False
+    orders: list[SeriesOrderEntryInputModel] = Field(default_factory=list)
+
+    @field_validator("name", mode="after")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        settings = get_settings()
+        max_length = settings.validation.series_name_max_length
+        if len(v) > max_length:
+            raise ValueError(f"Series name too long (max {max_length})")
+        return v
 
 
 class TagsOperationMappingInputModel(BaseModel):
@@ -43,6 +65,7 @@ class BatchOperationInputModel(BaseModel):
 class VideosBatchOperationInputModel(BatchOperationInputModel):
     videoIds: list[str]
     relativePath: RelativePathInputModel
+    seriesOperation: Optional[SeriesOperationInputModel] = None
 
 # class DirectoryVideosBatchOperationInputModel(BatchOperationInputModel):
 #     relativePath: RelativePathInputModel

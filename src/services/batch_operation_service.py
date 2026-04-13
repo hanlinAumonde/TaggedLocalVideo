@@ -13,12 +13,16 @@ from src.schema.types.fileBrowse_type import (
     VideosBatchOperationResult,
     BatchResultType
 )
-from src.schema.types.pydantic_types.batch_operation_type import TagsOperationMappingInputModel
+from src.schema.types.pydantic_types.batch_operation_type import (
+    SeriesOperationInputModel,
+    TagsOperationMappingInputModel,
+)
 from src.services.dir_metadata_service import get_dir_metadata_service
 from src.services.ffmpeg_service import get_ffmpeg_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.series_service import get_series_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 
@@ -32,10 +36,24 @@ class BatchOperationService:
         self.thumbnailService = get_thumbnail_service()
         self.resourceHandlerService = get_resource_handler_service()
         self.ffmpegService = get_ffmpeg_service()
+        self.seriesService = get_series_service()
 
-    def constructBatchOperationStatus(self, resultType: BatchResultType | None = None,
-                                   message: str | None = None,
-                                   status: str | None = None) -> BatchOperationStatus:
+    def constructBatchOperationStatus(self, 
+                                      resultType: BatchResultType | None = None,
+                                      message: str | None = None,
+                                      status: str | None = None) -> BatchOperationStatus:
+        """
+        Construct a BatchOperationStatus object.
+
+        :param resultType: The type of the batch operation result.
+        :type resultType: BatchResultType | None
+        :param message: The message associated with the batch operation result.
+        :type message: str | None
+        :param status: The status of the batch operation.
+        :type status: str | None
+        :return: A BatchOperationStatus object.
+        :rtype: BatchOperationStatus
+        """
         if resultType is None or message is None:
             return BatchOperationStatus(
                 result=None,
@@ -53,6 +71,17 @@ class BatchOperationService:
                            dir_path: AbsolutePath,
                            videoIds: list[str],
                            fileEntries: list[BaseFileEntry] | None) -> AsyncGenerator[BatchOperationStatus, None]:
+        """
+        Resolve function to batch delete videos based on provided video IDs or directory path.
+        
+        :param dir_path: The absolute path of the directory containing the videos to delete.
+        :type dir_path: AbsolutePath
+        :param videoIds: List of video IDs to delete.
+        :type videoIds: list[str]
+        :param fileEntries: List of file entries representing videos to delete (used if videoIds is not provided).
+        :type fileEntries: list[BaseFileEntry] | None
+        :return: An asynchronous generator yielding the status of the batch delete operation.
+        :rtype: AsyncGenerator[BatchOperationStatus, None]"""
         if (not videoIds and not fileEntries) or dir_path.get_path() is None:
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Failure,
@@ -120,7 +149,26 @@ class BatchOperationService:
                            videoIDs: list[str] | None,
                            fileEntries: list[BaseFileEntry] | None,
                            author: str | None,
-                           tagsOperation: TagsOperationMappingInputModel) -> AsyncGenerator[BatchOperationStatus, None]:
+                           tagsOperation: TagsOperationMappingInputModel,
+                           seriesOperation: SeriesOperationInputModel | None = None) -> AsyncGenerator[BatchOperationStatus, None]:
+        """
+        Resolve function to batch update videos based on provided video IDs or directory path, with support for updating author, tags, and series information.
+
+        :param category: The category of the videos to update.
+        :type category: str
+        :param videoIDs: List of video IDs to update (if updating by IDs).
+        :type videoIDs: list[str] | None
+        :param fileEntries: List of file entries representing videos to update (used if updating by directory path).
+        :type fileEntries: list[BaseFileEntry] | None
+        :param author: The new author to set for the videos (optional).
+        :type author: str | None
+        :param tagsOperation: The tags operation to apply to the videos.
+        :type tagsOperation: TagsOperationMappingInputModel
+        :param seriesOperation: The series operation to apply to the videos (optional, only applicable when updating by IDs).
+        :type seriesOperation: SeriesOperationInputModel | None
+        :return: An asynchronous generator yielding the status of the batch update operation.
+        :rtype: AsyncGenerator[BatchOperationStatus, None]
+        """
         if not videoIDs and not fileEntries:
             yield self.constructBatchOperationStatus(
                 resultType=BatchResultType.Failure,
@@ -132,6 +180,11 @@ class BatchOperationService:
         update_tags: dict[str, tuple[int, bool]] = {}
         no_need_update_flag = False
         new_entries = []
+
+        # Normalize seriesOperation into a {videoId: order} map for id-based lookup.
+        series_orders_map: dict[str, int] = {}
+        if seriesOperation is not None and not seriesOperation.clear:
+            series_orders_map = {entry.videoId: entry.order for entry in seriesOperation.orders}
 
         try:
             if videoIDs is not None:
@@ -145,7 +198,9 @@ class BatchOperationService:
                     tagsOperation=tagsOperation,
                     update_tags=update_tags,
                     operations=operations,
-                    no_need_update_flag=no_need_update_flag
+                    no_need_update_flag=no_need_update_flag,
+                    seriesOperation=seriesOperation,
+                    seriesOrdersMap=series_orders_map,
                 )
                 yield self.constructBatchOperationStatus(
                     status=f"Prepared update operations for {len(video_models)} existing videos based on IDs"
@@ -168,7 +223,9 @@ class BatchOperationService:
                     tagsOperation=tagsOperation,
                     update_tags=update_tags,
                     operations=operations,
-                    no_need_update_flag=no_need_update_flag
+                    no_need_update_flag=no_need_update_flag,
+                    seriesOperation=None,
+                    seriesOrdersMap={},
                 )
 
                 new_entries = [
@@ -203,6 +260,9 @@ class BatchOperationService:
                 )
 
                 await self.tagOperationService.update_tag_counts(update_tags=update_tags)
+
+                if seriesOperation is not None and not seriesOperation.clear and seriesOperation.name:
+                    await self.seriesService.ensure_exists(seriesOperation.name)
 
                 if new_entries:
                     handler = self.resourceHandlerService.get_handler(category)
@@ -240,7 +300,33 @@ class BatchOperationService:
                                                  tagsOperation: TagsOperationMappingInputModel,
                                                  operations: list[UpdateOne],
                                                  no_need_update_flag: bool,
-                                                 update_tags: dict[str, tuple[int, bool]]):
+                                                 update_tags: dict[str, tuple[int, bool]],
+                                                 seriesOperation: SeriesOperationInputModel | None,
+                                                 seriesOrdersMap: dict[str, int]):
+        """
+        Helper function to prepare update operations for existing videos based on provided author, tagsOperation, and seriesOperation.
+        
+        :param video_models: List of video models to prepare update operations for.
+        :type video_models: list[VideoModel]
+        :param findById: Flag indicating whether to find videos by ID or by path.
+        :type findById: bool
+        :param author: The new author to set for the videos (optional).
+        :type author: str | None
+        :param tagsOperation: The tags operation to apply to the videos.
+        :type tagsOperation: TagsOperationMappingInputModel
+        :param operations: The list to append prepared UpdateOne operations to.
+        :type operations: list[UpdateOne]
+        :param no_need_update_flag: Flag indicating whether any updates are needed (modified in-place).
+        :type no_need_update_flag: bool
+        :param update_tags: Dictionary to track tag count changes (modified in-place).
+        :type update_tags: dict[str, tuple[int, bool]]
+        :param seriesOperation: The series operation to apply to the videos (optional, only applicable when findById is True).
+        :type seriesOperation: SeriesOperationInputModel | None
+        :param seriesOrdersMap: A mapping of video ID to target series order (only applicable when seriesOperation is provided and clear is False).
+        :type seriesOrdersMap: dict[str, int]
+        :return: Updated no_need_update_flag indicating whether any updates are needed.
+        :rtype: bool
+        """
         for video_model in video_models:
             old_tags = set(video_model.tags or [])
             filter_query = {"_id": video_model.id} if findById else {"path": video_model.path}
@@ -269,6 +355,19 @@ class BatchOperationService:
                 if duration is not None and duration > 0.0:
                     update_query["duration"] = duration
 
+            if seriesOperation is not None:
+                if seriesOperation.clear:
+                    if video_model.seriesName is not None:
+                        update_query["seriesName"] = None
+                    if video_model.seriesOrder is not None:
+                        update_query["seriesOrder"] = None
+                else:
+                    target_order = seriesOrdersMap.get(str(video_model.id))
+                    if video_model.seriesName != seriesOperation.name:
+                        update_query["seriesName"] = seriesOperation.name
+                    if video_model.seriesOrder != target_order:
+                        update_query["seriesOrder"] = target_order
+
             if update_query:
                 operations.append(UpdateOne(filter_query, {"$set": update_query}))
 
@@ -277,7 +376,15 @@ class BatchOperationService:
 
         return no_need_update_flag
 
-    async def _remove_videos_and_update_tags(self, actually_deleted: list[VideoModel], category: str):
+    async def _remove_videos_and_update_tags(self, actually_deleted: list[VideoModel], category: str) -> None:
+        """
+        Helper function to remove video files and update tag counts after videos have been deleted.
+
+        :param actually_deleted: List of video models that were actually deleted from the database.
+        :type actually_deleted: list[VideoModel]
+        :param category: The category of the deleted videos.
+        :type category: str
+        """
         paths_to_delete = [v.path for v in actually_deleted]
         await run_in_threadpool(self._remove_videos_by_paths, paths_to_delete, category)
 
@@ -287,7 +394,15 @@ class BatchOperationService:
         if update_tags:
             await self.tagOperationService.update_tag_counts(update_tags=update_tags)
 
-    def _remove_videos_by_paths(self, paths: list[str], category: str):
+    def _remove_videos_by_paths(self, paths: list[str], category: str) -> None:
+        """
+        Helper function to remove video files from the filesystem based on their paths and category.
+        
+        :param paths: List of video paths to remove.
+        :type paths: list[str]
+        :param category: The category of the videos to remove.
+        :type category: str
+        """
         try:
             handler = self.resourceHandlerService.get_handler(category)
             for path in paths:
@@ -296,14 +411,28 @@ class BatchOperationService:
             logger.exception(f"Error removing video files: {e}")
             raise FileBrowseError("Error removing video files.")
 
-    async def _process_new_video_entry(
-        self,
-        entry: BaseFileEntry,
-        category: str,
-        author: str | None,
-        tagsOperation: TagsOperationMappingInputModel | None,
-        update_tags: dict[str, tuple[int,bool]]
-    ) -> UpdateOne:
+    async def _process_new_video_entry(self,
+                                       entry: BaseFileEntry,
+                                       category: str,
+                                       author: str | None,
+                                       tagsOperation: TagsOperationMappingInputModel | None,
+                                       update_tags: dict[str, tuple[int,bool]]) -> UpdateOne:
+        """
+        Helper function to prepare an UpdateOne operation for a new video entry that does not have an existing VideoModel in the database.
+        
+        :param entry: The file entry representing the new video.
+        :type entry: BaseFileEntry
+        :param category: The category of the new video.
+        :type category: str
+        :param author: The author to set for the new video (optional).
+        :type author: str | None
+        :param tagsOperation: The tags operation to apply to the new video (optional).
+        :type tagsOperation: TagsOperationMappingInputModel | None
+        :param update_tags: Dictionary to track tag count changes (modified in-place).
+        :type update_tags: dict[str, tuple[int,bool]]
+        :return: An UpdateOne operation to insert the new video.
+        :rtype: UpdateOne
+        """
         entry_path = AbsolutePath.from_existing_path(entry.path, category)
         handler = self.resourceHandlerService.get_handler(category)
         filter_query = {"path": entry_path.DB_format_path()}

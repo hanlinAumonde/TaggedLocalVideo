@@ -1,10 +1,10 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 from fastapi import Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
 from src.services.ffmpeg_service import get_ffmpeg_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
@@ -23,12 +23,12 @@ class VideoResolver:
         Handles video streaming requests and supports Range requests (for drag-and-drop playback in Video.js).
         For non-browser-supported formats, transcodes to MP4 on-the-fly using ffmpeg.
 
-        Args:
-            video_id: The MongoDB ID of the video
-            request: A FastAPI Request object used to retrieve the range header
-
-        Returns:
-            StreamingResponse: The video stream response
+        :param video_id: The ID of the video to stream.
+        :type video_id: str
+        :param request: The incoming HTTP request, used to access headers for Range requests.
+        :type request: Request
+        :return: A StreamingResponse that streams the video content to the client.
+        :rtype: StreamingResponse
         """
         video = await VideoModel.get(video_id)
         if not video:
@@ -94,12 +94,17 @@ class VideoResolver:
             logger.exception(f"Error while processing video stream request: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def _stream_transcoded(
-        self, handler: BaseResourceHandler, video_fs_path: str
-    ) -> StreamingResponse:
+    async def _stream_transcoded(self, handler: BaseResourceHandler, video_fs_path: str) -> StreamingResponse:
         """
         Transcode video to fragmented MP4 on-the-fly using ffmpeg and stream the output.
         Range requests are not supported for transcoded streams.
+
+        :param handler: The resource handler to read the video file
+        :type handler: BaseResourceHandler
+        :param video_fs_path: The file system path to the video file
+        :type video_fs_path: str
+        :return: A StreamingResponse for the transcoded video
+        :rtype: StreamingResponse
         """
         return StreamingResponse(
             self.ffmpeg.transcode_to_mp4_stream(handler, video_fs_path),
@@ -107,10 +112,28 @@ class VideoResolver:
             headers={"Content-Type": "video/mp4"},
         )
 
-    async def _iter_file_chunks(
-        self, handler: BaseResourceHandler, path: str,
-        chunk_size: int, start: int, content_length: int
-    ):
+    async def _iter_file_chunks(self, 
+                                handler: BaseResourceHandler, 
+                                path: str,
+                                chunk_size: int, 
+                                start: int, 
+                                content_length: int) -> AsyncGenerator[bytes, None]:
+        """
+        Asynchronously read a file in chunks and yield the bytes for streaming.
+
+        :param handler: The resource handler to read the file
+        :type handler: BaseResourceHandler
+        :param path: The file system path to the video file
+        :type path: str
+        :param chunk_size: The size of each chunk to read in bytes
+        :type chunk_size: int
+        :param start: The starting byte offset to read from
+        :type start: int
+        :param content_length: The total number of bytes to read
+        :type content_length: int
+        :return: An asynchronous generator yielding chunks of file data
+        :rtype: AsyncGenerator[bytes, None]
+        """
         remaining = content_length
         offset = start
         while remaining > 0:
@@ -126,11 +149,12 @@ class VideoResolver:
         """
         Returns the correct MIME type based on the file extension.
 
-        Args:
-            file_path: Video file path
-
-        Returns:
-            str: MIME type string
+        :param file_path: The file system path to the video file
+        :type file_path: str
+        :param handler: The resource handler to get the file extension
+        :type handler: BaseResourceHandler
+        :return: The MIME type for the video file
+        :rtype: str
         """
         ext = handler.get_file_extension(file_path).lower()
         mime_types = {

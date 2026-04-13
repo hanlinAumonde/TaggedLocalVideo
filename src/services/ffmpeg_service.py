@@ -12,7 +12,6 @@ logger = get_logger("ffmpeg_service")
 
 
 class FFmpegService:
-    """Centralized service for all ffmpeg/ffprobe operations with shared concurrency control."""
 
     def __init__(self):
         self._semaphore = asyncio.Semaphore(
@@ -28,6 +27,13 @@ class FFmpegService:
         """
         Generate a JPEG thumbnail from video.
         Tries capturing at 10s first, falls back to 0s if video is too short.
+
+        :param handler: The resource handler to access the video file.
+        :type handler: BaseResourceHandler
+        :param fs_path: The file system path to the video file.
+        :type fs_path: str
+        :return: The generated thumbnail image data in bytes.
+        :rtype: bytes
         """
         async with self._semaphore:
             ffmpeg_input = handler.get_ffmpeg_accessible_path(fs_path)
@@ -42,7 +48,16 @@ class FFmpegService:
 
     @staticmethod
     async def _run_thumbnail_command(ffmpeg_input: str, ss: float) -> bytes:
-        """Direct mode: -ss before -i for fast seeking."""
+        """
+        Direct mode: -ss before -i for fast seeking.
+
+        :param ffmpeg_input: The input path for ffmpeg.
+        :type ffmpeg_input: str
+        :param ss: The timestamp in seconds to capture the thumbnail.
+        :type ss: float
+        :return: The generated thumbnail image data in bytes.
+        :rtype: bytes
+        """
         process = await asyncio.create_subprocess_exec(
             "ffmpeg",
             "-loglevel", "error",
@@ -64,7 +79,16 @@ class FFmpegService:
         return stdout
 
     async def _run_thumbnail_piped(self, handler: BaseResourceHandler, fs_path: str) -> bytes:
-        """Pipe fallback: feed file via stdin. -ss must go after -i (no seeking on pipe)."""
+        """
+        Pipe fallback: feed file via stdin. -ss must go after -i (no seeking on pipe).
+
+        :param handler: The resource handler to access the video file.
+        :type handler: BaseResourceHandler
+        :param fs_path: The file system path to the video file.
+        :type fs_path: str
+        :return: The generated thumbnail image data in bytes.
+        :rtype: bytes
+        """
         process = await asyncio.create_subprocess_exec(
             "ffmpeg",
             "-loglevel", "error",
@@ -104,6 +128,14 @@ class FFmpegService:
 
     @staticmethod
     async def _run_duration_command(ffmpeg_input: str) -> float:
+        """
+        Run ffprobe command to get video duration.
+
+        :param ffmpeg_input: The input path for ffprobe.
+        :type ffmpeg_input: str
+        :return: The duration of the video in seconds.
+        :rtype: float
+        """
         process = await asyncio.create_subprocess_exec(
             "ffprobe",
             "-v", "error",
@@ -120,6 +152,16 @@ class FFmpegService:
         return float(stdout)
 
     async def _run_duration_piped(self, handler: BaseResourceHandler, fs_path: str) -> float:
+        """
+        Run ffprobe in piped mode to get video duration.
+
+        :param handler: The resource handler to access the video file.
+        :type handler: BaseResourceHandler
+        :param fs_path: The file system path to the video file.
+        :type fs_path: str
+        :return: The duration of the video in seconds.
+        :rtype: float
+        """
         process = await asyncio.create_subprocess_exec(
             "ffprobe",
             "-v", "error",
@@ -146,6 +188,13 @@ class FFmpegService:
         Transcode video to fragmented MP4 on-the-fly.
         Returns an async iterator that yields 1MB chunks.
         The semaphore is held for the entire duration of the stream.
+
+        :param handler: The resource handler to access the video file.
+        :type handler: BaseResourceHandler
+        :param fs_path: The file system path to the video file.
+        :type fs_path: str
+        :return: An asynchronous iterator yielding chunks of the transcoded video data.
+        :rtype: AsyncIterator[bytes]
         """
         await self._semaphore.acquire()
 
@@ -196,7 +245,14 @@ class FFmpegService:
     # --- Internal helpers ---
 
     async def _iter_process_output(self, process: Process):
-        """Read stdout in 1MB chunks, clean up process and release semaphore when done."""
+        """
+        Read stdout in 1MB chunks, clean up process and release semaphore when done.
+
+        :param process: The subprocess process to read from.
+        :type process: Process
+        :return: An asynchronous iterator yielding chunks of the process output.
+        :rtype: AsyncIterator[bytes]
+        """
         try:
             while True:
                 chunk = await process.stdout.read(1024 * 1024)
@@ -222,7 +278,16 @@ class FFmpegService:
     async def _feed_stdin(
         handler: BaseResourceHandler, fs_path: str, stdin: asyncio.StreamWriter
     ):
-        """Stream file content from handler into ffmpeg's stdin."""
+        """
+        Stream file content from handler into ffmpeg's stdin.
+
+        :param handler: The resource handler to access the video file.
+        :type handler: BaseResourceHandler
+        :param fs_path: The file system path to the video file.
+        :type fs_path: str
+        :param stdin: The stdin stream of the ffmpeg process.
+        :type stdin: asyncio.StreamWriter
+        """
         try:
             file_size = int(handler.get_size(fs_path))
             offset = 0

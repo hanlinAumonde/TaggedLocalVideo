@@ -19,3 +19,7 @@ class Query:
     browseDirectory: list[FileBrowseNode] = strawberry.field(resolver=QueryResolver.resolve_browse_directory)
 
     getDirectoryMetadata: DirectoryMetadataResult = strawberry.field(resolver=QueryResolver.resolve_directory_metadata)
+
+    searchSeriesByPrefix: list[str] = strawberry.field(resolver=QueryResolver.resolve_search_series_by_prefix)
+
+    getSeriesVideos: list[Video] = strawberry.field(resolver=QueryResolver.resolve_get_series_videos)

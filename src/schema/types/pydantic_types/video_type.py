@@ -1,7 +1,30 @@
 from typing import Optional
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from src.config import get_settings
+
+
+class SeriesFieldInputModel(BaseModel):
+    name: Optional[str] = None
+    order: Optional[int] = None
+    clear: bool = False
+
+    @field_validator("name", mode="after")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        settings = get_settings()
+        max_length = settings.validation.series_name_max_length
+        if len(v) > max_length:
+            raise ValueError(f"Series name too long (max {max_length})")
+        return v
+
+    @model_validator(mode="after")
+    def validate_combo(self) -> "SeriesFieldInputModel":
+        if not self.clear and self.name is None:
+            raise ValueError("SeriesFieldInput requires either clear=true or a non-empty name")
+        return self
 
 
 class UpdateVideoMetadataInputModel(BaseModel):
@@ -11,6 +34,7 @@ class UpdateVideoMetadataInputModel(BaseModel):
     author: Optional[str] = None
     tags: list[str]
     loved: Optional[bool] = None
+    series: Optional[SeriesFieldInputModel] = None
 
     @field_validator("name", mode="after")
     @classmethod

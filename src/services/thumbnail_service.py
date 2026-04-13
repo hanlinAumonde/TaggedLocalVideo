@@ -7,7 +7,7 @@ from src.config import get_settings
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
 from src.services.ffmpeg_service import get_ffmpeg_service
-from src.services.path_convert_service import AbsolutePath
+from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
@@ -23,6 +23,9 @@ class ThumbnailService:
         """
         Initialize the thumbnail storage handler based on config.
         Returns None if no storage is configured (thumbnails will be generated on-the-fly).
+
+        :return: An instance of BaseResourceHandler for thumbnail storage, or None if not configured.
+        :rtype: BaseResourceHandler | None
         """
         cfg = get_settings().thumbnail_config
         if not cfg.storage_category or not cfg.storage_pseudo_name:
@@ -36,7 +39,16 @@ class ThumbnailService:
             )
             return None
 
-    async def get_thumbnail(self, video_id: str, thumbnail_id: str | None = None) -> StreamingResponse:
+    async def get_thumbnail(self, video_id: str) -> StreamingResponse:
+        """
+        Get the thumbnail image for a video. The method first tries to read a stored thumbnail if storage is configured,
+        and falls back to generating a new thumbnail with ffmpeg if not found or if storage is not configured.
+
+        :param video_id: The ID of the video to get the thumbnail for.
+        :type video_id: str
+        :return: A StreamingResponse containing the thumbnail image bytes.
+        :rtype: StreamingResponse
+        """            
         if not video_id:
             raise HTTPException(status_code=400, detail="Cannot find thumbnail without video-id")
 
@@ -76,7 +88,14 @@ class ThumbnailService:
         return self._build_thumbnail_response(thumbnail_bytes)
 
     async def _read_stored_thumbnail(self, thumbnail_path: str) -> bytes | None:
-        """Try to read a previously stored thumbnail from the storage handler."""
+        """
+        Try to read a previously stored thumbnail from the storage handler.
+
+        :param thumbnail_path: The storage path of the thumbnail to read.
+        :type thumbnail_path: str
+        :return: The thumbnail bytes if found and readable, or None if not found or on error.
+        :rtype: bytes | None
+        """
         try:
             if not self._storage_handler.file_exists(thumbnail_path):
                 return None
@@ -87,7 +106,14 @@ class ThumbnailService:
             return None
 
     async def _store_thumbnail(self, path: str, data: bytes) -> None:
-        """Store thumbnail bytes via the storage handler."""
+        """
+        Store thumbnail bytes via the storage handler.
+
+        :param path: The storage path where the thumbnail should be stored.
+        :type path: str
+        :param data: The thumbnail bytes to store.
+        :type data: bytes
+        """
         try:
             await self._storage_handler.write_file(path, data)
         except Exception as e:
@@ -97,6 +123,11 @@ class ThumbnailService:
         """
         Compute the S3 key / storage path for a thumbnail.
         Format: thumbnails/{storage_pseudo_name}/{video_name}.jpg
+
+        :param video_name: The base name of the video file (without extension) to compute the thumbnail path for.
+        :type video_name: str
+        :return: The computed storage path for the thumbnail.
+        :rtype: str
         """
         cfg = get_settings().thumbnail_config
         return type(self._storage_handler).join_path(
@@ -105,6 +136,14 @@ class ThumbnailService:
 
     @staticmethod
     def _build_thumbnail_response(thumbnail_bytes: bytes) -> StreamingResponse:
+        """
+        Build a StreamingResponse for the thumbnail image bytes with appropriate headers.
+
+        :param thumbnail_bytes: The thumbnail image bytes.
+        :type thumbnail_bytes: bytes
+        :return: A StreamingResponse containing the thumbnail image.
+        :rtype: StreamingResponse
+        """
         return StreamingResponse(
             content=io.BytesIO(thumbnail_bytes),
             media_type="image/jpeg",

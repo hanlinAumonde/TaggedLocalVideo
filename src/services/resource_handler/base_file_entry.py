@@ -26,12 +26,16 @@ class BaseFileEntry(ABC):
 
     @abstractmethod
     def is_file(self) -> bool:
+        """Return True if this entry is a file."""
         ...
 
     @abstractmethod
     def is_dir(self) -> bool:
+        """Return True if this entry is a directory."""
         ...
 
     @abstractmethod
     def stat(self) -> FileStat:
+        """Return the file statistics for this entry."""
+
         ...

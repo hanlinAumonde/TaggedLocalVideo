@@ -3,6 +3,7 @@ from pymongo import AsyncMongoClient
 from .models.Video_model import VideoModel
 from .models.VideoTag_model import VideoTagModel
 from .models.DirMetadata_model import DirMetadataModel
+from .models.Series_model import SeriesModel
 from src.config import MongoConfig, get_settings
 from src.logger import get_logger
 
@@ -21,5 +22,5 @@ async def setup_mongo():
     client = AsyncMongoClient(mongo_uri)
 
     #initialize Beanie with the client and database name
-    await init_beanie(database=client.get_database(mongo_config.database), document_models=[VideoModel, VideoTagModel, DirMetadataModel])
+    await init_beanie(database=client.get_database(mongo_config.database), document_models=[VideoModel, VideoTagModel, DirMetadataModel, SeriesModel])
     logger.info("MongoDB setup complete")

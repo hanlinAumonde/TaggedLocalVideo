@@ -22,6 +22,9 @@ class VideoModel(Document):
     thumbnail: Optional[str] = None
     duration: Optional[float] = 0.0
 
+    seriesName: Optional[str] = None
+    seriesOrder: Optional[int] = None
+
     @before_event(Insert, Replace)
     def validate_category(self):
         valid = get_settings().get_valid_categories()
@@ -42,4 +45,6 @@ class VideoModel(Document):
             # compound index: viewCount + lastViewTime (used for popular videos)
             [("viewCount", pymongo.DESCENDING), ("lastViewTime", pymongo.DESCENDING)],
             [("duration", pymongo.DESCENDING)],
+            # compound index: seriesName + seriesOrder (used for listing a series in order)
+            [("seriesName", pymongo.ASCENDING), ("seriesOrder", pymongo.ASCENDING)],
         ]

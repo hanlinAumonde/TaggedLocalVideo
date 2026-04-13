@@ -37,6 +37,7 @@ class ValidationConfig(BaseModel):
     max_tags_count: int = 50
     page_number_min: int = 1
     page_number_max: int = 10000
+    series_name_max_length: int = 100
 
 
 class LoggingConfig(BaseModel):
