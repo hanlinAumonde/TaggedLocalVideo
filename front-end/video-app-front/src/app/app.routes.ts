@@ -28,6 +28,7 @@ export const routes: Routes = [
     path: 'video/:id',
     component: VideoPlayer,
     title: 'Video Player - Tagged Local Video App',
+    runGuardsAndResolvers: 'paramsChange',
     resolve: {
       video: VideoMetaDataResolver
     }

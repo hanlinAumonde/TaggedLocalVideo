@@ -97,6 +97,10 @@ export class ValidationService {
     return this.maxLengthValidator(environment.VALIDATION_RULES.INTRODUCTION_MAX_LENGTH);
   }
 
+  seriesNameValidator(): ValidatorFn {
+    return this.maxLengthValidator(environment.VALIDATION_RULES.SERIES_NAME_MAX_LENGTH);
+  }
+
   searchKeywordValidator(): ValidatorFn {
     return this.maxLengthValidator(environment.VALIDATION_RULES.NAME_MAX_LENGTH);
   }

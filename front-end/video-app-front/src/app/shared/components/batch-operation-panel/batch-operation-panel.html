@@ -74,7 +74,7 @@
           </mat-panel-title>
           <mat-panel-description>(Optional)</mat-panel-description>
         </mat-expansion-panel-header>
-        <mat-radio-group formControlName="mode" class="flex gap-6">
+        <mat-radio-group formControlName="tagAction" class="flex gap-6">
           <mat-radio-button value="append" class="text-green-700">
             <span class="font-medium">Add Tags</span>
           </mat-radio-button>
@@ -137,6 +137,98 @@
           </mat-autocomplete>
         </mat-form-field>
       </mat-expansion-panel>
+
+      @if (isVideoMode) {
+        <!-- Series Section -->
+        <mat-expansion-panel>
+          <mat-expansion-panel-header>
+            <mat-panel-title>
+              <label
+                class="text-sm font-semibold text-blue-700 dark:text-blue-300
+                     bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
+                Series
+              </label>
+            </mat-panel-title>
+            <mat-panel-description>(Optional)</mat-panel-description>
+          </mat-expansion-panel-header>
+
+          <mat-radio-group formControlName="seriesAction" class="flex gap-6 mb-3">
+            <mat-radio-button value="set">
+              <span class="font-medium">Assign</span>
+            </mat-radio-button>
+            <mat-radio-button value="clear" class="text-red-700">
+              <span class="font-medium">Clear</span>
+            </mat-radio-button>
+          </mat-radio-group>
+
+          @if (seriesAction() === 'set') {
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Series name</mat-label>
+              <input
+                matInput
+                formControlName="seriesName"
+                placeholder="Search or type a new series name"
+                [matAutocomplete]="seriesAuto" />
+              @if (form.get('seriesName')?.hasError('maxLength')) {
+                <mat-error>Series name too long (max {{ form.get('seriesName')?.errors?.['maxLength']?.max }})</mat-error>
+              }
+              <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
+              <mat-autocomplete
+                #seriesAuto="matAutocomplete"
+                (optionSelected)="selectSeriesSuggestion($event.option.value)">
+                @if (seriesSuggestions().loading) {
+                  <mat-option disabled>
+                    <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+                    <span class="ml-2">Loading...</span>
+                  </mat-option>
+                } @else if (seriesSuggestions().data && seriesSuggestions().data!.length > 0) {
+                  @for (series of seriesSuggestions().data; track series) {
+                    <mat-option [value]="series">
+                      <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ series }}</span>
+                    </mat-option>
+                  }
+                } @else {
+                  <mat-option disabled>No series matched — type to create a new one</mat-option>
+                }
+              </mat-autocomplete>
+            </mat-form-field>
+
+            @if (orderedVideos().length > 0) {
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Reorder the selected videos. Positions will be used as the series order.
+              </p>
+              <ol class="flex flex-col gap-1 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg max-h-60 overflow-y-auto">
+                @for (item of orderedVideos(); track item.id; let i = $index) {
+                  <li class="flex items-center gap-2 px-2 py-1 bg-white dark:bg-gray-600 rounded">
+                    <span class="text-xs font-mono w-6 text-right text-gray-500">{{ i + 1 }}.</span>
+                    <span class="flex-1 text-sm truncate" [matTooltip]="item.name">{{ item.name }}</span>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      aria-label="Move up"
+                      [disabled]="i === 0"
+                      (click)="moveVideoUp(i)">
+                      <mat-icon class="text-base!">arrow_upward</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      type="button"
+                      aria-label="Move down"
+                      [disabled]="i === orderedVideos().length - 1"
+                      (click)="moveVideoDown(i)">
+                      <mat-icon class="text-base!">arrow_downward</mat-icon>
+                    </button>
+                  </li>
+                }
+              </ol>
+            }
+          } @else {
+            <p class="text-sm text-red-600 dark:text-red-400">
+              Series will be removed from all selected videos.
+            </p>
+          }
+        </mat-expansion-panel>
+      }
     </mat-accordion>
     <br/>
   </form>

@@ -1,13 +1,14 @@
-import { 
-    BatchUpdateSubscriptionSubscription, 
-    BrowseDirectoryQuery, 
-    DeleteVideoMutation, 
-    GetDirectoryMetadataQuery, 
-    GetTopTagsQuery, 
-    GetVideoByIdQuery, 
-    RecordVideoViewMutation, 
-    SearchVideosQuery, 
-    UpdateVideoMetadataMutation 
+import {
+    BatchUpdateSubscriptionSubscription,
+    BrowseDirectoryQuery,
+    DeleteVideoMutation,
+    GetDirectoryMetadataQuery,
+    GetSeriesVideosQuery,
+    GetTopTagsQuery,
+    GetVideoByIdQuery,
+    RecordVideoViewMutation,
+    SearchVideosQuery,
+    UpdateVideoMetadataMutation
 } from "../../core/graphql/generated/graphql";
 
 export interface ResultState<T> {
@@ -36,3 +37,6 @@ export type DeleteVideoDetail = DeleteVideoMutation['deleteVideo'];
 export type BatchUpdateVideosDetail = BatchUpdateSubscriptionSubscription['batchUpdateSubscription'];
 
 export type DirectoryMetadataDetail = GetDirectoryMetadataQuery['getDirectoryMetadata'];
+
+export type SeriesVideosDetail = GetSeriesVideosQuery['getSeriesVideos'];
+export type SeriesVideoItem = GetSeriesVideosQuery['getSeriesVideos'][0];

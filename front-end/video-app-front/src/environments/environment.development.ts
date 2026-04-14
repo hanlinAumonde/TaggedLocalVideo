@@ -24,6 +24,7 @@ export const environment = {
         MAX_TAGS_COUNT: 50,
         PAGE_NUMBER_MIN: 1,
         PAGE_NUMBER_MAX: 10000,
+        SERIES_NAME_MAX_LENGTH: 100,
     },
     ERROR_TOAST_SETTINGS: {
         MAX_TOASTS: 4,

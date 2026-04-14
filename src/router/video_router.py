@@ -10,5 +10,5 @@ async def stream_video(video_id: str, request: Request, videoResolverDep: VideoR
     return await videoResolverDep.video_stream_resolver(video_id, request)
 
 @router.get("/thumbnail")
-async def get_thumbnail(thumbnailServiceDep: ThumbnailServiceDep, video_id: str, thumbnail_id: str | None = None):
-    return await thumbnailServiceDep.get_thumbnail(video_id, thumbnail_id)
+async def get_thumbnail(thumbnailServiceDep: ThumbnailServiceDep, video_id: str):
+    return await thumbnailServiceDep.get_thumbnail(video_id)

@@ -14,8 +14,9 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { startWith } from 'rxjs/operators';
-import { SearchField } from '../../../core/graphql/generated/graphql';
+import { debounceTime, distinctUntilChanged, startWith, switchMap } from 'rxjs/operators';
+import { of } from 'rxjs';
+import { SearchField, SeriesFieldInput } from '../../../core/graphql/generated/graphql';
 import {
   VideoEditPanelMode,
   VideoEditPanelData,
@@ -66,10 +67,15 @@ export class VideoEditPanel implements OnInit {
       loved: [this.video()?.loved ?? false],
       introduction: [this.video()?.introduction ?? '', [this.validationService.introductionValidator()]],
       tagInput: ['', [this.validationService.tagValidator()]],
+      seriesName: [this.video()?.seriesName ?? '', [this.validationService.seriesNameValidator()]],
+      seriesOrder: [this.video()?.seriesOrder ?? null as number | null],
   });
 
   tags = signal<string[]>([]);
   isSaving = signal<boolean>(false);
+  // Snapshot of series state as it was loaded, used to detect whether the user touched the field.
+  private readonly originalSeriesName = this.video()?.seriesName ?? null;
+  private readonly originalSeriesOrder = this.video()?.seriesOrder ?? null;
 
   authorSuggestions = this.mode === 'full'?
     toSignal(
@@ -91,6 +97,18 @@ export class VideoEditPanel implements OnInit {
     { initialValue: this.gqlService.initialSignalData<string[]>([]) }
   )
 
+  seriesSuggestions = this.mode === 'full' ?
+    toSignal(
+      this.editForm.controls.seriesName.valueChanges.pipe(
+        startWith(this.editForm.controls.seriesName.value),
+        debounceTime(300),
+        distinctUntilChanged(),
+        switchMap(value => this.gqlService.searchSeriesByPrefixQuery(value ?? '', 10))
+      ),
+      { initialValue: this.gqlService.initialSignalData<string[]>([]) }
+    )
+    : signal(this.gqlService.initialSignalData<string[]>([]));
+
   tagsError = computed(() => {
     const result = this.validationService.validateTagsArray(this.tags());
     return result.valid ? null : result.error;
@@ -111,11 +129,48 @@ export class VideoEditPanel implements OnInit {
         author: this.video()?.author,
         loved: this.video()?.loved,
         introduction: this.video()?.introduction,
+        seriesName: this.video()?.seriesName ?? '',
+        seriesOrder: this.video()?.seriesOrder ?? null,
       });
       this.tags.set(this.video()?.tags.map(tag => tag.name) ?? []);
     } else if (this.mode === 'filter' && this.selectedTags) {
       this.tags.set([...this.selectedTags]);
     }
+  }
+
+  selectSeriesSuggestion(name: string) {
+    this.editForm.patchValue({ seriesName: name });
+  }
+
+  clearSeries() {
+    this.editForm.patchValue({ seriesName: '', seriesOrder: null });
+  }
+
+  /** Build the series payload, returning undefined when the user did not touch the field. */
+  private buildSeriesInput(): SeriesFieldInput | undefined {
+    const rawName = (this.editForm.value.seriesName ?? '').trim();
+    const rawOrder = this.editForm.value.seriesOrder;
+    const normalizedOrder = rawOrder === null || rawOrder === undefined || Number.isNaN(rawOrder)
+      ? null
+      : Number(rawOrder);
+
+    const originalName = this.originalSeriesName ?? '';
+    const originalOrder = this.originalSeriesOrder ?? null;
+
+    const nameUnchanged = rawName === originalName;
+    const orderUnchanged = normalizedOrder === originalOrder;
+    if (nameUnchanged && orderUnchanged) {
+      return undefined;
+    }
+
+    if (!rawName) {
+      return { clear: true };
+    }
+    return {
+      clear: false,
+      name: rawName,
+      order: normalizedOrder ?? undefined,
+    };
   }
 
   selectAuthorSuggestion(author: string) {
@@ -186,6 +241,7 @@ export class VideoEditPanel implements OnInit {
           formValue.name ?? undefined,
           formValue.introduction ?? undefined,
           formValue.author ?? 'Unknown',
+          this.buildSeriesInput(),
         )
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({

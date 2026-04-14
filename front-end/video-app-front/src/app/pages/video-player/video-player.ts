@@ -5,7 +5,6 @@ import {
   signal,
   computed,
   ElementRef,
-  AfterViewInit,
   effect,
   viewChild,
   DestroyRef,
@@ -22,6 +21,7 @@ import videojs from 'video.js';
 import Player from 'video.js/dist/types/player';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
+import { SeriesPanel } from '../../shared/components/series-panel/series-panel';
 import { VideoEditPanelData } from '../../shared/models/panels.model';
 import { 
   ResultState, 
@@ -47,11 +47,12 @@ import { ToastType } from '../../shared/models/toast.model';
     MatChipsModule,
     MatProgressSpinnerModule,
     MatDialogModule,
-    RouterLink
+    RouterLink,
+    SeriesPanel,
   ],
   templateUrl: './video-player.html'
 })
-export class VideoPlayer implements AfterViewInit, OnDestroy {
+export class VideoPlayer implements OnDestroy {
   videoTarget = viewChild<ElementRef<HTMLVideoElement>>('videoTarget');
 
   private route = inject(ActivatedRoute);
@@ -88,12 +89,17 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       this.video.set(this.videoDataLoaded()!['video']);
-      const url = this.videoStreamUrl();
       this.hasRecordedView.set(false);
-      if (url && this.player) {
-        this.player.src({ src: url });
-      }
       this.initializePlayer();
+    });
+
+    effect(() => {
+      const url = this.videoStreamUrl();
+      if (!url || !this.player) return;
+      this.player.pause();
+      this.player.src({ type: 'video/mp4', src: url });
+      this.player.load();
+      this.player.currentTime(0);
     });
 
     effect(() => {
@@ -128,16 +134,12 @@ export class VideoPlayer implements AfterViewInit, OnDestroy {
     });
   }
 
-  ngAfterViewInit() {
-    this.initializePlayer();
-  }
-
   ngOnDestroy() {
     this.disposePlayer();
   }
 
   private initializePlayer() {
-    if (!this.videoTarget()?.nativeElement) return;
+    if (this.player || !this.videoTarget()?.nativeElement) return;
 
     this.player = videojs(this.videoTarget()!.nativeElement, {
       controls: true,

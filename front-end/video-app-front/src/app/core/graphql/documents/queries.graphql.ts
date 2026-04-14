@@ -55,6 +55,26 @@ export const GET_VIDEO_BY_ID = gql`
       lastModifyTime
       introduction
       duration
+      seriesName
+      seriesOrder
+    }
+  }
+`;
+
+export const SEARCH_SERIES_BY_PREFIX = gql`
+  query SearchSeriesByPrefix($prefix: String!, $limit: Int!) {
+    searchSeriesByPrefix(prefix: $prefix, limit: $limit)
+  }
+`;
+
+export const GET_SERIES_VIDEOS = gql`
+  query GetSeriesVideos($name: String!) {
+    getSeriesVideos(name: $name) {
+      id
+      name
+      seriesOrder
+      thumbnail
+      duration
     }
   }
 `;
@@ -81,6 +101,8 @@ export const BROWSE_DIRECTORY = gql`
         introduction
         size
         duration
+        seriesName
+        seriesOrder
       }
     }
   }

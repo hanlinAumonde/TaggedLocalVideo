@@ -13,6 +13,8 @@ export const UPDATE_VIDEO_METADATA = gql`
         author
         loved
         introduction
+        seriesName
+        seriesOrder
       }
     }
   }

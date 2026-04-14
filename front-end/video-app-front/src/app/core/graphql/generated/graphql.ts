@@ -75,9 +75,11 @@ export type Query = {
   SearchVideos: VideoSearchResult;
   browseDirectory: Array<FileBrowseNode>;
   getDirectoryMetadata: DirectoryMetadataResult;
+  getSeriesVideos: Array<Video>;
   getSuggestions: Array<Scalars['String']['output']>;
   getTopTags: Array<VideoTag>;
   getVideoById: Video;
+  searchSeriesByPrefix: Array<Scalars['String']['output']>;
 };
 
 
@@ -96,6 +98,11 @@ export type QueryGetDirectoryMetadataArgs = {
 };
 
 
+export type QueryGetSeriesVideosArgs = {
+  name: Scalars['String']['input'];
+};
+
+
 export type QueryGetSuggestionsArgs = {
   input: SuggestionInput;
 };
@@ -103,6 +110,12 @@ export type QueryGetSuggestionsArgs = {
 
 export type QueryGetVideoByIdArgs = {
   videoId: Scalars['ID']['input'];
+};
+
+
+export type QuerySearchSeriesByPrefixArgs = {
+  limit: Scalars['Int']['input'];
+  prefix: Scalars['String']['input'];
 };
 
 export type RelativePathInput = {
@@ -125,6 +138,23 @@ export enum SearchFrom {
 
 export type SerachKeyword = {
   keyWord?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type SeriesFieldInput = {
+  clear?: Scalars['Boolean']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  order?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type SeriesOperationInput = {
+  clear?: Scalars['Boolean']['input'];
+  name?: InputMaybe<Scalars['String']['input']>;
+  orders?: Array<SeriesOrderEntryInput>;
+};
+
+export type SeriesOrderEntryInput = {
+  order: Scalars['Int']['input'];
+  videoId: Scalars['String']['input'];
 };
 
 export type Subscription = {
@@ -158,6 +188,7 @@ export type UpdateVideoMetadataInput = {
   introduction?: InputMaybe<Scalars['String']['input']>;
   loved?: InputMaybe<Scalars['Boolean']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  series?: InputMaybe<SeriesFieldInput>;
   tags: Array<Scalars['String']['input']>;
   videoId: Scalars['String']['input'];
 };
@@ -173,6 +204,8 @@ export type Video = {
   lastViewTime: Scalars['Float']['output'];
   loved: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  seriesName?: Maybe<Scalars['String']['output']>;
+  seriesOrder?: Maybe<Scalars['Int']['output']>;
   size: Scalars['Float']['output'];
   tags: Array<VideoTag>;
   thumbnail?: Maybe<Scalars['String']['output']>;
@@ -216,6 +249,7 @@ export type VideoTag = {
 export type VideosBatchOperationInput = {
   author?: InputMaybe<Scalars['String']['input']>;
   relativePath: RelativePathInput;
+  seriesOperation?: InputMaybe<SeriesOperationInput>;
   tagsOperation?: InputMaybe<TagsOperationMappingInput>;
   videoIds: Array<Scalars['String']['input']>;
 };
@@ -231,7 +265,7 @@ export type UpdateVideoMetadataMutationVariables = Exact<{
 }>;
 
 
-export type UpdateVideoMetadataMutation = { __typename?: 'Mutation', updateVideoMetadata: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string, name: string, author: string, loved: boolean, introduction: string, tags: Array<{ __typename?: 'VideoTag', name: string }> } | null } };
+export type UpdateVideoMetadataMutation = { __typename?: 'Mutation', updateVideoMetadata: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string, name: string, author: string, loved: boolean, introduction: string, seriesName?: string | null, seriesOrder?: number | null, tags: Array<{ __typename?: 'VideoTag', name: string }> } | null } };
 
 export type RecordVideoViewMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
@@ -269,7 +303,22 @@ export type GetVideoByIdQueryVariables = Exact<{
 }>;
 
 
-export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, duration: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
+export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, duration: number, seriesName?: string | null, seriesOrder?: number | null, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
+
+export type SearchSeriesByPrefixQueryVariables = Exact<{
+  prefix: Scalars['String']['input'];
+  limit: Scalars['Int']['input'];
+}>;
+
+
+export type SearchSeriesByPrefixQuery = { __typename?: 'Query', searchSeriesByPrefix: Array<string> };
+
+export type GetSeriesVideosQueryVariables = Exact<{
+  name: Scalars['String']['input'];
+}>;
+
+
+export type GetSeriesVideosQuery = { __typename?: 'Query', getSeriesVideos: Array<{ __typename?: 'Video', id: string, name: string, seriesOrder?: number | null, thumbnail?: string | null, duration: number }> };
 
 export type GetSuggestionsQueryVariables = Exact<{
   input: SuggestionInput;
@@ -283,7 +332,7 @@ export type BrowseDirectoryQueryVariables = Exact<{
 }>;
 
 
-export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
+export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, seriesName?: string | null, seriesOrder?: number | null, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
 
 export type GetDirectoryMetadataQueryVariables = Exact<{
   input: RelativePathInput;
@@ -319,6 +368,8 @@ export const UpdateVideoMetadataDocument = gql`
       author
       loved
       introduction
+      seriesName
+      seriesOrder
     }
   }
 }
@@ -463,6 +514,8 @@ export const GetVideoByIdDocument = gql`
     lastModifyTime
     introduction
     duration
+    seriesName
+    seriesOrder
   }
 }
     `;
@@ -472,6 +525,44 @@ export const GetVideoByIdDocument = gql`
   })
   export class GetVideoByIdGQL extends Apollo.Query<GetVideoByIdQuery, GetVideoByIdQueryVariables> {
     override document = GetVideoByIdDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const SearchSeriesByPrefixDocument = gql`
+    query SearchSeriesByPrefix($prefix: String!, $limit: Int!) {
+  searchSeriesByPrefix(prefix: $prefix, limit: $limit)
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class SearchSeriesByPrefixGQL extends Apollo.Query<SearchSeriesByPrefixQuery, SearchSeriesByPrefixQueryVariables> {
+    override document = SearchSeriesByPrefixDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const GetSeriesVideosDocument = gql`
+    query GetSeriesVideos($name: String!) {
+  getSeriesVideos(name: $name) {
+    id
+    name
+    seriesOrder
+    thumbnail
+    duration
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class GetSeriesVideosGQL extends Apollo.Query<GetSeriesVideosQuery, GetSeriesVideosQueryVariables> {
+    override document = GetSeriesVideosDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
@@ -509,6 +600,8 @@ export const BrowseDirectoryDocument = gql`
       introduction
       size
       duration
+      seriesName
+      seriesOrder
     }
   }
 }

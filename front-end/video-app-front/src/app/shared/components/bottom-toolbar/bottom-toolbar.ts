@@ -7,7 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { MatMenuModule } from "@angular/material/menu";
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
-import { DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
+import { BatchPanelVideoItem, DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
 
 @Component({
   selector: 'app-bottom-toolbar',
@@ -23,6 +23,7 @@ export class BottomToolbar {
   hasSelection = input.required<boolean>();
   selectedCount = input.required<number>();
   selectedIds = input.required<Set<string>>();
+  selectedVideoItems = input<ReadonlyArray<BatchPanelVideoItem>>([]);
   isAtRoot = input.required<boolean>();
   tableWidth = input.required<number>();
 
@@ -57,8 +58,12 @@ export class BottomToolbar {
   openBatchOperationPanel() {
     if (this.selectedIds().size === 0) return;
 
-    const data = { mode: 'videos', videos: this.selectedIds() };
-    
+    const data = {
+      mode: 'videos',
+      videos: this.selectedIds(),
+      videoItems: this.selectedVideoItems(),
+    };
+
     this.toastService.clearAllToasts();
 
     const dialogRef = this.dialog.open(BatchOperationPanel, {

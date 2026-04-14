@@ -1,0 +1,56 @@
+@if (seriesName()) {
+  <div class="bg-white dark:bg-neutral-800 rounded-lg shadow p-4 flex flex-col gap-3">
+    <div class="flex items-center gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+      <mat-icon class="text-blue-500">playlist_play</mat-icon>
+      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 truncate" [title]="seriesName()">
+        {{ seriesName() }}
+      </h2>
+    </div>
+
+    @if (seriesVideos().loading) {
+      <div class="flex justify-center py-6">
+        <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+      </div>
+    } @else if (seriesVideos().error) {
+      <p class="text-red-500 text-sm py-2">Failed to load series</p>
+    } @else if (seriesVideos().data && seriesVideos().data!.length > 0) {
+      <ol class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto pr-1">
+        @for (item of seriesVideos().data; track item.id; let i = $index) {
+          <li
+            #itemRef
+            class="flex items-center gap-2 p-2 rounded transition-colors cursor-pointer"
+            [class.bg-blue-100]="item.id === currentVideoId()"
+            [class.dark:bg-neutral-500/20]="item.id === currentVideoId()"
+            [class.hover:bg-gray-100]="item.id !== currentVideoId()"
+            [class.dark:hover:bg-neutral-600/20]="item.id !== currentVideoId()">
+            <a
+              [routerLink]="linkToVideo(item.id)"
+              class="flex items-center gap-3 flex-1 min-w-0 no-underline text-inherit">
+              <span class="text-xs font-mono text-gray-500 w-6 text-right shrink-0">
+                {{ item.seriesOrder ?? i + 1 }}.
+              </span>
+              <div class="relative w-24 shrink-0 aspect-video bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+                <img
+                  [src]="thumbnailFor(item.id)"
+                  [alt]="item.name"
+                  class="w-full h-full object-cover"
+                  loading="lazy" />
+                <span class="absolute bottom-0 right-0 text-[10px] px-1 bg-black/70 text-white rounded-tl">
+                  {{ formatDuration(item.duration) }}
+                </span>
+              </div>
+              <span
+                class="flex-1 text-sm truncate"
+                [class.font-semibold]="item.id === currentVideoId()"
+                [title]="item.name">
+                {{ item.name }}
+              </span>
+            </a>
+          </li>
+        }
+      </ol>
+    } @else {
+      <p class="text-sm text-gray-500 dark:text-gray-400 py-2">No videos in this series.</p>
+    }
+  </div>
+}

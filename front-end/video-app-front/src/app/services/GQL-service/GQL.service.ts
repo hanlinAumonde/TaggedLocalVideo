@@ -18,6 +18,10 @@ import {
   GetDirectoryMetadataGQL,
   BatchUpdateSubscriptionGQL,
   BatchDeleteSubscriptionGQL,
+  SearchSeriesByPrefixGQL,
+  GetSeriesVideosGQL,
+  SeriesFieldInput,
+  SeriesOperationInput,
 } from '../../core/graphql/generated/graphql';
 import { 
   catchError, 
@@ -39,9 +43,10 @@ import {
   GetTopTagsDetail,
   ResultState,
   SearchVideosDetail,
+  SeriesVideosDetail,
   VideoDetail,
   VideoMutationDetail,
-  VideoRecordViewDetail 
+  VideoRecordViewDetail
 } from '../../shared/models/GQL-result.model';
 import { Apollo } from 'apollo-angular';
 import { ValidationService } from '../validation-service/validation.service';
@@ -64,6 +69,8 @@ export class GqlService {
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
   private batchUpdateVideosSubscriptionGQL = inject(BatchUpdateSubscriptionGQL)
   private batchDeleteVideosSubscriptionGQL = inject(BatchDeleteSubscriptionGQL)
+  private searchSeriesByPrefixGQL = inject(SearchSeriesByPrefixGQL)
+  private getSeriesVideosGQL = inject(GetSeriesVideosGQL)
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
 
@@ -240,7 +247,8 @@ export class GqlService {
   }
 
   updateVideoMetadataMutation(videoID: string,loved: boolean = false,tags?: string[],
-                              title?: string,description?: string,author?: string): Observable<ResultState<VideoMutationDetail>>{
+                              title?: string,description?: string,author?: string,
+                              series?: SeriesFieldInput): Observable<ResultState<VideoMutationDetail>>{
     return this.toResultStateObservable(this.updateVideoMetadataGQL.mutate({
           variables: {
             input: {
@@ -250,6 +258,7 @@ export class GqlService {
               tags: tags ?? [],
               author: author,
               loved: loved,
+              series: series,
             }
           }
         }
@@ -258,6 +267,21 @@ export class GqlService {
         success: data.updateVideoMetadata?.success ?? false,
         video: data.updateVideoMetadata?.video ?? null
       } as VideoMutationDetail)
+    )
+  }
+
+  searchSeriesByPrefixQuery(prefix: string, limit: number): Observable<ResultState<string[]>> {
+    return this.toResultStateObservable(
+      this.searchSeriesByPrefixGQL.fetch({ variables: { prefix: prefix ?? '', limit } }),
+      (data) => this.filterUndefinedResult(data?.searchSeriesByPrefix ?? []),
+      false
+    )
+  }
+
+  getSeriesVideosQuery(name: string): Observable<ResultState<SeriesVideosDetail>> {
+    return this.toResultStateObservable(
+      this.getSeriesVideosGQL.watch({ variables: { name } }).valueChanges,
+      (data) => this.filterUndefinedResult(data?.getSeriesVideos ?? []) as SeriesVideosDetail
     )
   }
 
@@ -282,6 +306,7 @@ export class GqlService {
             relativePath: input.relativePath,
             tagsOperation: input.tagsOperation ?? undefined,
             author: input.author ?? undefined,
+            seriesOperation: input.seriesOperation ?? undefined,
           }
         }
       }),

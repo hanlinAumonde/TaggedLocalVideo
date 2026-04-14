@@ -49,7 +49,7 @@ export class VideoCard {
         return;
       }
 
-      this.httpClientService.getThumbnailUrl(video.id, video.thumbnail ?? '')
+      this.httpClientService.getThumbnailUrl(video.id)
         .subscribe(response => {
           const blob = response.body;
           if (blob) {

@@ -4,9 +4,17 @@ import { BrowsedVideo, VideoDetail } from './GQL-result.model';
 
 export type VideoEditPanelMode = 'full' | 'filter';
 
+export interface BatchPanelVideoItem {
+  id: string;
+  name: string;
+  seriesName?: string | null;
+  seriesOrder?: number | null;
+}
+
 export interface BatchPanelData {
   mode: 'videos' | 'directory';
   videos?: Set<string>;
+  videoItems?: ReadonlyArray<BatchPanelVideoItem>;
   selectedDirectoryPath?: string;
 }
 
@@ -50,3 +58,6 @@ export interface DeleteCheckPanelData {
   videoIds?: Set<string>;
   directoryPath?: string;
 }
+
+export type SeriesAction = 'set' | 'clear';
+export type TagAction = 'append' | 'remove';

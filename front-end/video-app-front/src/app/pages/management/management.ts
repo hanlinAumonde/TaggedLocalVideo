@@ -4,6 +4,7 @@ import {
   BrowseDirectoryDetail,
   FileBrowseNode,
 } from '../../shared/models/GQL-result.model';
+import { BatchPanelVideoItem } from '../../shared/models/panels.model';
 import { PageStateService } from '../../services/Page-state-service/page-state.service';
 import { environment } from '../../../environments/environment';
 import { 
@@ -53,6 +54,19 @@ export class Management implements OnDestroy{
   isAtRoot = computed(() => this.currentPath().length === 0);
   selectedCount = computed(() => this.selectedIds().size);
   hasSelection = computed(() => this.selectedIds().size > 0);
+  selectedVideoItems = computed<ReadonlyArray<BatchPanelVideoItem>>(() => {
+    const ids = this.selectedIds();
+    const contents = this.directoryContents().data;
+    if (!contents || ids.size === 0) return [];
+    return contents
+      .filter(item => !item.node.isDir && ids.has(item.node.id))
+      .map(item => ({
+        id: item.node.id,
+        name: item.node.name,
+        seriesName: item.node.seriesName ?? null,
+        seriesOrder: item.node.seriesOrder ?? null,
+      }));
+  });
 
   private setRefreshState(scrollTop: number = 0, sortIndex: number = 0, order: boolean = false, currentPath?: string[]) {
     this.stateService.setState<ManagementRefreshState>(
@@ -164,9 +178,8 @@ export class Management implements OnDestroy{
   }
 
   refreshSelectedDirectory(item: FileBrowseNode) {
-    this.gqlService.getDirectoryMetadataQuery(
-      this.currentPath().join('/') + '/' + item.node.name
-    )
+    const path = this.currentPath().length > 0? this.currentPath().join('/') + '/' + item.node.name : item.node.name;
+    this.gqlService.getDirectoryMetadataQuery(path)
     .pipe(takeUntilDestroyed(this.destroyRef))
     .subscribe({
       next: (result) => {
