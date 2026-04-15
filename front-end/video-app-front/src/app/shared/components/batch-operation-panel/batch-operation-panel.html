@@ -152,6 +152,18 @@
             <mat-panel-description>(Optional)</mat-panel-description>
           </mat-expansion-panel-header>
 
+          <div class="flex items-center justify-between mb-3" (click)="$event.stopPropagation()">
+            <mat-slide-toggle formControlName="modifySeries">
+              <span class="font-medium">Modify series</span>
+            </mat-slide-toggle>
+            @if (!modifySeries()) {
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                Series fields stay untouched.
+              </span>
+            }
+          </div>
+
+          @if (modifySeries()) {
           <mat-radio-group formControlName="seriesAction" class="flex gap-6 mb-3">
             <mat-radio-button value="set">
               <span class="font-medium">Assign</span>
@@ -193,39 +205,26 @@
               </mat-autocomplete>
             </mat-form-field>
 
+            @if (seriesConflictWarning(); as warning) {
+              <div class="flex items-start gap-2 p-2 mb-2 rounded-md bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-200 text-xs">
+                <mat-icon class="text-base!" fontIcon="warning"></mat-icon>
+                <span>{{ warning }}</span>
+              </div>
+            }
+
             @if (orderedVideos().length > 0) {
               <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 Reorder the selected videos. Positions will be used as the series order.
               </p>
-              <ol class="flex flex-col gap-1 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg max-h-60 overflow-y-auto">
-                @for (item of orderedVideos(); track item.id; let i = $index) {
-                  <li class="flex items-center gap-2 px-2 py-1 bg-white dark:bg-gray-600 rounded">
-                    <span class="text-xs font-mono w-6 text-right text-gray-500">{{ i + 1 }}.</span>
-                    <span class="flex-1 text-sm truncate" [matTooltip]="item.name">{{ item.name }}</span>
-                    <button
-                      mat-icon-button
-                      type="button"
-                      aria-label="Move up"
-                      [disabled]="i === 0"
-                      (click)="moveVideoUp(i)">
-                      <mat-icon class="text-base!">arrow_upward</mat-icon>
-                    </button>
-                    <button
-                      mat-icon-button
-                      type="button"
-                      aria-label="Move down"
-                      [disabled]="i === orderedVideos().length - 1"
-                      (click)="moveVideoDown(i)">
-                      <mat-icon class="text-base!">arrow_downward</mat-icon>
-                    </button>
-                  </li>
-                }
-              </ol>
+              <app-series-reorder-list
+                [items]="orderedVideos()"
+                (itemsChange)="orderedVideos.set($event)" />
             }
           } @else {
             <p class="text-sm text-red-600 dark:text-red-400">
               Series will be removed from all selected videos.
             </p>
+          }
           }
         </mat-expansion-panel>
       }

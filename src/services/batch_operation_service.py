@@ -22,7 +22,6 @@ from src.services.ffmpeg_service import get_ffmpeg_service
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
-from src.services.series_service import get_series_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.thumbnail_service import get_thumbnail_service
 
@@ -36,7 +35,6 @@ class BatchOperationService:
         self.thumbnailService = get_thumbnail_service()
         self.resourceHandlerService = get_resource_handler_service()
         self.ffmpegService = get_ffmpeg_service()
-        self.seriesService = get_series_service()
 
     def constructBatchOperationStatus(self, 
                                       resultType: BatchResultType | None = None,
@@ -260,9 +258,6 @@ class BatchOperationService:
                 )
 
                 await self.tagOperationService.update_tag_counts(update_tags=update_tags)
-
-                if seriesOperation is not None and not seriesOperation.clear and seriesOperation.name:
-                    await self.seriesService.ensure_exists(seriesOperation.name)
 
                 if new_entries:
                     handler = self.resourceHandlerService.get_handler(category)

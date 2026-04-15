@@ -1,13 +1,14 @@
 from typing import Optional
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.config import get_settings
+from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 
 
 class SeriesFieldInputModel(BaseModel):
     name: Optional[str] = None
-    order: Optional[int] = None
     clear: bool = False
+    orders: list[SeriesOrderEntryInputModel] = Field(default_factory=list)
 
     @field_validator("name", mode="after")
     @classmethod
@@ -22,8 +23,12 @@ class SeriesFieldInputModel(BaseModel):
 
     @model_validator(mode="after")
     def validate_combo(self) -> "SeriesFieldInputModel":
-        if not self.clear and self.name is None:
-            raise ValueError("SeriesFieldInput requires either clear=true or a non-empty name")
+        if self.clear:
+            return self
+        if self.name is None or len(self.orders) == 0:
+            raise ValueError(
+                "SeriesFieldInput requires either clear=true or (name + non-empty orders)"
+            )
         return self
 
 

@@ -4,11 +4,20 @@
   <form [formGroup]="editForm" class="space-y-6" id="edit-form">
 
     @if (isFullMode()) {
-      <!-- Title -->
-      <div class="flex flex-col gap-2">
-        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
-          Title:
-        </label>
+      <!-- Title + Loved -->
+      <section class="flex flex-col gap-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+        <div class="flex items-center justify-between gap-4">
+          <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
+            Title:
+          </label>
+          <div id="edit-loved" class="flex items-center gap-2">
+            <span class="text-xs text-gray-500 dark:text-gray-400">Loved</span>
+            <mat-icon (click)="toggleLoved()" class="cursor-pointer"
+              [class.text-pink-500]="editForm.get('loved')?.value">
+              {{ editForm.get('loved')?.value ? 'favorite' : 'favorite_border' }}
+            </mat-icon>
+          </div>
+        </div>
         <mat-form-field appearance="outline" class="w-full">
           <input matInput formControlName="name" placeholder="Title-video" />
           @if (editForm.get('name')?.hasError('required') && editForm.get('name')?.touched) {
@@ -17,21 +26,10 @@
             <mat-error>Title too long (max {{ editForm.get('name')?.errors?.['maxLength']?.max }})</mat-error>
           }
         </mat-form-field>
-      </div>
-
-      <!-- Loved -->
-      <div id="edit-loved" class="flex items-center gap-4">
-        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full">
-          Loved:
-        </label>
-        <!-- <mat-checkbox formControlName="loved"></mat-checkbox> -->
-        <mat-icon (click)="toggleLoved()" class="cursor-pointer">
-          {{ editForm.get('loved')?.value ? 'favorite' : 'favorite_border' }}
-        </mat-icon>
-      </div>
+      </section>
 
       <!-- Creator -->
-      <div class="flex flex-col gap-2">
+      <section class="flex flex-col gap-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
         <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
           Creator:
         </label>
@@ -67,10 +65,10 @@
             }
           </mat-autocomplete>
         </mat-form-field>
-      </div>
+      </section>
 
       <!-- Introduction -->
-      <div class="flex flex-col gap-2">
+      <section class="flex flex-col gap-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
         <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
           Introduction:
         </label>
@@ -84,67 +82,105 @@
             <mat-error>Introduction too long (max {{ editForm.get('introduction')?.errors?.['maxLength']?.max }})</mat-error>
           }
         </mat-form-field>
-      </div>
+      </section>
 
       <!-- Series -->
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
-            Series:
-          </label>
-          <button
-            mat-icon-button
-            type="button"
-            aria-label="Clear series"
-            (click)="clearSeries()"
-            [disabled]="!editForm.get('seriesName')?.value && editForm.get('seriesOrder')?.value === null">
-            <mat-icon class="text-base!">close</mat-icon>
-          </button>
-        </div>
-        <div class="flex gap-2 items-start">
-          <mat-form-field appearance="outline" class="flex-1">
-            <input
-              matInput
-              formControlName="seriesName"
-              placeholder="Search or type a new series name"
-              [matAutocomplete]="seriesAuto" />
-            @if (editForm.get('seriesName')?.hasError('maxLength')) {
-              <mat-error>Series name too long (max {{ editForm.get('seriesName')?.errors?.['maxLength']?.max }})</mat-error>
-            }
-            <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
-            <mat-autocomplete
-              #seriesAuto="matAutocomplete"
-              (optionSelected)="selectSeriesSuggestion($event.option.value)">
-              @if(seriesSuggestions().loading) {
-                <mat-option disabled>
-                  <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
-                  <span class="ml-2">Loading...</span>
-                </mat-option>
-              }@else if(seriesSuggestions().data && seriesSuggestions().data!.length > 0){
-                @for (series of seriesSuggestions().data; track series) {
-                  <mat-option [value]="series">
-                    <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ series }}</span>
-                  </mat-option>
+      <section class="flex flex-col gap-2 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
+        <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
+          Series:
+        </label>
+        <div class="flex items-center justify-between">
+          <mat-slide-toggle
+            formControlName="modifySeries"
+            (change)="onModifySeriesToggle($event.checked)">
+            <span class="font-medium">Modify series</span>
+          </mat-slide-toggle>
+          @if (!modifySeries()) {
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              Series fields stay untouched.
+              @if (video()?.seriesName) {
+                Currently in: <strong>{{ video()?.seriesName }}</strong>
+                @if (video()?.seriesOrder !== null && video()?.seriesOrder !== undefined) {
+                  (order {{ video()?.seriesOrder }})
                 }
-              }@else{
-                <mat-option disabled>No series matched — type to create a new one</mat-option>
+              } @else {
+                Currently not in any series.
               }
-            </mat-autocomplete>
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="w-28">
-            <mat-label>Order</mat-label>
-            <input
-              matInput
-              type="number"
-              formControlName="seriesOrder"
-              placeholder="0" />
-          </mat-form-field>
+            </span>
+          }
         </div>
-      </div>
+
+        @if (modifySeries()) {
+          <mat-radio-group formControlName="seriesAction" class="flex gap-6 mb-3">
+            <mat-radio-button value="set">
+              <span class="font-medium">Assign</span>
+            </mat-radio-button>
+            <mat-radio-button value="clear" class="text-red-700">
+              <span class="font-medium">Clear</span>
+            </mat-radio-button>
+          </mat-radio-group>
+
+          @if (seriesAction() === 'set') {
+            <div class="flex flex-col gap-2">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Series name</mat-label>
+                <input
+                  matInput
+                  formControlName="seriesName"
+                  placeholder="Search or type a new series name"
+                  [matAutocomplete]="seriesAuto"
+                  (input)="onSeriesNameInput($any($event.target).value)" />
+                @if (editForm.get('seriesName')?.hasError('maxLength')) {
+                  <mat-error>Series name too long (max {{ editForm.get('seriesName')?.errors?.['maxLength']?.max }})</mat-error>
+                }
+                <mat-icon matSuffix fontIcon="expand_more"></mat-icon>
+                <mat-autocomplete
+                  #seriesAuto="matAutocomplete"
+                  (optionSelected)="selectSeriesSuggestion($event.option.value)">
+                  @if(seriesSuggestions().loading) {
+                    <mat-option disabled>
+                      <mat-progress-spinner diameter="20" mode="indeterminate"></mat-progress-spinner>
+                      <span class="ml-2">Loading...</span>
+                    </mat-option>
+                  }@else if(seriesSuggestions().data && seriesSuggestions().data!.length > 0){
+                    @for (series of seriesSuggestions().data; track series) {
+                      <mat-option [value]="series">
+                        <span class="px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded-full text-sm">{{ series }}</span>
+                      </mat-option>
+                    }
+                  }@else{
+                    <mat-option disabled>No series matched — type to create a new one</mat-option>
+                  }
+                </mat-autocomplete>
+              </mat-form-field>
+
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                Drag this video to its new position in the series. Only this video can be moved.
+              </p>
+              @if (isLoadingSeriesMembers()) {
+                <div class="flex items-center gap-2 text-xs text-gray-500">
+                  <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
+                  Loading series members...
+                </div>
+              } @else {
+                <app-series-reorder-list
+                  [items]="seriesMembers()"
+                  [movableId]="currentVideoId()"
+                  [highlightId]="currentVideoId()"
+                  (itemsChange)="seriesMembers.set($event)" />
+              }
+            </div>
+          } @else {
+            <p class="text-sm text-red-600 dark:text-red-400">
+              This video will be removed from its current series on save.
+            </p>
+          }
+        }
+      </section>
     }
 
     <!-- Tags Section -->
-    <div class="flex flex-col gap-3">
+    <section class="flex flex-col gap-3 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30">
       <label class="text-sm font-semibold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-500/20 px-3 py-1 rounded-full inline-block w-fit">
         Tags:
       </label>
@@ -202,7 +238,7 @@
           }
         </mat-autocomplete>
       </mat-form-field>
-    </div>
+    </section>
 
   </form>
 </mat-dialog-content>

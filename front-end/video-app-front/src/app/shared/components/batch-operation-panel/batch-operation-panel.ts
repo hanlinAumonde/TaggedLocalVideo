@@ -12,6 +12,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   BatchResultType,
@@ -29,6 +30,7 @@ import { ToastDisplayer } from "../../../shared/components/toast-displayer/toast
 import { BatchPanelData, BatchPanelVideoItem, SeriesAction, TagAction } from '../../models/panels.model';
 import { VideoUpdateEventService } from '../../../services/video-update-event-service/video-update-event.service';
 import { ToastType } from '../../models/toast.model';
+import { SeriesReorderList } from '../series-reorder-list/series-reorder-list';
 
 
 @Component({
@@ -46,8 +48,10 @@ import { ToastType } from '../../models/toast.model';
     MatProgressSpinnerModule,
     MatExpansionModule,
     MatProgressBarModule,
+    MatSlideToggleModule,
     MatTooltipModule,
-    ToastDisplayer
+    ToastDisplayer,
+    SeriesReorderList,
 ],
   templateUrl: './batch-operation-panel.html'
 })
@@ -69,6 +73,7 @@ export class BatchOperationPanel {
     authorInput: ['', [this.validationService.authorValidator()]],
     tagInput: ['', [this.validationService.tagValidator()]],
     tagAction: ['append' as TagAction],
+    modifySeries: [false],
     seriesAction: ['set' as SeriesAction],
     seriesName: ['', [this.validationService.seriesNameValidator()]],
   });
@@ -87,10 +92,41 @@ export class BatchOperationPanel {
     { initialValue: '' }
   );
 
+  modifySeries = toSignal(
+    this.form.controls.modifySeries.valueChanges.pipe(startWith(this.form.controls.modifySeries.value)),
+    { initialValue: false }
+  );
+
   seriesAction = toSignal(
     this.form.controls.seriesAction.valueChanges.pipe(startWith(this.form.controls.seriesAction.value)),
     { initialValue: 'set' as SeriesAction }
   );
+
+  // Distinct existing series names among the selected videos.
+  readonly existingSeriesNames = computed<string[]>(() => {
+    const items = this.data.videoItems ?? [];
+    const names = new Set<string>();
+    for (const item of items) {
+      if (item.seriesName) names.add(item.seriesName);
+    }
+    return Array.from(names).sort();
+  });
+
+  // Inline warning: user is reassigning videos that currently live in one or
+  // more existing series to a new name. Suppressed when clearing.
+  readonly seriesConflictWarning = computed<string | null>(() => {
+    if (!this.isVideoMode) return null;
+    if (!this.modifySeries()) return null;
+    if (this.seriesAction() !== 'set') return null;
+    const target = (this.newSeriesName() ?? '').trim();
+    if (!target) return null;
+    const existing = this.existingSeriesNames().filter(n => n !== target);
+    if (existing.length === 0) return null;
+    if (existing.length === 1) {
+      return `Selected videos currently belong to series "${existing[0]}". Saving will move them into "${target}".`;
+    }
+    return `Selected videos currently span ${existing.length} series (${existing.join(', ')}). Saving will move them all into "${target}".`;
+  });
 
   tags = signal<string[]>([]);
   isSaving = signal<boolean>(false);
@@ -137,9 +173,10 @@ export class BatchOperationPanel {
 
   hasSeriesOperation = computed(() => {
     if (!this.isVideoMode) return false;
+    if (!this.modifySeries()) return false;
     const action = this.seriesAction();
     if (action === 'clear') return true;
-    return this.newSeriesName() !== '';
+    return (this.newSeriesName() ?? '').trim() !== '';
   });
 
   processingMessage = signal<string>('');
@@ -193,26 +230,9 @@ export class BatchOperationPanel {
     this.addTag();
   }
 
-  moveVideoUp(index: number) {
-    if (index <= 0) return;
-    this.orderedVideos.update(list => {
-      const next = [...list];
-      [next[index - 1], next[index]] = [next[index], next[index - 1]];
-      return next;
-    });
-  }
-
-  moveVideoDown(index: number) {
-    this.orderedVideos.update(list => {
-      if (index < 0 || index >= list.length - 1) return list;
-      const next = [...list];
-      [next[index], next[index + 1]] = [next[index + 1], next[index]];
-      return next;
-    });
-  }
-
   private buildSeriesOperation(): SeriesOperationInput | undefined {
     if (!this.isVideoMode) return undefined;
+    if (!this.modifySeries()) return undefined;
     const action = this.seriesAction();
     if (action === 'clear') {
       return { clear: true };

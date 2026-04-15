@@ -3,6 +3,7 @@ import strawberry
 
 from src.db.models.Video_model import VideoModel
 from src.db.models.VideoTag_model import VideoTagModel
+from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 from src.schema.types.pydantic_types.video_type import (
     SeriesFieldInputModel,
     UpdateVideoMetadataInputModel,
@@ -92,11 +93,17 @@ class Video:
         )
 
 
+@strawberry.experimental.pydantic.input(model=SeriesOrderEntryInputModel)
+class SeriesOrderEntryInput:
+    videoId: strawberry.auto
+    order: strawberry.auto
+
+
 @strawberry.experimental.pydantic.input(model=SeriesFieldInputModel)
 class SeriesFieldInput:
     name: strawberry.auto
-    order: strawberry.auto
     clear: strawberry.auto
+    orders: list[SeriesOrderEntryInput] = strawberry.field(default_factory=list)
 
 
 @strawberry.experimental.pydantic.input(model=UpdateVideoMetadataInputModel)

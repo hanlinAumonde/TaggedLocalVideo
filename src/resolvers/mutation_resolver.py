@@ -2,14 +2,16 @@ from functools import lru_cache
 import strawberry
 from bson import ObjectId
 import time
+from pymongo import UpdateOne
+from pymongo.errors import BulkWriteError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import VideoMutationResult
+from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
 from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
 from src.services.dir_metadata_service import get_dir_metadata_service
 from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.series_service import get_series_service
 from src.services.tag_operation_service import get_tag_operation_service
 from src.services.resource_handler.resource_handler_service import get_resource_handler_service
 
@@ -22,7 +24,6 @@ class MutationResolver:
         self.tagOperationService = get_tag_operation_service()
         self.dirMetadataService = get_dir_metadata_service()
         self.resourceHandlerService = get_resource_handler_service()
-        self.seriesService = get_series_service()
 
     async def resolve_update_video_metadata(self,input: UpdateVideoMetadataInput) -> VideoMutationResult:
         """
@@ -65,21 +66,35 @@ class MutationResolver:
 
                 video_model.tags = validated_input.tags
 
-                # series field: None = no change; clear=True = wipe; otherwise set name/order
-                series_name_to_ensure: str | None = None
+                # series field: None = no change; clear=True = wipe this video only;
+                # otherwise (name + orders) = rewrite the whole series ordering
+                series_bulk_ops: list[UpdateOne] = []
                 if validated_input.series is not None:
                     if validated_input.series.clear:
                         video_model.seriesName = None
                         video_model.seriesOrder = None
                     else:
-                        video_model.seriesName = validated_input.series.name
-                        video_model.seriesOrder = validated_input.series.order
-                        series_name_to_ensure = validated_input.series.name
+                        series_bulk_ops = await self._build_series_rewrite_ops(
+                            current_video_id=str(video_model.id),
+                            target_series_name=validated_input.series.name,
+                            orders=validated_input.series.orders,
+                        )
+                        # Reflect the new membership/order on the in-memory model
+                        # so the returned Video reflects the change without a reload.
+                        for entry in validated_input.series.orders:
+                            if entry.videoId == str(video_model.id):
+                                video_model.seriesName = validated_input.series.name
+                                video_model.seriesOrder = entry.order
+                                break
 
                 await video_model.save()
+                if series_bulk_ops:
+                    try:
+                        await VideoModel.get_pymongo_collection().bulk_write(series_bulk_ops)
+                    except BulkWriteError as bwe:
+                        logger.exception(f"Bulk write error during series rewrite: {bwe.details}")
+                        raise DatabaseOperationError("update_video_metadata", "series_bulk_write_failure")
                 await self.tagOperationService.update_tag_counts(update_tags=update_tags)
-                if series_name_to_ensure:
-                    await self.seriesService.ensure_exists(series_name_to_ensure)
 
                 updated_video = await Video.from_mongoDB(video_model)
                 return VideoMutationResult(success=True, video=updated_video)
@@ -90,6 +105,96 @@ class MutationResolver:
         except Exception as e:
             logger.exception(f"Database operation error during update video metadata: {e}")
             raise DatabaseOperationError("update_video_metadata", f"videoId-{validated_input.videoId}")
+
+    async def _build_series_rewrite_ops(
+        self,
+        current_video_id: str,
+        target_series_name: str,
+        orders: list[SeriesOrderEntryInputModel],
+    ) -> list[UpdateOne]:
+        """
+        Build bulk UpdateOne ops that rewrite a whole series ordering.
+
+        Strict validation:
+        - `orders` must be non-empty and contain `current_video_id`.
+        - Every videoId in `orders` (other than `current_video_id`) must currently
+          already belong to `target_series_name`; this prevents one edit-panel save
+          from dragging videos out of another series.
+        - Order values within `orders` must be unique.
+        """
+        if not orders:
+            raise InputValidationError(
+                field="series.orders",
+                issue="orders must be non-empty when assigning a series",
+            )
+
+        id_to_order: dict[str, int] = {}
+        seen_orders: set[int] = set()
+        for entry in orders:
+            if entry.videoId in id_to_order:
+                raise InputValidationError(
+                    field="series.orders",
+                    issue=f"duplicate videoId in orders: {entry.videoId}",
+                )
+            if entry.order in seen_orders:
+                raise InputValidationError(
+                    field="series.orders",
+                    issue=f"duplicate order value in orders: {entry.order}",
+                )
+            id_to_order[entry.videoId] = entry.order
+            seen_orders.add(entry.order)
+
+        if current_video_id not in id_to_order:
+            raise InputValidationError(
+                field="series.orders",
+                issue="orders must include the current video being edited",
+            )
+
+        other_ids = [vid for vid in id_to_order.keys() if vid != current_video_id]
+        if other_ids:
+            try:
+                other_object_ids = [ObjectId(vid) for vid in other_ids]
+            except Exception:
+                raise InputValidationError(
+                    field="series.orders",
+                    issue="invalid videoId in orders",
+                )
+            cursor = VideoModel.find(
+                {"_id": {"$in": other_object_ids}}
+            )
+            existing_models = await cursor.to_list()
+            existing_by_id = {str(m.id): m for m in existing_models}
+            missing = [vid for vid in other_ids if vid not in existing_by_id]
+            if missing:
+                raise InputValidationError(
+                    field="series.orders",
+                    issue=f"videoIds not found: {missing}",
+                )
+            foreign = [
+                vid for vid, m in existing_by_id.items()
+                if m.seriesName != target_series_name
+            ]
+            if foreign:
+                raise InputValidationError(
+                    field="series.orders",
+                    issue=(
+                        f"videoIds do not currently belong to series "
+                        f"'{target_series_name}': {foreign}"
+                    ),
+                )
+
+        ops: list[UpdateOne] = []
+        for vid, order in id_to_order.items():
+            if vid == current_video_id:
+                # current video is saved via video_model.save() above
+                continue
+            ops.append(
+                UpdateOne(
+                    {"_id": ObjectId(vid)},
+                    {"$set": {"seriesName": target_series_name, "seriesOrder": order}},
+                )
+            )
+        return ops
 
     async def resolve_record_video_view(self,videoId: strawberry.ID) -> VideoMutationResult:
         """

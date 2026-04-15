@@ -224,6 +224,21 @@ export class GqlService {
     )
   }
 
+  searchSeriesByPrefixQuery(prefix: string, limit: number): Observable<ResultState<string[]>> {
+    return this.toResultStateObservable(
+      this.searchSeriesByPrefixGQL.fetch({ variables: { prefix: prefix ?? '', limit } }),
+      (data) => this.filterUndefinedResult(data?.searchSeriesByPrefix ?? []),
+      false
+    )
+  }
+
+  getSeriesVideosQuery(name: string): Observable<ResultState<SeriesVideosDetail>> {
+    return this.toResultStateObservable(
+      this.getSeriesVideosGQL.watch({ variables: { name } }).valueChanges,
+      (data) => this.filterUndefinedResult(data?.getSeriesVideos ?? []) as SeriesVideosDetail
+    )
+  }
+
   // ----------------------------Mutation----------------------------
 
   recordVideoViewMutation(videoId: string): Observable<ResultState<VideoRecordViewDetail>> {
@@ -267,21 +282,6 @@ export class GqlService {
         success: data.updateVideoMetadata?.success ?? false,
         video: data.updateVideoMetadata?.video ?? null
       } as VideoMutationDetail)
-    )
-  }
-
-  searchSeriesByPrefixQuery(prefix: string, limit: number): Observable<ResultState<string[]>> {
-    return this.toResultStateObservable(
-      this.searchSeriesByPrefixGQL.fetch({ variables: { prefix: prefix ?? '', limit } }),
-      (data) => this.filterUndefinedResult(data?.searchSeriesByPrefix ?? []),
-      false
-    )
-  }
-
-  getSeriesVideosQuery(name: string): Observable<ResultState<SeriesVideosDetail>> {
-    return this.toResultStateObservable(
-      this.getSeriesVideosGQL.watch({ variables: { name } }).valueChanges,
-      (data) => this.filterUndefinedResult(data?.getSeriesVideos ?? []) as SeriesVideosDetail
     )
   }
 

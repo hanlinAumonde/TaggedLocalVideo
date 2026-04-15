@@ -5,11 +5,10 @@ import strawberry
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
 from src.schema.types.pydantic_types.batch_operation_type import (
     SeriesOperationInputModel,
-    SeriesOrderEntryInputModel,
     TagsOperationMappingInputModel,
     VideosBatchOperationInputModel
 )
-from src.schema.types.video_type import Video
+from src.schema.types.video_type import SeriesOrderEntryInput, Video
 
 @strawberry.enum
 class BatchResultType(Enum):
@@ -34,12 +33,6 @@ class RelativePathInput:
 class TagsOperationMappingInput:
     append: strawberry.auto
     tags: strawberry.auto
-
-
-@strawberry.experimental.pydantic.input(model=SeriesOrderEntryInputModel)
-class SeriesOrderEntryInput:
-    videoId: strawberry.auto
-    order: strawberry.auto
 
 
 @strawberry.experimental.pydantic.input(model=SeriesOperationInputModel)

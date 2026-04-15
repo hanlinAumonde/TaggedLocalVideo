@@ -143,7 +143,7 @@ export type SerachKeyword = {
 export type SeriesFieldInput = {
   clear?: Scalars['Boolean']['input'];
   name?: InputMaybe<Scalars['String']['input']>;
-  order?: InputMaybe<Scalars['Int']['input']>;
+  orders?: Array<SeriesOrderEntryInput>;
 };
 
 export type SeriesOperationInput = {
