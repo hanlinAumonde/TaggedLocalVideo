@@ -81,7 +81,7 @@ export class BottomToolbar {
     if (this.selectedIds().size === 0) return;
     this.toastService.clearAllToasts();
 
-    const dialogRef = this.dialog.open(DeleteCheckPanel, {
+    this.dialog.open(DeleteCheckPanel, {
       width: '400px',
       data: { 
         deleteType: DeleteType.Batch,
@@ -90,9 +90,5 @@ export class BottomToolbar {
         directoryPath: this.isAtRoot() ? "" : this.currentPath().join("/")
       } as DeleteCheckPanelData
     });
-
-    dialogRef.afterClosed().subscribe(confirmed => {
-      this.batchOperationResult.emit(confirmed? true : false);
-    })
   }
 }

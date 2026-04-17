@@ -116,10 +116,22 @@ export class Management implements OnDestroy{
         const ids = new Set(event.videoIds);
         const contents = this.directoryContents().data;
         if (!contents) return false;
-        return contents.some(item => ids.has(item.node.id));
+        const hasAffectedVideo = contents.some(item => ids.has(item.node.id));
+
+        const currentDirPath = this.currentPath().join('/');
+        const subDirectories = contents.filter(item => item.node.isDir).map(item => item.node.name);
+        const hasAffectedDirectory = 
+          event.directoryPath === currentDirPath ||
+          (event.directoryPath !== undefined && 
+            subDirectories.some(subDir => 
+              event.directoryPath === (currentDirPath ? currentDirPath + '/' : '') + subDir
+            )
+          );
+        return hasAffectedVideo || hasAffectedDirectory;
       }
       if (isAffected(event)) {
         this.refreshDirectory();
+        this.selectedIds.set(new Set());
       }
     });
   }
@@ -168,8 +180,9 @@ export class Management implements OnDestroy{
 
   refreshDirectory() {
     const path = this.currentPath();
+    const scrollTop = this.getParentScrollContainer()?.scrollTop ?? 0;
     this.setRefreshState(
-      this.getParentScrollContainer()?.scrollTop ?? 0, 
+      scrollTop, 
       this.sortCriteria().index, 
       this.sortCriteria().order, 
       path
@@ -278,16 +291,6 @@ export class Management implements OnDestroy{
     const sortComparator = comparatorBySortOption(sortCriteria);
     sortedContents.sort(sortComparator);
     this.directoryContents.set({ ...this.directoryContents(), data: sortedContents });
-  }
-
-  // ─── Dialog Operations result ─────────────────────────────────────────────
-
-  operationResult(result: boolean) {
-    if (!result) return;
-    else {
-      this.refreshDirectory();
-      this.selectedIds.set(new Set());
-    }
   }
 
   // ─── DOM Utilities ─────────────────────────────────────────────────

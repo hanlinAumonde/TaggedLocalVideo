@@ -193,46 +193,32 @@ export class FileBrowseTable {
   }
 
   openEditPanel(video: BrowsedVideo) {
-    const dialogRef = this.dialog.open(VideoEditPanel, {
+    this.dialog.open(VideoEditPanel, {
       width: '500px',
       data: {
         mode: 'full' as VideoEditPanelMode,
         video: video
       } as VideoEditPanelData
     });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        this.editVideoResult.emit(true);
-      } else {
-        this.editVideoResult.emit(false);
-      }
-    });
   }
 
   deleteVideo(video: BrowsedVideo) {
-    const checkResult = this.dialog.open(DeleteCheckPanel, {
+    this.dialog.open(DeleteCheckPanel, {
       width: '400px',
       data: {
         deleteType: DeleteType.Single,
         videoIds: new Set<string>([video.id])
        } as DeleteCheckPanelData
-    })
-    checkResult.afterClosed().subscribe(confirmed => {
-      this.deleteVideoResult.emit(confirmed? true : false);
     });
   }
 
   deleteVideosInDirectory(dirPath: string) {
-    const dialogRef = this.dialog.open(DeleteCheckPanel, {
+    this.dialog.open(DeleteCheckPanel, {
       width: '400px',
       data: {
         deleteType: DeleteType.Directory,
         directoryPath: this.currentPath().join('/') + '/' + dirPath
        } as DeleteCheckPanelData
-    });
-    dialogRef.afterClosed().subscribe(confirmed => {
-      this.deleteVideoResult.emit(confirmed? true : false);
     });
   }
 

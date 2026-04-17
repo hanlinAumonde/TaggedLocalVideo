@@ -121,7 +121,7 @@ export class DeleteCheckPanel implements OnDestroy {
       tap(result => {
         this.isSaving.set(false);
         if(result.data?.success){
-          this.videoUpdateEventService.emitDeleted(
+          this.videoUpdateEventService.emitVideosDeleted(
             this.data.videoIds ? Array.from(this.data.videoIds) : []
           );
           this.dialogRef.close(true);
@@ -144,20 +144,19 @@ export class DeleteCheckPanel implements OnDestroy {
             const resultType = result.data.result.resultType;
             switch(resultType) {
               case BatchResultType.Success:
-                this.videoUpdateEventService.emitDeleted(
-                  this.data.videoIds ? Array.from(this.data.videoIds) : []
-                );
-                this.dialogRef.close(true);
-                break;
               case BatchResultType.PartialSuccess:
-                this.videoUpdateEventService.emitDeleted(
-                  this.data.videoIds ? Array.from(this.data.videoIds) : []
-                );
-                this.toastService.emitErrorOrWarning(
-                  `Batch update partially success. Some videos may not have been updated.
-                  \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
-                  ToastType.Warning
-                );
+                if(this.data.videoIds && this.data.videoIds.size > 0) {
+                  this.videoUpdateEventService.emitVideosDeleted(Array.from(this.data.videoIds));
+                } else if(this.data.directoryPath) {
+                  this.videoUpdateEventService.emitDirectoryDeleted(this.data.directoryPath);
+                }
+                if(resultType === BatchResultType.PartialSuccess) {
+                  this.toastService.emitErrorOrWarning(
+                    `Batch update partially success. Some videos may not have been updated.
+                    \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
+                    ToastType.Warning
+                  );
+                }
                 this.dialogRef.close(true);
                 break;
               case BatchResultType.Failure:

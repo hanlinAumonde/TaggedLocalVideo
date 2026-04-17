@@ -13,9 +13,6 @@
       (nodeClick)="onClickFileBrowseNode($event)"
       (selectionToggle)="toggleSelection($event)"
       (selectAllToggle)="toggleSelectAll()"
-      (editVideoResult)="operationResult($event)"
-      (deleteVideoResult)="operationResult($event)"
-      (batchSyncDirectoryResult)="operationResult($event)"
       (refreshDirectoryMeta)="refreshSelectedDirectory($event)"
       (tableResize)="updateTableWidth($event)"
     />
@@ -29,6 +26,5 @@
     [isAtRoot]="isAtRoot()"
     [tableWidth]="tableWidth()"
     (navigateToPath)="navigateToPath($event)"
-    (batchOperationResult)="operationResult($event)"
   />
 </div>

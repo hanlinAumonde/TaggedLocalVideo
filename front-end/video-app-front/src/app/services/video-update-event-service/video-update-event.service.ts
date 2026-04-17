@@ -25,8 +25,12 @@ export class VideoUpdateEventService implements OnDestroy {
     this.emit({ type: VideoUpdateType.Updated, videoIds });
   }
 
-  emitDeleted(videoIds: string[]): void {
+  emitVideosDeleted(videoIds: string[]): void {
     this.emit({ type: VideoUpdateType.Deleted, videoIds });
+  }
+
+  emitDirectoryDeleted(directoryPath: string): void {
+    this.emit({ type: VideoUpdateType.Deleted, videoIds: [], directoryPath });
   }
 
   /** Subscribe to all events */

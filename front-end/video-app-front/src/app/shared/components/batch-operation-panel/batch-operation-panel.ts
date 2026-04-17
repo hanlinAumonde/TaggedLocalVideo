@@ -285,16 +285,15 @@ export class BatchOperationPanel {
           const resultType = result.data.result.resultType;
           switch(resultType) {
             case BatchResultType.Success:
-              this.videoUpdateEventService.emitUpdated(Array.from(this.videoIds));
-              this.dialogRef.close(true);
-              break;
             case BatchResultType.PartialSuccess:
               this.videoUpdateEventService.emitUpdated(Array.from(this.videoIds));
-              this.toastService.emitErrorOrWarning(
-                `Batch update partially success. Some videos may not have been updated.
-                \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
-                ToastType.Warning
-              );
+              if(resultType === BatchResultType.PartialSuccess){
+                this.toastService.emitErrorOrWarning(
+                  `Batch update partially success. Some videos may not have been updated.
+                  \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
+                  ToastType.Warning
+                );
+              }
               this.dialogRef.close(true);
               break;
             case BatchResultType.AlreadyUpToDate:
