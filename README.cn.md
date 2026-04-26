@@ -242,14 +242,8 @@ cache_config:
   ttl: 300              # 缓存过期时间（秒）
   cache_type: cachetools # 缓存实现类型
 
-# ffmpeg/ffprobe 并发限制
+# ffmpeg/ffprobe 并发限制（实际生效值为 max(ffmpeg_semaphore_limit, cpu_count // 2)）
 ffmpeg_semaphore_limit: 4
-
-# 分页配置
-page_size_default:
-  homepage_videos: 5
-  homepage_tags: 50
-  searchpage: 15
 
 # 搜索建议数量限制
 suggestion_limit:
@@ -279,6 +273,7 @@ validation:
   max_tags_count: 50
   page_number_min: 1
   page_number_max: 10000
+  series_name_max_length: 100
 
 # 日志配置
 logging:
@@ -319,19 +314,16 @@ video-app/
 ├── config.yaml                      # 配置文件 (envyaml 语法)
 ├── Dockerfile                       # Docker镜像配置
 ├── docker-compose.yml               # Docker编排配置
-├── scripts/
-│   └── migrate_paths.py            # DB 路径迁移 (绝对路径 → 逻辑路径)
-├── migrations/                      # 数据库迁移脚本
-│   └── add_category_field.py       # category 字段迁移
 ├── src/
-│   ├── app.py                      # FastAPI应用工厂、CORS、lifespan
+│   ├── app.py                      # FastAPI 应用工厂、CORS、lifespan、GraphQL 路由挂载
 │   ├── config.py                   # 配置管理 (Settings, envyaml)
+│   ├── context.py                  # 依赖注入容器：服务工厂 + GraphQL context 组装
 │   ├── errors.py                   # 自定义异常
 │   ├── logger.py                   # 日志配置 (loguru)
 │   ├── db/
 │   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie 初始化
 │   │   └── models/
-│   │       ├── Video_model.py     # VideoModel (含 category 字段)
+│   │       ├── Video_model.py     # VideoModel (含 category / series / duration 字段)
 │   │       ├── VideoTag_model.py  # VideoTagModel
 │   │       └── DirMetadata_model.py # DirMetadataModel (含 category 字段)
 │   ├── router/
@@ -340,11 +332,11 @@ video-app/
 │   │   ├── query_schema.py        # GraphQL 查询根
 │   │   ├── mutation_schema.py     # GraphQL 变更根
 │   │   ├── subscription_schema.py # GraphQL 订阅根
-│   │   ├── strawberry_schema.py   # Schema 组装
+│   │   ├── strawberry_schema.py   # Schema 组装 + 错误日志
 │   │   └── types/
 │   │       ├── video_type.py      # Video, VideoTag 类型
 │   │       ├── search_type.py     # 搜索相关类型
-│   │       ├── fileBrowse_type.py # 文件浏览相关类型
+│   │       ├── fileBrowse_type.py # 文件浏览 / 批量操作类型
 │   │       └── pydantic_types/    # 输入验证模型 (Pydantic)
 │   │           ├── video_type.py
 │   │           ├── search_type.py
@@ -353,15 +345,16 @@ video-app/
 │   ├── resolvers/
 │   │   ├── query_resolver.py          # 查询解析器
 │   │   ├── mutation_resolver.py       # 变更解析器
-│   │   ├── subscription_resolver.py   # 订阅解析器 (批量操作)
-│   │   └── video_stream_resolver.py   # 视频流 (Range请求, 分块传输)
+│   │   └── subscription_resolver.py   # 订阅解析器 (批量操作)
 │   └── services/
 │       ├── browse_file_service.py     # 目录浏览 (三级导航)
 │       ├── batch_operation_service.py # 批量更新/删除
 │       ├── dir_metadata_service.py    # 目录元数据 (大小/修改时间)
 │       ├── tag_operation_service.py   # 标签计数管理
-│       ├── thumbnail_service.py       # 缩略图生成 (ffmpeg + S3 存储)
-│       ├── path_convert_service.py    # AbsolutePath 路径抽象
+│       ├── series_service.py          # 系列名前缀搜索 + 系列内有序列表
+│       ├── thumbnail_service.py       # 缩略图编排 (ffmpeg + 可选 S3 存储)
+│       ├── ffmpeg_service.py          # ffmpeg/ffprobe 封装：缩略图、时长、实时转码 (信号量限流)
+│       ├── video_stream_service.py    # 视频流服务 (Range 请求、分块传输、转码兜底)
 │       ├── cache/                     # 缓存服务
 │       │   ├── base_cache.py         # 缓存抽象基类
 │       │   ├── cachetools_cache.py   # cachetools 实现
@@ -369,6 +362,7 @@ video-app/
 │       └── resource_handler/          # 资源处理器 (策略模式)
 │           ├── base_resource_handler.py  # 抽象基类
 │           ├── base_file_entry.py        # 文件条目抽象 + FileStat
+│           ├── absolute_path.py          # AbsolutePath 路径抽象 (DB / FS 格式互转)
 │           ├── resource_handler_service.py # 处理器工厂/分发
 │           ├── local_fs/                  # 本地文件系统实现
 │           │   ├── local_fs_handler.py    # LocalFS 处理器
@@ -376,8 +370,10 @@ video-app/
 │           └── s3/                        # S3 兼容存储实现
 │               ├── s3_handler.py          # S3 处理器 (boto3 resource API)
 │               └── s3_file_entry.py       # S3 文件条目
-└── tests/                           # 测试文件
+└── tests/                           # 测试文件 (pytest，含 graphql/ 子目录)
 ```
+
+> **依赖注入**：`src/context.py` 基于 FastAPI `Depends` 提供所有服务的工厂函数，并将它们组装为 GraphQL `context`（按 `ContextEnum` 键索引）。Resolver 通过 `get_context_value(info, ContextEnum.XXX)` 获取服务；HTTP 路由则使用导出的 `*Dep` 注解（如 `ThumbnailServiceDep`、`VideoStreamServiceDep`）。
 
 #### 前端
 
@@ -446,13 +442,15 @@ http://localhost:12000/graphql
 | `getSuggestions` | 获取搜索建议 |
 | `getVideoById` | 根据ID获取视频 |
 | `browseDirectory` | 浏览目录（category -> pseudo_name -> 子目录） |
-| `directoryMetadata` | 获取目录元数据（大小/修改时间） |
+| `getDirectoryMetadata` | 获取目录元数据（大小/修改时间） |
+| `searchSeriesByPrefix` | 按前缀搜索系列名（不区分大小写，对 `seriesName` 做 distinct） |
+| `getSeriesVideos` | 获取系列内的视频列表（按 `seriesOrder` 升序） |
 
 ### 变更 (Mutations)
 
 | 变更 | 描述 |
 |------|------|
-| `updateVideoMetadata` | 更新视频元数据 |
+| `updateVideoMetadata` | 更新视频元数据（含系列名/系列序号） |
 | `deleteVideo` | 删除视频 |
 | `recordVideoView` | 记录播放次数 |
 
@@ -460,12 +458,12 @@ http://localhost:12000/graphql
 
 | 订阅 | 描述 |
 |------|------|
-| `batchUpdate` | 批量更新视频（流式返回进度） |
-| `batchDelete` | 批量删除视频（流式返回进度） |
+| `batchUpdateSubscription` | 批量更新视频（流式返回进度） |
+| `batchDeleteSubscription` | 批量删除视频（流式返回进度） |
 
 ### HTTP 端点
 
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/video/stream/{id}` | GET | 视频流（支持Range请求，1MB分块） |
-| `/video/thumbnail` | GET | 获取缩略图 |
+| `/video/stream/{video_id}` | GET | 视频流：`mp4`/`webm` 支持 Range 请求并以 1MB 分块直传；其他格式由 ffmpeg 实时转码为分片 MP4 输出 |
+| `/video/thumbnail?video_id=...` | GET | 获取缩略图（配置了 `thumbnail_config` 时从 S3 读取，否则由 ffmpeg 实时生成） |

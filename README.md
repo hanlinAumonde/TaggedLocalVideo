@@ -240,14 +240,8 @@ cache_config:
   ttl: 300              # Cache expiration time (seconds)
   cache_type: cachetools # Cache implementation type
 
-# ffmpeg/ffprobe concurrency limit
+# ffmpeg/ffprobe concurrency limit (effective value is max(ffmpeg_semaphore_limit, cpu_count // 2))
 ffmpeg_semaphore_limit: 4
-
-# Pagination configuration
-page_size_default:
-  homepage_videos: 5
-  homepage_tags: 50
-  searchpage: 15
 
 # Search suggestion limits
 suggestion_limit:
@@ -277,6 +271,7 @@ validation:
   max_tags_count: 50
   page_number_min: 1
   page_number_max: 10000
+  series_name_max_length: 100
 
 # Logging configuration
 logging:
@@ -317,19 +312,16 @@ video-app/
 ├── config.yaml                      # Configuration file (envyaml syntax)
 ├── Dockerfile                       # Docker image config
 ├── docker-compose.yml               # Docker compose config
-├── scripts/
-│   └── migrate_paths.py            # DB path migration (absolute → logical)
-├── migrations/                      # Database migration scripts
-│   └── add_category_field.py       # Category field migration
 ├── src/
-│   ├── app.py                      # FastAPI app factory, CORS, lifespan
+│   ├── app.py                      # FastAPI app factory, CORS, lifespan, GraphQL router mount
 │   ├── config.py                   # Configuration management (Settings, envyaml)
+│   ├── context.py                  # DI container: per-request service factories + GraphQL context
 │   ├── errors.py                   # Custom exceptions
 │   ├── logger.py                   # Logging config (loguru)
 │   ├── db/
 │   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie init
 │   │   └── models/
-│   │       ├── Video_model.py     # VideoModel (with category field)
+│   │       ├── Video_model.py     # VideoModel (category, series, duration fields)
 │   │       ├── VideoTag_model.py  # VideoTagModel
 │   │       └── DirMetadata_model.py # DirMetadataModel (with category field)
 │   ├── router/
@@ -338,11 +330,11 @@ video-app/
 │   │   ├── query_schema.py        # GraphQL query root
 │   │   ├── mutation_schema.py     # GraphQL mutation root
 │   │   ├── subscription_schema.py # GraphQL subscription root
-│   │   ├── strawberry_schema.py   # Schema assembly
+│   │   ├── strawberry_schema.py   # Schema assembly + error logging
 │   │   └── types/
 │   │       ├── video_type.py      # Video, VideoTag types
 │   │       ├── search_type.py     # Search-related types
-│   │       ├── fileBrowse_type.py # File browse types
+│   │       ├── fileBrowse_type.py # File browse / batch operation types
 │   │       └── pydantic_types/    # Input validation models (Pydantic)
 │   │           ├── video_type.py
 │   │           ├── search_type.py
@@ -351,15 +343,16 @@ video-app/
 │   ├── resolvers/
 │   │   ├── query_resolver.py          # Query resolvers
 │   │   ├── mutation_resolver.py       # Mutation resolvers
-│   │   ├── subscription_resolver.py   # Subscription resolvers (batch ops)
-│   │   └── video_stream_resolver.py   # Video streaming (Range, chunked)
+│   │   └── subscription_resolver.py   # Subscription resolvers (batch ops)
 │   └── services/
 │       ├── browse_file_service.py     # Directory browsing (3-level nav)
 │       ├── batch_operation_service.py # Batch update/delete
 │       ├── dir_metadata_service.py    # Directory metadata (size/mtime)
 │       ├── tag_operation_service.py   # Tag count management
-│       ├── thumbnail_service.py       # Thumbnail generation (ffmpeg + S3 storage)
-│       ├── path_convert_service.py    # AbsolutePath abstraction
+│       ├── series_service.py          # Series prefix search + ordered listing
+│       ├── thumbnail_service.py       # Thumbnail orchestration (ffmpeg + optional S3 storage)
+│       ├── ffmpeg_service.py          # ffmpeg/ffprobe wrapper: thumbnail, duration, on-the-fly transcoding (semaphore-gated)
+│       ├── video_stream_service.py    # Video streaming (Range, chunked, transcoded fallback)
 │       ├── cache/                     # Cache service
 │       │   ├── base_cache.py         # Cache abstract base class
 │       │   ├── cachetools_cache.py   # cachetools implementation
@@ -367,6 +360,7 @@ video-app/
 │       └── resource_handler/          # Resource handler (Strategy Pattern)
 │           ├── base_resource_handler.py  # Abstract base class
 │           ├── base_file_entry.py        # File entry abstraction + FileStat
+│           ├── absolute_path.py          # AbsolutePath abstraction (DB / FS format conversion)
 │           ├── resource_handler_service.py # Handler factory/dispatcher
 │           ├── local_fs/                  # Local filesystem implementation
 │           │   ├── local_fs_handler.py    # LocalFS handler
@@ -374,8 +368,10 @@ video-app/
 │           └── s3/                        # S3-compatible storage implementation
 │               ├── s3_handler.py          # S3 handler (boto3 resource API)
 │               └── s3_file_entry.py       # S3 file entry
-└── tests/                           # Test files
+└── tests/                           # Test files (pytest, includes graphql/ subdir)
 ```
+
+> **Dependency injection**: `src/context.py` provides FastAPI `Depends`-based factories for every service and assembles them into the GraphQL `context` (keyed by `ContextEnum`). Resolvers retrieve services with `get_context_value(info, ContextEnum.XXX)`; HTTP routes use the exported `*Dep` annotations (e.g. `ThumbnailServiceDep`, `VideoStreamServiceDep`).
 
 #### Frontend
 
@@ -443,13 +439,15 @@ http://localhost:12000/graphql
 | `getSuggestions` | Get search suggestions |
 | `getVideoById` | Get video by ID |
 | `browseDirectory` | Browse directory (category -> pseudo_name -> subdirs) |
-| `directoryMetadata` | Get directory metadata (size/mtime) |
+| `getDirectoryMetadata` | Get directory metadata (size/mtime) |
+| `searchSeriesByPrefix` | Prefix-search series names (case-insensitive, distinct over `seriesName`) |
+| `getSeriesVideos` | List videos in a series, ordered by `seriesOrder` |
 
 ### Mutations
 
 | Mutation | Description |
 |----------|-------------|
-| `updateVideoMetadata` | Update video metadata |
+| `updateVideoMetadata` | Update video metadata (incl. series name/order) |
 | `deleteVideo` | Delete video |
 | `recordVideoView` | Record view count |
 
@@ -457,12 +455,12 @@ http://localhost:12000/graphql
 
 | Subscription | Description |
 |--------------|-------------|
-| `batchUpdate` | Batch update videos (streaming progress) |
-| `batchDelete` | Batch delete videos (streaming progress) |
+| `batchUpdateSubscription` | Batch update videos (streaming progress) |
+| `batchDeleteSubscription` | Batch delete videos (streaming progress) |
 
 ### HTTP Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/video/stream/{id}` | GET | Video stream (supports Range requests, 1MB chunks) |
-| `/video/thumbnail` | GET | Get thumbnail |
+| `/video/stream/{video_id}` | GET | Video stream — Range-supported direct streaming (1MB chunks) for `mp4`/`webm`; on-the-fly fragmented MP4 transcoding for other formats |
+| `/video/thumbnail?video_id=...` | GET | Get thumbnail (served from S3 if `thumbnail_config` is set, otherwise generated on-the-fly) |
