@@ -1,8 +1,6 @@
 from beanie import Document, Indexed, before_event, Insert, Replace
 import pymongo
-
 from src.config import get_settings
-
 
 class DirMetadataModel(Document):
     category: str

@@ -1,24 +1,28 @@
-from typing import Annotated, AsyncGenerator
-from fastapi import Depends, HTTPException, Request
+from typing import AsyncGenerator
+
+from fastapi import HTTPException, Request
 from fastapi.responses import StreamingResponse
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.ffmpeg_service import get_ffmpeg_service
+from src.services.ffmpeg_service import FFmpegService
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 
 logger = get_logger("video_stream_resolver")
 
 # Browser-natively-supported formats that don't need transcoding
 BROWSER_SUPPORTED_EXTENSIONS = {"mp4", "webm"}
 
-class VideoResolver:
-    def __init__(self):
-        self.resourceHandlerService = get_resource_handler_service()
-        self.ffmpeg = get_ffmpeg_service()
+class VideoStreamService:
 
-    async def video_stream_resolver(self, video_id: str, request: Request) -> StreamingResponse:
+    def __init__(self, resourceHandlerService: ResourceHandlerService, ffmpegService: FFmpegService):
+        self.resourceHandlerService = resourceHandlerService
+        self.ffmpegService = ffmpegService
+
+    async def video_stream_resolver(self, 
+                                    video_id: str, 
+                                    request: Request) -> StreamingResponse:
         """
         Handles video streaming requests and supports Range requests (for drag-and-drop playback in Video.js).
         For non-browser-supported formats, transcodes to MP4 on-the-fly using ffmpeg.
@@ -35,7 +39,11 @@ class VideoResolver:
             raise HTTPException(status_code=404, detail="video metadata doesn't exist")
 
         handler = self.resourceHandlerService.get_handler(video.category)
-        video_fs_path = AbsolutePath.from_existing_path(video.path, video.category).FS_format_path()
+        video_fs_path = AbsolutePath.from_existing_path(
+            path=video.path, 
+            category=video.category,
+            handler=handler
+        ).FS_format_path()
         if not handler.file_exists(video_fs_path):
             raise HTTPException(status_code=404, detail="video file doesn't exist")
 
@@ -94,7 +102,9 @@ class VideoResolver:
             logger.exception(f"Error while processing video stream request: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def _stream_transcoded(self, handler: BaseResourceHandler, video_fs_path: str) -> StreamingResponse:
+    async def _stream_transcoded(self, 
+                                 handler: BaseResourceHandler, 
+                                 video_fs_path: str) -> StreamingResponse:
         """
         Transcode video to fragmented MP4 on-the-fly using ffmpeg and stream the output.
         Range requests are not supported for transcoded streams.
@@ -107,7 +117,7 @@ class VideoResolver:
         :rtype: StreamingResponse
         """
         return StreamingResponse(
-            self.ffmpeg.transcode_to_mp4_stream(handler, video_fs_path),
+            self.ffmpegService.transcode_to_mp4_stream(handler, video_fs_path),
             media_type="video/mp4",
             headers={"Content-Type": "video/mp4"},
         )
@@ -162,9 +172,3 @@ class VideoResolver:
             "webm": "video/webm"
         }
         return mime_types.get(ext, "video/mp4")
-
-
-def get_video_resolver():
-    return VideoResolver()
-
-VideoResolverDep = Annotated[VideoResolver, Depends(get_video_resolver)]

@@ -1,21 +1,26 @@
-from functools import lru_cache
 from pymongo import UpdateOne
-from src.services.cache.cache_service import get_cache_service, CacheService
-from src.config import get_settings
+
+from src.config import Settings
 from src.db.models.DirMetadata_model import DirMetadataModel
 from src.logger import get_logger
+from src.services.cache.cache_service import CacheService
 from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 
 logger = get_logger("dir_metadata_service")
 
 
 class DirMetadataService:
 
-    def __init__(self):
-        self.settings = get_settings()
-        self.resourceHandlerService = get_resource_handler_service()
-        self._cache: CacheService = get_cache_service()
+    def __init__(
+        self,
+        settings: Settings,
+        resource_handler_service: ResourceHandlerService,
+        cache_service: CacheService,
+    ):
+        self.settings = settings
+        self.resourceHandlerService = resource_handler_service
+        self._cache = cache_service
 
     def _cache_key(self, category: str, path: str) -> str:
         return f"{category}:{path}"
@@ -161,12 +166,15 @@ class DirMetadataService:
         category = directory_path.category
 
         try:
-            from src.services.resource_handler.resource_handler_service import get_resource_handler_service
-            handler = get_resource_handler_service().get_handler(category)
+            handler = self.resourceHandlerService.get_handler(category)
             with handler.list_directory(directory_path.FS_format_path()) as entries:
                 for entry in entries:
                     if entry.is_dir():
-                        sub_path = AbsolutePath.from_existing_path(entry.path, category)
+                        sub_path = AbsolutePath.from_existing_path(
+                            path=entry.path, 
+                            category=category, 
+                            handler=handler
+                        )
                         if recursiveCalculation:
                             dir_size, dir_mtime = await self._calculate_directory_metadata_impl(
                                 sub_path, collected, recursiveCalculation
@@ -216,7 +224,11 @@ class DirMetadataService:
                 current = parent
 
         for db_path in sorted(all_paths, key=lambda p: p.count('/'), reverse=True):
-            abs_path = AbsolutePath.from_existing_path(db_path, category)
+            abs_path = AbsolutePath.from_existing_path(
+                path=db_path, 
+                category=category,
+                handler=handler
+            )
             await self.calculate_directory_metadata(abs_path, skipCache=True, recursiveCalculation=False)
 
     async def update_directory_metadata_forward(self, directory_path: AbsolutePath) -> None:
@@ -249,8 +261,3 @@ class DirMetadataService:
             if not parent or parent == current_db_path:
                 break
             current_path.update_path(parent)
-
-
-@lru_cache
-def get_dir_metadata_service() -> DirMetadataService:
-    return DirMetadataService()

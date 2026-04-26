@@ -1,14 +1,12 @@
-from functools import lru_cache
 from typing import Optional
+from src.config import CacheConfig
 from src.services.cache.base_cache import BaseCache, K, V
 from src.services.cache.cachetools_cache import CachetoolsCache
-from src.config import get_settings
 
 class CacheService(BaseCache[K, V]):
     """Cache service that delegates to a concrete cache implementation based on config."""
 
-    def __init__(self):
-        config = get_settings().cache_config
+    def __init__(self, config: CacheConfig):
         self._impl = self._create_impl(config.cache_type, config.max_size, config.ttl)
 
     @staticmethod
@@ -31,8 +29,3 @@ class CacheService(BaseCache[K, V]):
 
     def clear(self) -> None:
         self._impl.clear()
-
-
-@lru_cache
-def get_cache_service() -> CacheService:
-    return CacheService()

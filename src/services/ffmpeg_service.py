@@ -1,22 +1,18 @@
 import asyncio
 from asyncio.subprocess import Process
 import os
-from functools import lru_cache
 from typing import AsyncIterator
-
-from src.config import get_settings
 from src.logger import get_logger
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 
 logger = get_logger("ffmpeg_service")
 
-
 class FFmpegService:
 
-    def __init__(self):
+    def __init__(self, semaphore_limit: int):
         self._semaphore = asyncio.Semaphore(
             max(
-                get_settings().ffmpeg_semaphore_limit,
+                semaphore_limit,
                 os.cpu_count() // 2
             )
         )
@@ -304,8 +300,3 @@ class FFmpegService:
             logger.error(f"Error feeding stdin for {fs_path}: {e}")
         finally:
             stdin.close()
-
-
-@lru_cache()
-def get_ffmpeg_service() -> FFmpegService:
-    return FFmpegService()

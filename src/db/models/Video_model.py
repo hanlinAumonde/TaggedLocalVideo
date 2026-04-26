@@ -4,7 +4,6 @@ import pymongo
 
 from src.config import get_settings
 
-
 class VideoModel(Document):
     category: str
     path: Indexed(str, pymongo.ASCENDING, unique=True)  # type: ignore

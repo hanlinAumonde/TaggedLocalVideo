@@ -1,24 +1,29 @@
-from functools import lru_cache
-from bson import ObjectId
 import strawberry
-from src.config import get_settings
+from bson import ObjectId
+
+from src.config import Settings
 from src.db.models.Video_model import VideoModel
 from src.errors import FileBrowseError
 from src.logger import get_logger
-from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.dir_metadata_service import DirMetadataService
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_file_entry import BaseFileEntry
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.video_type import Video
 
 logger = get_logger("browse_file_service")
 
 class BrowseFileService:
-    def __init__(self):
-        self.settings = get_settings()
-        self.dirMetadataService = get_dir_metadata_service()
-        self.resourceHandlerService = get_resource_handler_service()
+    def __init__(
+        self,
+        settings: Settings,
+        dir_metadata_service: DirMetadataService,
+        resource_handler_service: ResourceHandlerService,
+    ):
+        self.settings = settings
+        self.dirMetadataService = dir_metadata_service
+        self.resourceHandlerService = resource_handler_service
 
     async def get_node_list_in_directory(self,
                                          abs_path: AbsolutePath,
@@ -57,7 +62,11 @@ class BrowseFileService:
                 pseudo_names = self.resourceHandlerService.get_pseudo_names(category)
                 for name in pseudo_names:
                     await self._get_directory_node(
-                        AbsolutePath.from_relative_path((category, name, None)),
+                        AbsolutePath.from_relative_path(
+                            parsedPath=(category, name, None), 
+                            handlerService=self.resourceHandlerService,
+                            settings=self.settings
+                        ),
                         name,
                         fileBrowse_nodes,
                         skipCache,
@@ -70,7 +79,11 @@ class BrowseFileService:
                     hasNewFileFlag = False
                     for entry in entries:
                         try:
-                            entry_path = AbsolutePath.from_existing_path(entry.path, category)
+                            entry_path = AbsolutePath.from_existing_path(
+                                path=entry.path, 
+                                category=category, 
+                                handler=handler
+                            )
                             if entry.is_dir():
                                 await self._get_directory_node(
                                     entry_path,
@@ -183,7 +196,3 @@ class BrowseFileService:
         except (OSError, Exception):
             logger.exception(f"Error accessing directory {mounted_directory_path} to get video entries.")
         return video_entries
-
-@lru_cache
-def get_browse_file_service() -> BrowseFileService:
-    return BrowseFileService()

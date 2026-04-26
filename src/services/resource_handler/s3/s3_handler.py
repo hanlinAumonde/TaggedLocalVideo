@@ -1,14 +1,12 @@
-import asyncio
 import posixpath
 from contextlib import contextmanager
 from typing import Iterator
-
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
 from fastapi.concurrency import run_in_threadpool
-
-from src.config import S3HandlerConfig, get_settings
+from src.context import get_settings
+from src.config import S3HandlerConfig
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.s3.s3_file_entry import S3FileEntry

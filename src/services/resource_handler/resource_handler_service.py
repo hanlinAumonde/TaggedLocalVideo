@@ -1,15 +1,12 @@
-from functools import lru_cache
-
-from src.config import Settings, get_settings
+from src.config import Settings
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
-
 
 class ResourceHandlerService:
     """Dispatcher that selects the correct resource handler based on category."""
 
-    def __init__(self):
-        settings = get_settings()
+    def __init__(self, settings: Settings):
+        self._settings = settings
         self._handlers: dict[str, BaseResourceHandler] = {}
 
         for category, pseudo_paths in settings.resource_paths.items():
@@ -70,12 +67,6 @@ class ResourceHandlerService:
         :rtype: list[str]
         :raises ValueError: If the category is not found in the configuration.
         """
-        settings = get_settings()
-        if category not in settings.resource_paths:
+        if category not in self._settings.resource_paths:
             raise ValueError(f"Category '{category}' not found in config")
-        return list(settings.resource_paths[category].keys())
-
-
-@lru_cache
-def get_resource_handler_service() -> ResourceHandlerService:
-    return ResourceHandlerService()
+        return list(self._settings.resource_paths[category].keys())

@@ -8,8 +8,7 @@ from src.logger import get_logger
 
 logger = get_logger("setup_mongo")
 
-async def setup_mongo():
-    mongo_config: MongoConfig = get_settings().mongo
+async def setup_mongo(mongo_config: MongoConfig):
     #create an async MongoDB client
     mongo_uri = "mongodb://"
     mongo_host_port = f"{mongo_config.host}:{mongo_config.port}"

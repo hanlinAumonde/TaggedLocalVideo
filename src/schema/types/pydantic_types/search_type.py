@@ -1,7 +1,6 @@
 import re
 from typing import Optional
 from pydantic import BaseModel, field_validator
-
 from src.config import get_settings
 
 # Regex metacharacters that need escaping for MongoDB $regex

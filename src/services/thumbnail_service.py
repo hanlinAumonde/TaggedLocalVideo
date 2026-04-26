@@ -1,22 +1,26 @@
-from functools import lru_cache
 import io
-from typing import Annotated
-from fastapi import Depends, HTTPException
+from fastapi import HTTPException
 from starlette.responses import StreamingResponse
-from src.config import get_settings
+from src.config import Settings
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
-from src.services.ffmpeg_service import get_ffmpeg_service
+from src.services.ffmpeg_service import FFmpegService
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 
 logger = get_logger("thumbnail_service")
 
 class ThumbnailService:
-    def __init__(self):
-        self.resourceHandlerService = get_resource_handler_service()
-        self.ffmpeg = get_ffmpeg_service()
+    def __init__(
+        self,
+        resource_handler_service: ResourceHandlerService,
+        ffmpeg_service: FFmpegService,
+        settings: Settings
+    ):
+        self.resourceHandlerService = resource_handler_service
+        self.ffmpeg = ffmpeg_service
+        self.settings = settings
         self._storage_handler = self._init_storage_handler()
 
     def _init_storage_handler(self) -> BaseResourceHandler | None:
@@ -27,7 +31,7 @@ class ThumbnailService:
         :return: An instance of BaseResourceHandler for thumbnail storage, or None if not configured.
         :rtype: BaseResourceHandler | None
         """
-        cfg = get_settings().thumbnail_config
+        cfg = self.settings.thumbnail_config
         if not cfg.storage_category or not cfg.storage_pseudo_name:
             return None
         try:
@@ -59,7 +63,11 @@ class ThumbnailService:
             raise HTTPException(status_code=404, detail="Video not found")
 
         video_handler = self.resourceHandlerService.get_handler(video.category)
-        video_path = AbsolutePath.from_existing_path(video.path, video.category)
+        video_path = AbsolutePath.from_existing_path(
+            path=video.path, 
+            category=video.category,
+            handler=video_handler
+        )
         video_fs_path = video_path.FS_format_path()
         if not video_handler.file_exists(video_fs_path):
             logger.warning(f"Video file not found at path: {video_fs_path}")
@@ -129,7 +137,7 @@ class ThumbnailService:
         :return: The computed storage path for the thumbnail.
         :rtype: str
         """
-        cfg = get_settings().thumbnail_config
+        cfg = self.settings.thumbnail_config
         return type(self._storage_handler).join_path(
             "thumbnails", cfg.storage_pseudo_name, f"{video_name}.jpg"
         )
@@ -149,9 +157,3 @@ class ThumbnailService:
             media_type="image/jpeg",
             headers={"Cache-Control": "public, max-age=3600"}
         )
-
-@lru_cache()
-def get_thumbnail_service() -> ThumbnailService:
-    return ThumbnailService()
-
-ThumbnailServiceDep = Annotated[ThumbnailService, Depends(get_thumbnail_service)]

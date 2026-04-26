@@ -1,10 +1,12 @@
 import strawberry
-from src.resolvers.query_resolver import get_query_resolver
 from src.schema.types.fileBrowse_type import FileBrowseNode
-from src.schema.types.search_type import DirectoryMetadataResult, VideoSearchResult
+from src.schema.types.search_type import (
+    DirectoryMetadataResult,
+    VideoSearchResult,
+)
+from src.resolvers.query_resolver import QueryResolver
 from src.schema.types.video_type import Video, VideoTag
 
-QueryResolver = get_query_resolver()
 
 @strawberry.type
 class Query:

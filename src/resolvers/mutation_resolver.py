@@ -1,31 +1,27 @@
-from functools import lru_cache
+import time
+
 import strawberry
 from bson import ObjectId
-import time
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
+
+from src.context import ContextEnum, get_context_value
+from src.db.models.Video_model import VideoModel
+from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import VideoMutationResult
 from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 from src.schema.types.video_type import UpdateVideoMetadataInput, Video
-from src.db.models.Video_model import VideoModel
-from src.errors import InputValidationError, VideoNotFoundError, DatabaseOperationError
-from src.services.dir_metadata_service import get_dir_metadata_service
+from src.services.dir_metadata_service import DirMetadataService
 from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.tag_operation_service import get_tag_operation_service
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.services.tag_operation_service import TagOperationService
 
 logger = get_logger("mutation_resolver")
 
-
 class MutationResolver:
 
-    def __init__(self):
-        self.tagOperationService = get_tag_operation_service()
-        self.dirMetadataService = get_dir_metadata_service()
-        self.resourceHandlerService = get_resource_handler_service()
-
-    async def resolve_update_video_metadata(self,input: UpdateVideoMetadataInput) -> VideoMutationResult:
+    async def resolve_update_video_metadata(self,input: UpdateVideoMetadataInput, info: strawberry.Info) -> VideoMutationResult:
         """
         Resolve function to update the metadata of a video.
 
@@ -94,7 +90,8 @@ class MutationResolver:
                     except BulkWriteError as bwe:
                         logger.exception(f"Bulk write error during series rewrite: {bwe.details}")
                         raise DatabaseOperationError("update_video_metadata", "series_bulk_write_failure")
-                await self.tagOperationService.update_tag_counts(update_tags=update_tags)
+                tagOperationService: TagOperationService = get_context_value(info, ContextEnum.TAG_OPERATION_SERVICE)
+                await tagOperationService.update_tag_counts(update_tags=update_tags)
 
                 updated_video = await Video.from_mongoDB(video_model)
                 return VideoMutationResult(success=True, video=updated_video)
@@ -224,7 +221,7 @@ class MutationResolver:
             logger.exception(f"Database operation error during record video view: {e}")
             raise DatabaseOperationError("record_video_view", f"videoId-{videoId}")
 
-    async def resolve_delete_video(self,videoId: strawberry.ID) -> VideoMutationResult:
+    async def resolve_delete_video(self,videoId: strawberry.ID, info: strawberry.Info) -> VideoMutationResult:
         """
         Resolve function to delete a video by its ID.
 
@@ -239,20 +236,30 @@ class MutationResolver:
                 raise VideoNotFoundError(str(videoId))
 
             old_tags = set(video_model.tags or [])
-            video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category)
+            resourceHandlerService: ResourceHandlerService = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
+            handler = resourceHandlerService.get_handler(video_model.category)
+            video_path = AbsolutePath.from_existing_path(
+                path=video_model.path, 
+                category=video_model.category,
+                handler=handler
+            )
 
             await video_model.delete()
-            await self.tagOperationService.update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
+            tagOperationService: TagOperationService = get_context_value(info, ContextEnum.TAG_OPERATION_SERVICE)
+            await tagOperationService.update_tag_counts(update_tags={tag: (1, False) for tag in old_tags})
 
             video_FS_path = video_path.FS_format_path()
-
-            handler = self.resourceHandlerService.get_handler(video_model.category)
             handler.delete_file(video_FS_path)
 
             directory_path = handler.dirname(video_FS_path)
             if directory_path:
-                await self.dirMetadataService.update_directory_metadata_forward(
-                    AbsolutePath.from_existing_path(directory_path, video_model.category)
+                dirMetadataService: DirMetadataService = get_context_value(info, ContextEnum.DIR_METADATA_SERVICE)
+                await dirMetadataService.update_directory_metadata_forward(
+                    AbsolutePath.from_existing_path(
+                        path=directory_path, 
+                        category=video_model.category, 
+                        handler=handler
+                    )
                 )
                 
             return VideoMutationResult(success=True, video=None)
@@ -263,7 +270,3 @@ class MutationResolver:
         except Exception as e:
             logger.exception(f"Database operation error during delete video: {e}")
             raise DatabaseOperationError("delete_video", f"videoId-{videoId}")
-        
-@lru_cache
-def get_mutation_resolver() -> MutationResolver:
-    return MutationResolver()

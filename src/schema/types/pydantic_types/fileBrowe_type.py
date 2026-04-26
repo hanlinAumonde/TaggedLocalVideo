@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ValidationInfo, field_validator
 from src.config import get_settings
 
-
 class RelativePathInputModel(BaseModel):
     skipCache: bool = False  # If True, bypass any caching and get the latest info from disk
 

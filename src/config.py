@@ -1,7 +1,5 @@
-from functools import lru_cache
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from envyaml import EnvYAML
 from pydantic_settings import BaseSettings
 
 class CacheConfig(BaseModel):
@@ -105,10 +103,17 @@ class Settings(BaseSettings):
             for pseudo_name in pseudo_paths
         }
 
+_settings : Settings | None = None
 
-@lru_cache
+def init_settings():
+    global _settings
+    if _settings is None:
+        from envyaml import EnvYAML
+        raw_settings = dict(EnvYAML("config.yaml"))
+        _settings = Settings.model_validate(raw_settings)
+    return _settings
+
 def get_settings() -> Settings:
-    config = dict(EnvYAML("config.yaml"))
-    return Settings.model_validate(config)
-
-
+    if _settings is None:
+        raise RuntimeError("Settings have not been initialized. Call init_settings() first.")
+    return _settings

@@ -1,30 +1,20 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import asynccontextmanager
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL
+from src.config import init_settings
 from src.schema.strawberry_schema import schema
+from src.context import get_context, get_settings
 from src.db.setup_mongo import setup_mongo
+from src.logger import get_logger, setup_logger
 from src.router import video_router
-from fastapi.middleware.cors import CORSMiddleware
-from src.config import get_settings
-from src.logger import setup_logger, get_logger
 
 # Initialize logger
-settings = get_settings()
-
 logger = get_logger("app")
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    setup_logger(
-        log_dir=settings.logging.log_dir,
-        rotation=settings.logging.rotation,
-        retention=settings.logging.retention,
-    )
-    await setup_mongo()
-    yield
-    logger.info("Application shutdown")
+
 
 async def global_exception_handler(request: Request, exc: HTTPException):
     logger.exception(
@@ -37,6 +27,19 @@ async def global_exception_handler(request: Request, exc: HTTPException):
     )
 
 def create_app():
+    settings = init_settings()
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        setup_logger(
+            log_dir=settings.logging.log_dir,
+            rotation=settings.logging.rotation,
+            retention=settings.logging.retention,
+        )
+        await setup_mongo(settings.mongo)
+        yield
+        logger.info("Application shutdown")
+
     app = FastAPI(lifespan=lifespan)
 
     app.add_exception_handler(HTTPException, global_exception_handler)
@@ -55,6 +58,7 @@ def create_app():
             GRAPHQL_TRANSPORT_WS_PROTOCOL,
             GRAPHQL_WS_PROTOCOL,
         ],
+        context_getter=get_context,
     )
     app.include_router(graphql_app, prefix="/graphql")
     app.include_router(video_router.router)

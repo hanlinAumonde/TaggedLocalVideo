@@ -1,16 +1,12 @@
-from functools import lru_cache
 import strawberry
 from bson import ObjectId
-from src.config import get_settings
+
+from src.config import Settings
+from src.context import ContextEnum, get_context_value
+from src.db.models.Video_model import VideoModel
+from src.db.models.VideoTag_model import VideoTagModel
+from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
 from src.logger import get_logger
-from src.services.browse_file_service import get_browse_file_service
-from src.services.dir_metadata_service import get_dir_metadata_service
-from src.services.ffmpeg_service import get_ffmpeg_service
-from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import get_resource_handler_service
-from src.services.series_service import get_series_service
-from src.services.tag_operation_service import get_tag_operation_service
-from src.services.thumbnail_service import get_thumbnail_service
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
 from src.schema.types.search_type import (
     DirectoryMetadataResult,
@@ -23,30 +19,27 @@ from src.schema.types.search_type import (
     Pagination
 )
 from src.schema.types.video_type import Video, VideoTag
-from src.db.models.Video_model import VideoModel
-from src.db.models.VideoTag_model import VideoTagModel
-from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
+from src.services.browse_file_service import BrowseFileService
+from src.services.dir_metadata_service import DirMetadataService
+from src.services.ffmpeg_service import FFmpegService
+from src.services.resource_handler.absolute_path import AbsolutePath
+from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.services.series_service import SeriesService
+from src.services.tag_operation_service import TagOperationService
+from src.services.thumbnail_service import ThumbnailService
 
 logger = get_logger("query_resolver")
 
 class QueryResolver:
-
-    def __init__(self):
-        self.settings = get_settings()
-        self.tagOperationService = get_tag_operation_service()
-        self.thumbnailService = get_thumbnail_service()
-        self.browseFileService = get_browse_file_service()
-        self.dirMetadataService = get_dir_metadata_service()
-        self.ffmpegService = get_ffmpeg_service()
-        self.resourceHandlerService = get_resource_handler_service()
-        self.seriesService = get_series_service()
     
-    async def resolve_search_videos(self,input: VideoSearchInput) -> VideoSearchResult:
+    async def resolve_search_videos(self,input: VideoSearchInput, info: strawberry.Info) -> VideoSearchResult:
         """
         Resolve function to search for videos based on various criteria.
 
         :param input: Filter criteria for searching videos.
         :type input: VideoSearchInput
+        :param info: Strawberry GraphQL info object.
+        :type info: strawberry.Info
         :return: Search results for videos.
         :rtype: VideoSearchResult
         """
@@ -56,10 +49,10 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="VideoSearchInput", issue="Invalid input data for video search")
 
-        settings = get_settings()
         query_filters = {}
 
         # Exclude videos from categories not in current config
+        settings: Settings = get_context_value(info, ContextEnum.SETTINGS)
         valid_categories = settings.get_valid_categories()
         if len(valid_categories) == 0:
             return VideoSearchResult(
@@ -102,11 +95,18 @@ class QueryResolver:
             total_count = await query.count()
             video_models = await query.sort(sort_criteria).skip(skip).limit(page_size).to_list()
 
-            async def get_video(video_model: VideoModel):
+            async def get_video(video_model: VideoModel, info: strawberry.Info = info) -> Video:
+                handlerService: ResourceHandlerService = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
+                ffmpegService: FFmpegService = get_context_value(info, ContextEnum.FFMPEG_SERVICE)
+                
                 if video_model.duration is None or video_model.duration == 0.0:
-                    video_path = AbsolutePath.from_existing_path(video_model.path, video_model.category).FS_format_path()
-                    handler = self.resourceHandlerService.get_handler(video_model.category)
-                    duration = await self.ffmpegService.get_video_duration(handler, video_path)
+                    handler = handlerService.get_handler(video_model.category)
+                    video_path = AbsolutePath.from_existing_path(
+                        path=video_model.path, 
+                        category=video_model.category,
+                        handler=handler
+                    ).FS_format_path()
+                    duration = await ffmpegService.get_video_duration(handler, video_path)
                     video_model.duration = duration
                     await video_model.save()
                 return await Video.from_mongoDB(video_model)
@@ -126,23 +126,25 @@ class QueryResolver:
             raise DatabaseOperationError(operation="video search", 
                                          details=f"Filters-{query_filters}, Sort-{sort_criteria}, Skip-{skip}, Limit-{page_size}")
 
-    async def resolve_get_top_tags(self) -> list[VideoTag]:
+    async def resolve_get_top_tags(self, info: strawberry.Info) -> list[VideoTag]:
         """
         Resolve function to retrieve the top video tags.
 
         :return: List of top video tags.
         :rtype: list[VideoTag]
         """
-        limit = self.settings.page_size_default.homepage_tags
+        settings: Settings = get_context_value(info, ContextEnum.SETTINGS)
+        tagOperationService: TagOperationService = get_context_value(info, ContextEnum.TAG_OPERATION_SERVICE)
+        limit = settings.page_size_default.homepage_tags
         try:
-            tag_docs = await self.tagOperationService.get_top_tag_docs(limit)
+            tag_docs = await tagOperationService.get_top_tag_docs(limit)
             return [VideoTag(name=tag.name, count=tag.tag_count) for tag in tag_docs]
         except Exception as e:
             logger.exception(f"Database operation error during get top tags: {e}")
             raise DatabaseOperationError(operation="get top tags",
                                          details=f"Limit-{limit}")
 
-    async def resolve_get_suggestions(self,input: SuggestionInput) -> list[str]:
+    async def resolve_get_suggestions(self,input: SuggestionInput, info: strawberry.Info) -> list[str]:
         """
         Resolve function to get suggestions based on a keyword and suggestion type.
 
@@ -162,27 +164,29 @@ class QueryResolver:
         else:
             return []
         suggestion_type = validated_input.suggestionType
-        limits = self.settings.suggestion_limit
+        settings: Settings = get_context_value(info, ContextEnum.SETTINGS)
+        tagOperationService: TagOperationService = get_context_value(info, ContextEnum.TAG_OPERATION_SERVICE)
+        limits = settings.suggestion_limit
 
         try:
             match suggestion_type:
                 case SearchField.Tag.value:
                     limit = limits.tag
                     if not keyword:
-                        tag_docs = await self.tagOperationService.get_top_tag_docs(limit)
+                        tag_docs = await tagOperationService.get_top_tag_docs(limit)
                         return [tag.name for tag in tag_docs]
 
                     prefix_query = VideoTagModel.find(
                         {"name" : {"$regex": f"^{keyword}", "$options":"i"}}
                     )
-                    prefix_matches = await self.tagOperationService.get_top_tag_docs(limit,prefix_query)
+                    prefix_matches = await tagOperationService.get_top_tag_docs(limit,prefix_query)
                     prefix_matches_names = [tag.name for tag in prefix_matches]
 
                     if limit - len(prefix_matches_names) > 0:
                         contains_query = VideoTagModel.find(
                             {"name": {"$regex": f".*{keyword}.*", "$options":"i", "$nin": prefix_matches_names}}
                         )
-                        contains_matches = await self.tagOperationService.get_top_tag_docs(limit, contains_query)
+                        contains_matches = await tagOperationService.get_top_tag_docs(limit, contains_query)
                         prefix_matches_names.extend([tag.name for tag in contains_matches])
 
                     return prefix_matches_names
@@ -229,7 +233,7 @@ class QueryResolver:
             raise VideoNotFoundError(str(videoId))
         return await Video.from_mongoDB(video_model)
     
-    async def resolve_browse_directory(self,input: RelativePathInput) -> list[FileBrowseNode]:
+    async def resolve_browse_directory(self,input: RelativePathInput, info: strawberry.Info) -> list[FileBrowseNode]:
         """
         Resolve function to browse videos in a directory specified by a relative path.
 
@@ -244,13 +248,18 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory browsing")
         
-        return await self.browseFileService.get_node_list_in_directory(
-            AbsolutePath.from_relative_path(relativePathInputModel.parsedPath),
+        browseFileService: BrowseFileService = get_context_value(info, ContextEnum.BROWSE_FILE_SERVICE)
+        return await browseFileService.get_node_list_in_directory(
+            AbsolutePath.from_relative_path(
+                parsedPath=relativePathInputModel.parsedPath,
+                handlerService=get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE),
+                settings=get_context_value(info, ContextEnum.SETTINGS)
+            ),
             skipCache=relativePathInputModel.skipCache,
             recursiveCalculation=relativePathInputModel.recursiveCalculation
         )
 
-    async def resolve_search_series_by_prefix(self, prefix: str, limit: int) -> list[str]:
+    async def resolve_search_series_by_prefix(self, prefix: str, limit: int, info: strawberry.Info) -> list[str]:
         """
         Resolve function to look up series names by prefix (case-insensitive). Used for the
         autocomplete dropdown in the video edit panel.
@@ -265,13 +274,14 @@ class QueryResolver:
         if limit <= 0:
             return []
         try:
-            return await self.seriesService.search_by_prefix(prefix or "", limit)
+            seriesService: SeriesService = get_context_value(info, ContextEnum.SERIES_SERVICE)
+            return await seriesService.search_by_prefix(prefix or "", limit)
         except Exception as e:
             logger.exception(f"Database operation error during search series by prefix: {e}")
             raise DatabaseOperationError(operation="search series by prefix",
                                          details=f"Prefix-{prefix}, Limit-{limit}")
 
-    async def resolve_get_series_videos(self, name: str) -> list[Video]:
+    async def resolve_get_series_videos(self, name: str, info: strawberry.Info) -> list[Video]:
         """
         Resolve function to retrieve all videos belonging to a series, ordered by seriesOrder
         ascending. Videos outside the currently configured categories are excluded.
@@ -284,14 +294,16 @@ class QueryResolver:
         if not name:
             return []
         try:
-            valid_categories = self.settings.get_valid_categories()
-            video_models = await self.seriesService.get_videos_in_series(name, valid_categories)
+            settings: Settings = get_context_value(info, ContextEnum.SETTINGS)
+            seriesService: SeriesService = get_context_value(info, ContextEnum.SERIES_SERVICE)
+            valid_categories = settings.get_valid_categories()
+            video_models = await seriesService.get_videos_in_series(name, valid_categories)
             return [await Video.from_mongoDB(vm) for vm in video_models]
         except Exception as e:
             logger.exception(f"Database operation error during get series videos: {e}")
             raise DatabaseOperationError(operation="get series videos", details=f"Name-{name}")
 
-    async def resolve_directory_metadata(self,input: RelativePathInput) -> DirectoryMetadataResult:
+    async def resolve_directory_metadata(self,input: RelativePathInput, info: strawberry.Info) -> DirectoryMetadataResult:
         """
         Resolve function to get metadata of a directory specified by a relative path.
 
@@ -306,14 +318,18 @@ class QueryResolver:
             logger.exception(f"Input validation error: {e}")
             raise InputValidationError(field="RelativePathInput", issue="Invalid input data for directory metadata")
         
-        abs_path = AbsolutePath.from_relative_path(relativePathInputModel.parsedPath)
+        abs_path = AbsolutePath.from_relative_path(
+            parsedPath=relativePathInputModel.parsedPath,
+            handlerService=get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE),
+            settings=get_context_value(info, ContextEnum.SETTINGS)
+        )
         if abs_path.is_root_level() or abs_path.is_category_level():
             return DirectoryMetadataResult(
                 totalSize=0.0,
                 lastModifiedTime=0.0
             )
-
-        size, last_update_time = await self.dirMetadataService.calculate_directory_metadata(
+        dirMetadataService: DirMetadataService = get_context_value(info, ContextEnum.DIR_METADATA_SERVICE)
+        size, last_update_time = await dirMetadataService.calculate_directory_metadata(
             abs_path,
             skipCache=True,
             recursiveCalculation=True
@@ -323,7 +339,3 @@ class QueryResolver:
             totalSize=size,
             lastModifiedTime=last_update_time
         )
-
-@lru_cache
-def get_query_resolver() -> QueryResolver:
-    return QueryResolver()

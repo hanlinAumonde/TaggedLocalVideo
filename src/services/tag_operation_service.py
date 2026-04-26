@@ -1,13 +1,16 @@
-from functools import lru_cache
 from pymongo import UpdateOne
 from pymongo.errors import BulkWriteError
-from src.config import get_settings
+
+from src.config import Settings
 from src.db.models.VideoTag_model import VideoTagModel
 from src.logger import get_logger
 
 logger = get_logger("tag_operation_service")
 
 class TagOperationService:
+
+    def __init__(self, settings: Settings):
+        self.settings = settings
 
     async def get_top_tag_docs(self, limit: int, findQuery=None) -> list[VideoTagModel]:
         """
@@ -20,7 +23,7 @@ class TagOperationService:
         :return: A list of top VideoTagModel instances.
         :rtype: list[VideoTagModel]
         """
-        if len(get_settings().get_valid_categories()) == 0:
+        if len(self.settings.get_valid_categories()) == 0:
             return []
         if not findQuery:
             findQuery = VideoTagModel.find()
@@ -82,7 +85,3 @@ class TagOperationService:
         for tag in tags:
             tag_record: tuple[int, bool] | None = update_tags.get(tag)
             update_tags[tag] = (tag_record[0] + 1, is_increment) if tag_record else (1, is_increment)
-
-@lru_cache
-def get_tag_operation_service() -> TagOperationService:
-    return TagOperationService()

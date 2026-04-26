@@ -1,13 +1,9 @@
 import re
-from functools import lru_cache
-
 import pymongo
-
 from src.db.models.Video_model import VideoModel
 from src.logger import get_logger
 
 logger = get_logger("series_service")
-
 
 class SeriesService:
 
@@ -54,8 +50,3 @@ class SeriesService:
             .sort([("seriesOrder", pymongo.ASCENDING), ("name", pymongo.ASCENDING)])
             .to_list()
         )
-
-
-@lru_cache
-def get_series_service() -> SeriesService:
-    return SeriesService()

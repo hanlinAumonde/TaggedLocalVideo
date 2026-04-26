@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from src.config import get_settings
 from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 
-
 class SeriesFieldInputModel(BaseModel):
     name: Optional[str] = None
     clear: bool = False
