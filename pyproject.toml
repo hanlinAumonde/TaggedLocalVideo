@@ -35,9 +35,8 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pytest-mock>=3.12.0",
     "httpx>=0.27.0",
-    "mongomock-motor>=0.0.34",
     "freezegun>=1.5.0",
-    "boto3-stubs==1.42.79",
+    "testcontainers>=4.14.2",
 ]
 
 [tool.pytest.ini_options]
@@ -53,5 +52,9 @@ addopts = [
     "--tb=short",
 ]
 markers = [
-    "unit:mark a test as an unit test"
+    "unit: mark a test as an unit test",
+    "graphql: GraphQL interface tests (auto-applied to tests/graphql/)",
+    "query: GraphQL query operation tests",
+    "mutation: GraphQL mutation operation tests",
+    "subscription: GraphQL subscription operation tests",
 ]
