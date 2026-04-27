@@ -4,24 +4,24 @@ from src.schema.types.search_type import (
     DirectoryMetadataResult,
     VideoSearchResult,
 )
-from src.resolvers.query_resolver import QueryResolver
+from src.resolvers import query_resolver
 from src.schema.types.video_type import Video, VideoTag
 
 
 @strawberry.type
 class Query:
-    SearchVideos: VideoSearchResult = strawberry.field(resolver=QueryResolver.resolve_search_videos)
+    SearchVideos: VideoSearchResult = strawberry.field(resolver=query_resolver.resolve_search_videos)
 
-    getTopTags: list[VideoTag] = strawberry.field(resolver=QueryResolver.resolve_get_top_tags)
+    getTopTags: list[VideoTag] = strawberry.field(resolver=query_resolver.resolve_get_top_tags)
 
-    getSuggestions: list[str] = strawberry.field(resolver=QueryResolver.resolve_get_suggestions)
+    getSuggestions: list[str] = strawberry.field(resolver=query_resolver.resolve_get_suggestions)
 
-    getVideoById: Video = strawberry.field(resolver=QueryResolver.resolve_get_video_by_id)
+    getVideoById: Video = strawberry.field(resolver=query_resolver.resolve_get_video_by_id)
 
-    browseDirectory: list[FileBrowseNode] = strawberry.field(resolver=QueryResolver.resolve_browse_directory)
+    browseDirectory: list[FileBrowseNode] = strawberry.field(resolver=query_resolver.resolve_browse_directory)
 
-    getDirectoryMetadata: DirectoryMetadataResult = strawberry.field(resolver=QueryResolver.resolve_directory_metadata)
+    getDirectoryMetadata: DirectoryMetadataResult = strawberry.field(resolver=query_resolver.resolve_directory_metadata)
 
-    searchSeriesByPrefix: list[str] = strawberry.field(resolver=QueryResolver.resolve_search_series_by_prefix)
+    searchSeriesByPrefix: list[str] = strawberry.field(resolver=query_resolver.resolve_search_series_by_prefix)
 
-    getSeriesVideos: list[Video] = strawberry.field(resolver=QueryResolver.resolve_get_series_videos)
+    getSeriesVideos: list[Video] = strawberry.field(resolver=query_resolver.resolve_get_series_videos)

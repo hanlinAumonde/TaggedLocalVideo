@@ -6,15 +6,12 @@ from strawberry.fastapi import GraphQLRouter
 from strawberry.subscriptions import GRAPHQL_TRANSPORT_WS_PROTOCOL, GRAPHQL_WS_PROTOCOL
 from src.config import init_settings
 from src.schema.strawberry_schema import schema
-from src.context import get_context, get_settings
+from src.context import get_context
 from src.db.setup_mongo import setup_mongo
 from src.logger import get_logger, setup_logger
 from src.router import video_router
 
-# Initialize logger
 logger = get_logger("app")
-
-
 
 async def global_exception_handler(request: Request, exc: HTTPException):
     logger.exception(
