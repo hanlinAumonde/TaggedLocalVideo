@@ -91,6 +91,7 @@ class BatchOperationService:
                 resultType=BatchResultType.Failure,
                 message="No video IDs or file entries provided for batch delete"
             )
+            return
 
         category = dir_path.category
 
@@ -178,6 +179,7 @@ class BatchOperationService:
                 resultType=BatchResultType.Failure,
                 message="No video IDs or file entries provided for batch update"
             )
+            return
 
         successful_updates = 0
         operations = []

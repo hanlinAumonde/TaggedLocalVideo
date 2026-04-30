@@ -138,7 +138,7 @@ class ThumbnailService:
         :rtype: str
         """
         cfg = self.settings.thumbnail_config
-        return type(self._storage_handler).join_path(
+        return self._storage_handler.join_path(
             "thumbnails", cfg.storage_pseudo_name, f"{video_name}.jpg"
         )
 

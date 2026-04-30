@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from typing import Iterator
 import os
 import aiofiles
-from src.context import get_settings
+from src.config import get_settings
 from src.services.resource_handler.base_resource_handler import BaseResourceHandler
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.local_fs.local_fs_file_entry import LocalFSFileEntry
