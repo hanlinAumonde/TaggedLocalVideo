@@ -57,4 +57,5 @@ markers = [
     "query: GraphQL query operation tests",
     "mutation: GraphQL mutation operation tests",
     "subscription: GraphQL subscription operation tests",
+    "integration: mark a test as an integration test",
 ]

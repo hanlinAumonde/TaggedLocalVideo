@@ -19,7 +19,7 @@ from src.db.models.Video_model import VideoModel
 
 @pytest.fixture(scope="session")
 def mongo_container():
-    """Start a MongoDB testcontainer (no auth) for the entire test session."""
+    """Start a MongoDB testcontainer for the entire test session."""
     container = (
         MongoDbContainer(
             image="mongo:latest",
