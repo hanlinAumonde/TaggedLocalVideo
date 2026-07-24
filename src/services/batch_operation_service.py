@@ -358,7 +358,7 @@ class BatchOperationService:
                 )
                 duration = await self.ffmpegService.get_video_duration(
                     handler=handler,
-                    video_path=video_path.FS_format_path()
+                    fs_path=video_path.FS_format_path()
                 )
                 if duration is not None and duration > 0.0:
                     update_query["duration"] = duration

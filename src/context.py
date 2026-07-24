@@ -28,25 +28,43 @@ class ContextEnum(Enum):
     BROWSE_FILE_SERVICE = BrowseFileService
     BATCH_OPERATION_SERVICE = BatchOperationService
 
-def get_cache_service(settings:Settings = Depends(get_settings)):
-    return CacheService(config=settings.cache_config)
-# CacheServiceDep = Annotated[CacheService, Depends(get_cache_service)]
+_cache_service: CacheService | None = None
+_resource_handler_service: ResourceHandlerService | None = None
+_ffmpeg_service: FFmpegService | None = None
+_tag_operation_service: TagOperationService | None = None
+_series_service: SeriesService | None = None
 
-def get_resource_handler_service(settings:Settings = Depends(get_settings)):
-    return ResourceHandlerService(settings=settings)
+def get_cache_service(settings: Settings = Depends(get_settings)):
+    global _cache_service
+    if _cache_service is None:
+        _cache_service = CacheService(config=settings.cache_config)
+    return _cache_service
+
+def get_resource_handler_service(settings: Settings = Depends(get_settings)):
+    global _resource_handler_service
+    if _resource_handler_service is None:
+        _resource_handler_service = ResourceHandlerService(settings=settings)
+    return _resource_handler_service
 ResourceHandlerServiceDep = Annotated[ResourceHandlerService, Depends(get_resource_handler_service)]
 
-def get_ffmpeg_service(settings:Settings = Depends(get_settings)):
-    return FFmpegService(semaphore_limit=settings.ffmpeg_semaphore_limit)
+def get_ffmpeg_service(settings: Settings = Depends(get_settings)):
+    global _ffmpeg_service
+    if _ffmpeg_service is None:
+        _ffmpeg_service = FFmpegService(semaphore_limit=settings.ffmpeg_semaphore_limit)
+    return _ffmpeg_service
 FFmpegServiceDep = Annotated[FFmpegService, Depends(get_ffmpeg_service)]
 
-def get_tag_operation_service(settings:Settings = Depends(get_settings)):
-    return TagOperationService(settings=settings)
-# TagOperationServiceDep = Annotated[TagOperationService, Depends(get_tag_operation_service)]
+def get_tag_operation_service(settings: Settings = Depends(get_settings)):
+    global _tag_operation_service
+    if _tag_operation_service is None:
+        _tag_operation_service = TagOperationService(settings=settings)
+    return _tag_operation_service
 
 def get_series_service():
-    return SeriesService()
-# SeriesServiceDep = Annotated[SeriesService, Depends(get_series_service)]
+    global _series_service
+    if _series_service is None:
+        _series_service = SeriesService()
+    return _series_service
 
 def get_dir_metadata_service(
     settings: Settings = Depends(get_settings),

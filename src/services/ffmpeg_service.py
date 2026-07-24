@@ -195,41 +195,25 @@ class FFmpegService:
         await self._semaphore.acquire()
 
         ffmpeg_input = handler.get_ffmpeg_accessible_path(fs_path)
+        if not ffmpeg_input:
+            self._semaphore.release()
+            raise RuntimeError(f"Cannot get accessible path for transcoding: {fs_path}")
 
         try:
-            if ffmpeg_input:
-                process = await asyncio.create_subprocess_exec(
-                    "ffmpeg",
-                    "-loglevel", "error",
-                    "-i", ffmpeg_input,
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "23",
-                    "-c:a", "aac",
-                    "-movflags", "frag_keyframe+empty_moov+default_base_moof",
-                    "-f", "mp4",
-                    "pipe:1",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-            else:
-                process = await asyncio.create_subprocess_exec(
-                    "ffmpeg",
-                    "-loglevel", "error",
-                    "-i", "pipe:0",
-                    "-c:v", "libx264",
-                    "-preset", "fast",
-                    "-crf", "23",
-                    "-c:a", "aac",
-                    "-movflags", "frag_keyframe+empty_moov+default_base_moof",
-                    "-f", "mp4",
-                    "pipe:1",
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                # Feed stdin in background so stdout reading isn't blocked
-                asyncio.create_task(self._feed_stdin(handler, fs_path, process.stdin))
+            process = await asyncio.create_subprocess_exec(
+                "ffmpeg",
+                "-loglevel", "error",
+                "-i", ffmpeg_input,
+                "-c:v", "libx264",
+                "-preset", "fast",
+                "-crf", "23",
+                "-c:a", "aac",
+                "-movflags", "frag_keyframe+empty_moov+default_base_moof",
+                "-f", "mp4",
+                "pipe:1",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
         except Exception as e:
             self._semaphore.release()
             logger.exception(f"Failed to start ffmpeg transcoding: {e}")
@@ -264,10 +248,10 @@ class FFmpegService:
                 )
         except Exception as e:
             logger.error(f"Error during transcoding stream: {e}")
+        finally:
             if process.returncode is None:
                 process.kill()
                 await process.wait()
-        finally:
             self._semaphore.release()
 
     @staticmethod
