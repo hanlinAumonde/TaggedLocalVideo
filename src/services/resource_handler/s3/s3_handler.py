@@ -1,6 +1,6 @@
 import posixpath
 from contextlib import contextmanager
-from typing import Iterator
+from typing import AsyncIterator, Generator, Iterator
 import boto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
@@ -124,7 +124,7 @@ class S3ResourceHandler(BaseResourceHandler):
     # ------------------------------------------------------------------
 
     @contextmanager
-    def list_directory(self, path: str) -> Iterator[Iterator[BaseFileEntry]]:
+    def list_directory(self, path: str) -> Generator[Iterator[BaseFileEntry], None, None]:
         """
         List entries in a "directory" (S3 prefix).
         path is an S3 key prefix, e.g. "videos/Resource-1/action/"
@@ -155,7 +155,7 @@ class S3ResourceHandler(BaseResourceHandler):
                     is_directory=False,
                 ))
 
-        yield iter(entries)
+        yield (iter(entries))
 
     def get_entry(self, path: str) -> BaseFileEntry:
         """Get a single S3 object entry by its key."""
@@ -208,6 +208,75 @@ class S3ResourceHandler(BaseResourceHandler):
             obj.put(Body=data)
 
         await run_in_threadpool(_write)
+
+    async def write_file_streaming(self, path: str, data_stream: AsyncIterator[bytes]) -> int:
+        pseudo_name, _ = self._get_pseudo_name_from_key(path)
+        bucket = self._get_bucket(pseudo_name)
+        client = bucket.meta.client
+
+        MIN_PART_SIZE = 5 * 1024 * 1024  # 5MB — S3 minimum part size
+
+        mpu = await run_in_threadpool(
+            client.create_multipart_upload,
+            Bucket=bucket.name,
+            Key=path,
+        )
+        upload_id = mpu["UploadId"]
+
+        parts: list[dict] = []
+        part_number = 1
+        total_written = 0
+        buffer = bytearray()
+
+        try:
+            async for chunk in data_stream:
+                buffer.extend(chunk)
+                total_written += len(chunk)
+
+                while len(buffer) >= MIN_PART_SIZE:
+                    part_data = bytes(buffer[:MIN_PART_SIZE])
+                    buffer = bytearray(buffer[MIN_PART_SIZE:])
+
+                    response = await run_in_threadpool(
+                        client.upload_part,
+                        Bucket=bucket.name,
+                        Key=path,
+                        UploadId=upload_id,
+                        PartNumber=part_number,
+                        Body=part_data,
+                    )
+                    parts.append({"PartNumber": part_number, "ETag": response["ETag"]})
+                    part_number += 1
+
+            if buffer or not parts:
+                response = await run_in_threadpool(
+                    client.upload_part,
+                    Bucket=bucket.name,
+                    Key=path,
+                    UploadId=upload_id,
+                    PartNumber=part_number,
+                    Body=bytes(buffer),
+                )
+                parts.append({"PartNumber": part_number, "ETag": response["ETag"]})
+
+            await run_in_threadpool(
+                client.complete_multipart_upload,
+                Bucket=bucket.name,
+                Key=path,
+                UploadId=upload_id,
+                MultipartUpload={"Parts": parts},
+            )
+
+            return total_written
+
+        except Exception:
+            await run_in_threadpool(
+                client.abort_multipart_upload,
+                Bucket=bucket.name,
+                Key=path,
+                UploadId=upload_id,
+            )
+            raise
 
     # ------------------------------------------------------------------
     # Path conversion

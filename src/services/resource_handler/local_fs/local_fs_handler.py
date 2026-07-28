@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Iterator
+from typing import AsyncIterator, Generator, Iterator
 import os
 import aiofiles
 from src.config import get_settings
@@ -24,7 +24,7 @@ class LocalFSResourceHandler(BaseResourceHandler):
     # --- IO operations ---
 
     @contextmanager
-    def list_directory(self, path: str) -> Iterator[Iterator[BaseFileEntry]]:
+    def list_directory(self, path: str) -> Generator[Iterator[BaseFileEntry], None, None]:
         with os.scandir(path) as entries:
             yield (LocalFSFileEntry(dir_entry=entry) for entry in entries)
 
@@ -53,6 +53,23 @@ class LocalFSResourceHandler(BaseResourceHandler):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         async with aiofiles.open(path, "wb") as f:
             await f.write(data)
+
+    async def write_file_streaming(self, path: str, data_stream: AsyncIterator[bytes]) -> int:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        total_written = 0
+        async with aiofiles.open(path, "wb") as f:
+            async for chunk in data_stream:
+                await f.write(chunk)
+                total_written += len(chunk)
+        return total_written
+
+    def get_available_space(self, path: str) -> int | None:
+        import shutil
+        try:
+            usage = shutil.disk_usage(os.path.dirname(path))
+            return usage.free
+        except OSError:
+            return None
 
     # --- Path resolution ---
 
