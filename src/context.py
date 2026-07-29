@@ -10,6 +10,7 @@ from src.services.browse_file_service import BrowseFileService
 from src.services.cache.cache_service import CacheService
 from src.services.dir_metadata_service import DirMetadataService
 from src.services.ffmpeg_service import FFmpegService
+from src.services.migration_service import MigrationService
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
 from src.services.tag_operation_service import TagOperationService
@@ -27,12 +28,14 @@ class ContextEnum(Enum):
     DIR_METADATA_SERVICE = DirMetadataService
     BROWSE_FILE_SERVICE = BrowseFileService
     BATCH_OPERATION_SERVICE = BatchOperationService
+    MIGRATION_SERVICE = MigrationService
 
 _cache_service: CacheService | None = None
 _resource_handler_service: ResourceHandlerService | None = None
 _ffmpeg_service: FFmpegService | None = None
 _tag_operation_service: TagOperationService | None = None
 _series_service: SeriesService | None = None
+_migration_service: MigrationService | None = None
 
 def get_cache_service(settings: Settings = Depends(get_settings)):
     global _cache_service
@@ -118,6 +121,18 @@ def get_batch_operation_service(
     )
 # BatchOperationServiceDep = Annotated[BatchOperationService, Depends(get_batch_operation_service)]
 
+def get_migration_service(
+    resource_handler_service=Depends(get_resource_handler_service),
+    dir_metadata_service=Depends(get_dir_metadata_service),
+):
+    global _migration_service
+    if _migration_service is None:
+        _migration_service = MigrationService(
+            resource_handler_service=resource_handler_service,
+            dir_metadata_service=dir_metadata_service,
+        )
+    return _migration_service
+
 def get_video_stream_service(
     resource_handler_service = Depends(get_resource_handler_service),
     ffmpeg_service = Depends(get_ffmpeg_service)
@@ -139,6 +154,7 @@ async def get_context(
     dir_metadata_service: DirMetadataService = Depends(get_dir_metadata_service),
     browse_file_service: BrowseFileService = Depends(get_browse_file_service),
     batch_operation_service: BatchOperationService = Depends(get_batch_operation_service),
+    migration_service: MigrationService = Depends(get_migration_service),
 ):
     return {
         ContextEnum.SETTINGS: settings,
@@ -151,6 +167,7 @@ async def get_context(
         ContextEnum.DIR_METADATA_SERVICE: dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: batch_operation_service,
+        ContextEnum.MIGRATION_SERVICE: migration_service,
     }
 
 def get_context_value(info: strawberry.Info, key: ContextEnum):

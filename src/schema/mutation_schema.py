@@ -1,7 +1,11 @@
 import strawberry
 
 from src.schema.types.fileBrowse_type import VideoMutationResult
-from src.resolvers import mutation_resolver
+from src.schema.types.migration_type import (
+    MigrationPreflightResult,
+    MigrationTaskMutationResult,
+)
+from src.resolvers import mutation_resolver, migration_resolver
 
 @strawberry.type
 class Mutation:
@@ -10,3 +14,9 @@ class Mutation:
     recordVideoView: VideoMutationResult = strawberry.mutation(resolver=mutation_resolver.resolve_record_video_view)
 
     deleteVideo: VideoMutationResult = strawberry.mutation(resolver=mutation_resolver.resolve_delete_video)
+
+    migrationPreflight: MigrationPreflightResult = strawberry.mutation(resolver=migration_resolver.resolve_migration_preflight)
+
+    createMigrationTask: MigrationTaskMutationResult = strawberry.mutation(resolver=migration_resolver.resolve_create_migration_task)
+
+    cancelMigrationTask: MigrationTaskMutationResult = strawberry.mutation(resolver=migration_resolver.resolve_cancel_migration_task)
