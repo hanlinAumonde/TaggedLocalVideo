@@ -3,7 +3,7 @@ from typing import Optional
 
 import strawberry
 
-from src.db.models.MigrationTask_model import MigrationTaskModel, MigrationStatus
+from src.db.models.MigrationTask_model import MigrationTaskModel
 from src.schema.types.fileBrowse_type import RelativePathInput
 from src.schema.types.pydantic_types.migration_type import (
     MigrationPreflightInputModel,
@@ -16,8 +16,8 @@ from src.schema.types.pydantic_types.migration_type import (
 @strawberry.enum
 class MigrationStatusEnum(Enum):
     PENDING = "PENDING"
-    COPYING = "COPYING"
-    COPY_DONE = "COPY_DONE"
+    PROCESSING = "PROCESSING"
+    PROCESS_DONE = "PROCESS_DONE"
     UPDATING_DB = "UPDATING_DB"
     DB_UPDATED = "DB_UPDATED"
     DELETING_SOURCE = "DELETING_SOURCE"

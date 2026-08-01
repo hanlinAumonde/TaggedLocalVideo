@@ -12,7 +12,7 @@ from src.schema.types.fileBrowse_type import (
 )
 from src.services.batch_operation_service import BatchOperationService
 from src.services.browse_file_service import BrowseFileService
-from src.services.migration_service import MigrationService
+from src.services.tasks.migration_service import MigrationService
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 

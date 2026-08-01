@@ -8,7 +8,7 @@ from pymongo.errors import BulkWriteError
 from src.context import ContextEnum, get_context_value
 from src.db.models.Video_model import VideoModel
 from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
-from src.services.migration_service import MigrationService
+from src.services.tasks.migration_service import MigrationService
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import VideoMutationResult
 from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel

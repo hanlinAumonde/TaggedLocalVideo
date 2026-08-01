@@ -18,7 +18,7 @@ from src.schema.types.migration_type import (
     MigrationTaskMutationResult,
     MigrationTaskQueryInput,
 )
-from src.services.migration_service import MigrationService
+from src.services.tasks.migration_service import MigrationService
 from src.services.resource_handler.absolute_path import AbsolutePath
 
 logger = get_logger("migration_resolver")

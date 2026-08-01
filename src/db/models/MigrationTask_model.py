@@ -5,11 +5,11 @@ import pymongo
 from pymongo import IndexModel
 
 
-class MigrationStatus(str, Enum):
+class TaskStatus(str, Enum):
     # Normal flow
     PENDING = "PENDING"
-    COPYING = "COPYING"
-    COPY_DONE = "COPY_DONE"
+    PROCESSING = "PROCESSING"
+    PROCESS_DONE = "PROCESS_DONE"
     UPDATING_DB = "UPDATING_DB"
     DB_UPDATED = "DB_UPDATED"
     DELETING_SOURCE = "DELETING_SOURCE"
@@ -33,7 +33,7 @@ class MigrationTaskModel(Document):
     bytes_transferred: int = 0
 
     # Status
-    status: str = MigrationStatus.PENDING
+    status: str = TaskStatus.PENDING
     error_message: Optional[str] = None
     failed_step: Optional[str] = None
 
