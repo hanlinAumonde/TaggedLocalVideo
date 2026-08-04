@@ -4,7 +4,7 @@ import pymongo
 import strawberry
 
 from src.context import ContextEnum, get_context_value
-from src.db.models.MigrationTask_model import MigrationTaskModel, MigrationStatus
+from src.db.models.MigrationTask_model import MigrationTaskModel
 from src.errors import InputValidationError
 from src.logger import get_logger
 from src.schema.types.migration_type import (

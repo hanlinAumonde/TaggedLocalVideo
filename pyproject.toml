@@ -59,3 +59,8 @@ markers = [
     "subscription: GraphQL subscription operation tests",
     "integration: mark a test as an integration test",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest-cov>=7.1.0",
+]

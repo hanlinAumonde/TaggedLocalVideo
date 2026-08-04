@@ -57,14 +57,20 @@ class MigrationTaskModel(Document):
                 [("source_path", pymongo.ASCENDING)],
                 unique=True,
                 partialFilterExpression={
-                    "status": {"$nin": ["COMPLETED", "FAILED", "CANCELLED"]}
+                    "status": {"$in": [
+                        "PENDING", "PROCESSING", "PROCESS_DONE",
+                        "UPDATING_DB", "DB_UPDATED", "DELETING_SOURCE",
+                    ]}
                 },
             ),
             IndexModel(
                 [("target_path", pymongo.ASCENDING)],
                 unique=True,
                 partialFilterExpression={
-                    "status": {"$nin": ["COMPLETED", "FAILED", "CANCELLED"]}
+                    "status": {"$in": [
+                        "PENDING", "PROCESSING", "PROCESS_DONE",
+                        "UPDATING_DB", "DB_UPDATED", "DELETING_SOURCE",
+                    ]}
                 },
             ),
         ]

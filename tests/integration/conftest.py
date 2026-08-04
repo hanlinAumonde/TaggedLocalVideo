@@ -25,6 +25,7 @@ from src.services.dir_metadata_service import DirMetadataService
 from src.services.ffmpeg_service import FFmpegService
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
+from src.services.tasks.migration_service import MigrationService
 from src.services.tag_operation_service import TagOperationService
 from src.services.thumbnail_service import ThumbnailService
 
@@ -169,6 +170,17 @@ def real_batch_operation_service(
 
 
 # -----------------------------------------------------------------------
+# ----------------------- Mock migration service ---------------------------
+# -----------------------------------------------------------------------
+
+@pytest.fixture
+def mock_migration_service() -> MagicMock:
+    svc = MagicMock(spec=MigrationService, name="MigrationService")
+    svc.is_file_locked = AsyncMock(return_value=False)
+    return svc
+
+
+# -----------------------------------------------------------------------
 # ----------------------- GraphQL context --------------------------------
 # -----------------------------------------------------------------------
 
@@ -184,6 +196,7 @@ def integration_context(
     real_dir_metadata_service: DirMetadataService,
     real_browse_file_service: BrowseFileService,
     real_batch_operation_service: BatchOperationService,
+    mock_migration_service: MagicMock,
 ) -> dict[ContextEnum, Any]:
     return {
         ContextEnum.SETTINGS: integration_settings,
@@ -196,6 +209,7 @@ def integration_context(
         ContextEnum.DIR_METADATA_SERVICE: real_dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: real_browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: real_batch_operation_service,
+        ContextEnum.MIGRATION_SERVICE: mock_migration_service,
     }
 
 
