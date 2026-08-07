@@ -5,6 +5,7 @@ import strawberry
 
 from src.db.models.MigrationTask_model import MigrationTaskModel
 from src.schema.types.fileBrowse_type import RelativePathInput
+from src.schema.types.scalars import BigInt
 from src.schema.types.pydantic_types.migration_type import (
     MigrationPreflightInputModel,
     CreateMigrationTaskInputModel,
@@ -29,9 +30,9 @@ class MigrationStatusEnum(Enum):
 @strawberry.type
 class MigrationPreflightResult:
     valid: bool
-    source_file_size: int
+    source_file_size: BigInt
     conflict_exists: bool
-    space_available: int | None
+    space_available: BigInt | None
     space_sufficient: bool | None
     already_migrating: bool
     same_location: bool
@@ -46,8 +47,8 @@ class MigrationTask:
     target_path: str
     target_category: str
     file_name: str
-    file_size: int
-    bytes_transferred: int
+    file_size: BigInt
+    bytes_transferred: BigInt
     status: MigrationStatusEnum
     error_message: str | None
     failed_step: str | None
@@ -91,8 +92,8 @@ class MigrationTaskListResult:
 class MigrationProgressStatus:
     task_id: str
     status: MigrationStatusEnum
-    bytes_transferred: int
-    total_bytes: int
+    bytes_transferred: BigInt
+    total_bytes: BigInt
     progress_percentage: float
     message: str | None = None
 
@@ -119,13 +120,13 @@ class MigrationTaskMutationResult:
 
 @strawberry.experimental.pydantic.input(model=MigrationPreflightInputModel)
 class MigrationPreflightInput:
-    source_relative_path: RelativePathInput
+    source_video_id: strawberry.auto
     target_dir_relative_path: RelativePathInput
 
 
 @strawberry.experimental.pydantic.input(model=CreateMigrationTaskInputModel)
 class CreateMigrationTaskInput:
-    source_relative_path: RelativePathInput
+    source_video_id: strawberry.auto
     target_dir_relative_path: RelativePathInput
     conflict_strategy: strawberry.auto
 

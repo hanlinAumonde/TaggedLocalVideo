@@ -1,0 +1,127 @@
+<div class="p-6 mx-4">
+  <!-- Status Filter Chips -->
+  <div class="flex gap-2 mb-6 flex-wrap">
+    @for (option of statusOptions; track option.label; let i = $index) {
+      <button
+        mat-stroked-button
+        [class.!bg-blue-100]="activeFilterIndex() === i"
+        [class.dark:!bg-blue-900]="activeFilterIndex() === i"
+        [class.!border-blue-500]="activeFilterIndex() === i"
+        (click)="setStatusFilter(i)"
+      >
+        {{ option.label }}
+      </button>
+    }
+    <button mat-icon-button (click)="loadTasks()" matTooltip="Refresh">
+      <mat-icon fontIcon="refresh"></mat-icon>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  @if (tasks().loading) {
+    <div class="flex flex-col items-center justify-center py-16">
+      <mat-icon class="text-4xl text-gray-400 animate-spin" fontIcon="sync"></mat-icon>
+      <p class="mt-2 text-gray-500 dark:text-gray-400">Loading tasks...</p>
+    </div>
+  }
+
+  <!-- Error State -->
+  @else if (tasks().error) {
+    <div class="flex flex-col items-center justify-center py-16">
+      <mat-icon class="text-4xl text-red-400" fontIcon="error_outlined"></mat-icon>
+      <p class="mt-2 text-gray-500 dark:text-gray-400">Failed to load migration tasks</p>
+    </div>
+  }
+
+  <!-- Empty State -->
+  @else if (!tasks().data || tasks().data!.tasks.length === 0) {
+    <div class="flex flex-col items-center justify-center py-16">
+      <mat-icon class="text-4xl text-gray-400" fontIcon="drive_file_move"></mat-icon>
+      <p class="mt-2 text-gray-500 dark:text-gray-400">No migration tasks</p>
+    </div>
+  }
+
+  <!-- Task List -->
+  @else {
+    <div class="flex flex-col gap-3">
+      @for (task of tasks().data!.tasks; track task.id) {
+        <div class="bg-white dark:bg-neutral-800 rounded-lg shadow p-4 border border-gray-200 dark:border-neutral-700">
+          <!-- Header Row -->
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <mat-icon class="shrink-0 text-gray-500" fontIcon="description"></mat-icon>
+              <span class="font-medium truncate" [matTooltip]="task.fileName">{{ task.fileName }}</span>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 ml-2">
+              <mat-icon
+                class="text-sm"
+                [class]="statusMap[getLiveStatus(task)].color"
+                [fontIcon]="statusMap[getLiveStatus(task)].icon"
+              ></mat-icon>
+              <span class="text-sm" [class]="statusMap[getLiveStatus(task)].color">
+                {{ statusMap[getLiveStatus(task)].label }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Path Info -->
+          <div class="text-sm text-gray-500 dark:text-gray-400 mb-2 truncate"
+               [matTooltip]="task.sourcePath + ' → ' + (task.renamedTargetPath ?? task.targetPath)">
+            {{ task.sourcePath }} → {{ task.renamedTargetPath ?? task.targetPath }}
+          </div>
+
+          <!-- Progress Bar (for non-terminal tasks) -->
+          @if (!isTerminal(getLiveStatus(task))) {
+            <div class="mb-2">
+              <mat-progress-bar
+                mode="determinate"
+                [value]="getProgress(task)"
+              ></mat-progress-bar>
+              <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <span>{{ formatSize(activeProgress().get(task.id)?.bytesTransferred ?? task.bytesTransferred) }} / {{ formatSize(task.fileSize) }}</span>
+                <span>{{ getProgress(task) | number:'1.1-1' }}%</span>
+              </div>
+            </div>
+          }
+
+          <!-- Error Message -->
+          @if (task.errorMessage && getLiveStatus(task) === 'FAILED') {
+            <div class="text-sm text-red-500 dark:text-red-400 mb-2 truncate" [matTooltip]="task.errorMessage">
+              {{ task.errorMessage }}
+            </div>
+          }
+
+          <!-- Footer Row -->
+          <div class="flex items-center justify-between text-xs text-gray-400 dark:text-gray-500">
+            <span>{{ formatSize(task.fileSize) }} · {{ formatTime(task.createdAt) }}</span>
+            <div class="flex gap-2">
+              @if (canCancel(getLiveStatus(task))) {
+                <button mat-stroked-button class="text-sm!" (click)="cancelTask(task.id)">
+                  <mat-icon fontIcon="cancel" class="text-base!"></mat-icon>
+                  Cancel
+                </button>
+              }
+              @if (canRetry(getLiveStatus(task))) {
+                <button mat-stroked-button class="text-sm!" (click)="retryTask(task.id)">
+                  <mat-icon fontIcon="replay" class="text-base!"></mat-icon>
+                  Retry
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Pagination -->
+    @if (totalPages() > 1) {
+      <div class="flex justify-center mt-6">
+        <app-pagination
+          [currentPage]="filter().page"
+          [totalPages]="totalPages()"
+          (pageChanged)="onPageChange($event)"
+        />
+      </div>
+    }
+  }
+</div>

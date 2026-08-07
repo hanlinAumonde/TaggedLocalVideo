@@ -25,8 +25,10 @@ pytestmark = pytest.mark.mutation
 
 class TestMigrationPreflight:
     async def test_preflight_valid(
-        self, execute_gql, mock_migration_service,
+        self, execute_gql, mock_migration_service, video_factory,
     ):
+        video = await video_factory(name="movie")
+
         mock_migration_service.preflight = AsyncMock(
             return_value=MigrationPreflightResult(
                 valid=True,
@@ -41,19 +43,21 @@ class TestMigrationPreflight:
 
         result = await execute_gql(MIGRATION_PREFLIGHT, {
             "input": {
-                "sourceRelativePath": make_migration_path_input("Test-category/Test-resource/movie.mp4"),
+                "sourceVideoId": str(video.id),
                 "targetDirRelativePath": make_migration_path_input("Test-category/Test-resource"),
             }
         })
         assert_no_errors(result)
         data = result.data["migrationPreflight"]
         assert data["valid"] is True
-        assert data["sourceFileSize"] == 1000
+        assert data["sourceFileSize"] == "1000"
         assert data["conflictExists"] is False
 
     async def test_preflight_same_location(
-        self, execute_gql, mock_migration_service,
+        self, execute_gql, mock_migration_service, video_factory,
     ):
+        video = await video_factory(name="a")
+
         mock_migration_service.preflight = AsyncMock(
             return_value=MigrationPreflightResult(
                 valid=False,
@@ -69,7 +73,7 @@ class TestMigrationPreflight:
 
         result = await execute_gql(MIGRATION_PREFLIGHT, {
             "input": {
-                "sourceRelativePath": make_migration_path_input("Test-category/Test-resource/a.mp4"),
+                "sourceVideoId": str(video.id),
                 "targetDirRelativePath": make_migration_path_input("Test-category/Test-resource"),
             }
         })
@@ -85,8 +89,9 @@ class TestMigrationPreflight:
 
 class TestCreateMigrationTask:
     async def test_create_task_success(
-        self, execute_gql, mock_migration_service,
+        self, execute_gql, mock_migration_service, video_factory,
     ):
+        video = await video_factory(name="movie")
         now = time.time()
         mock_task = MigrationTaskModel(
             source_path="Test-category/Test-resource/movie.mp4",
@@ -103,7 +108,7 @@ class TestCreateMigrationTask:
 
         result = await execute_gql(CREATE_MIGRATION_TASK, {
             "input": {
-                "sourceRelativePath": make_migration_path_input("Test-category/Test-resource/movie.mp4"),
+                "sourceVideoId": str(video.id),
                 "targetDirRelativePath": make_migration_path_input("Test-category/Test-resource"),
             }
         })
@@ -114,8 +119,9 @@ class TestCreateMigrationTask:
         assert data["task"]["status"] == "PENDING"
 
     async def test_create_task_with_conflict_strategy(
-        self, execute_gql, mock_migration_service,
+        self, execute_gql, mock_migration_service, video_factory,
     ):
+        video = await video_factory(name="movie")
         now = time.time()
         mock_task = MigrationTaskModel(
             source_path="Test-category/Test-resource/movie.mp4",
@@ -134,7 +140,7 @@ class TestCreateMigrationTask:
 
         result = await execute_gql(CREATE_MIGRATION_TASK, {
             "input": {
-                "sourceRelativePath": make_migration_path_input("Test-category/Test-resource/movie.mp4"),
+                "sourceVideoId": str(video.id),
                 "targetDirRelativePath": make_migration_path_input("Test-category/Test-resource"),
                 "conflictStrategy": "rename",
             }

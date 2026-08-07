@@ -2,9 +2,11 @@ from typing import AsyncGenerator
 
 import pymongo
 import strawberry
+from bson import ObjectId
 
 from src.context import ContextEnum, get_context_value
 from src.db.models.MigrationTask_model import MigrationTaskModel
+from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError
 from src.logger import get_logger
 from src.schema.types.migration_type import (
@@ -24,6 +26,21 @@ from src.services.resource_handler.absolute_path import AbsolutePath
 logger = get_logger("migration_resolver")
 
 
+async def _resolve_source_path(video_id: str, info: strawberry.Info) -> AbsolutePath:
+    """Look up a video by ID and return its AbsolutePath."""
+    try:
+        video = await VideoModel.get(ObjectId(video_id))
+    except Exception:
+        raise InputValidationError(field="sourceVideoId", issue="Invalid video ID format")
+
+    if video is None:
+        raise InputValidationError(field="sourceVideoId", issue="Video not found")
+
+    handler_service = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
+    handler = handler_service.get_handler(video.category)
+    return AbsolutePath.from_existing_path(video.path, category=video.category, handler=handler)
+
+
 async def resolve_migration_preflight(
     input: MigrationPreflightInput, info: strawberry.Info
 ) -> MigrationPreflightResult:
@@ -36,11 +53,7 @@ async def resolve_migration_preflight(
     handler_service = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
     settings = get_context_value(info, ContextEnum.SETTINGS)
 
-    source_path = AbsolutePath.from_relative_path(
-        parsedPath=validated.source_relative_path.parsedPath,
-        handlerService=handler_service,
-        settings=settings,
-    )
+    source_path = await _resolve_source_path(validated.source_video_id, info)
     target_dir_path = AbsolutePath.from_relative_path(
         parsedPath=validated.target_dir_relative_path.parsedPath,
         handlerService=handler_service,
@@ -74,11 +87,7 @@ async def resolve_create_migration_task(
     handler_service = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
     settings = get_context_value(info, ContextEnum.SETTINGS)
 
-    source_path = AbsolutePath.from_relative_path(
-        parsedPath=validated.source_relative_path.parsedPath,
-        handlerService=handler_service,
-        settings=settings,
-    )
+    source_path = await _resolve_source_path(validated.source_video_id, info)
     target_dir_path = AbsolutePath.from_relative_path(
         parsedPath=validated.target_dir_relative_path.parsedPath,
         handlerService=handler_service,

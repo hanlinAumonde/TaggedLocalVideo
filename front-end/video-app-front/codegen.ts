@@ -18,6 +18,9 @@ const config: CodegenConfig = {
         withComponent: false,
         withHOC: false,
         addExplicitOverride: true,
+        scalars: {
+          BigInt: 'string',
+        },
       },
     },
   },

@@ -4,12 +4,12 @@ from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputMode
 
 
 class MigrationPreflightInputModel(BaseModel):
-    source_relative_path: RelativePathInputModel
+    source_video_id: str
     target_dir_relative_path: RelativePathInputModel
 
 
 class CreateMigrationTaskInputModel(BaseModel):
-    source_relative_path: RelativePathInputModel
+    source_video_id: str
     target_dir_relative_path: RelativePathInputModel
     conflict_strategy: str | None = None
 

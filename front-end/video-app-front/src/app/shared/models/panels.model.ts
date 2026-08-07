@@ -61,3 +61,10 @@ export interface DeleteCheckPanelData {
 
 export type SeriesAction = 'set' | 'clear';
 export type TagAction = 'append' | 'remove';
+
+export interface MigrationPanelData {
+  sourceVideoId: string;
+  sourceVideoName: string;
+  sourceFileSize: number;
+  sourceCurrentDir: string;
+}

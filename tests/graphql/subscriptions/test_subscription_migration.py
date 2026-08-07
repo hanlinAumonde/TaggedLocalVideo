@@ -47,7 +47,7 @@ class TestMigrationProgressSubscription:
         assert_no_errors(results[1])
 
         first = results[0].data["migrationProgressSubscription"]
-        assert first["bytesTransferred"] == 50
+        assert first["bytesTransferred"] == "50"
         assert first["progressPercentage"] == 50.0
 
         last = results[1].data["migrationProgressSubscription"]

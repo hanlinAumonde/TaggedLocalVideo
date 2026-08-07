@@ -1,0 +1,285 @@
+<h2 mat-dialog-title>
+  <strong class="font-mono">File Migration</strong>
+</h2>
+
+<mat-dialog-content class="min-w-120">
+  <!-- Source Info Banner -->
+  <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 mb-4">
+    <div class="flex items-center gap-2">
+      <mat-icon fontIcon="description" class="text-gray-500"></mat-icon>
+      <span class="font-medium truncate">{{ sourceVideoName }}</span>
+    </div>
+    <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+      {{ sourceCurrentDir }} · {{ formatSize(sourceFileSize) }}
+    </div>
+  </div>
+
+  <!-- ═══════════ Step 1: Select Target Directory ═══════════ -->
+  @if (currentStep() === 'select') {
+    <div class="space-y-3">
+      <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Select target directory</p>
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-1 text-sm flex-wrap bg-gray-50 dark:bg-neutral-800 rounded px-2 py-1">
+        <button mat-icon-button class="w-6! h-6!" (click)="navigateToBreadcrumb(0)" matTooltip="Root">
+          <mat-icon fontIcon="home" class="text-base!"></mat-icon>
+        </button>
+        @for (segment of browsePath(); track $index; let i = $index) {
+          <mat-icon fontIcon="chevron_right" class="text-base! text-gray-400"></mat-icon>
+          <button
+            class="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer bg-transparent border-none"
+            (click)="navigateToBreadcrumb(i + 1)"
+          >
+            {{ segment }}
+          </button>
+        }
+      </div>
+
+      <!-- Directory List -->
+      @if (browseContents().loading) {
+        <div class="flex justify-center py-8">
+          <mat-icon class="text-2xl text-gray-400 animate-spin" fontIcon="sync"></mat-icon>
+        </div>
+      } @else if (browseContents().error) {
+        <div class="text-center py-8 text-red-500">
+          <mat-icon fontIcon="error_outline" class="text-2xl"></mat-icon>
+          <p class="text-sm mt-1">Failed to load directories</p>
+        </div>
+      } @else {
+        <div class="max-h-75 overflow-y-auto border border-gray-200 dark:border-neutral-700 rounded-lg">
+          @if (getDirItems().length === 0) {
+            <div class="text-center py-6 text-gray-400 text-sm">No subdirectories</div>
+          } @else {
+            @for (item of getDirItems(); track item.node.id) {
+              <button
+                class="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-700
+                       border-b border-gray-100 dark:border-neutral-700 last:border-b-0 cursor-pointer
+                       bg-transparent text-left"
+                (click)="navigateInto(item.node.name)"
+              >
+                <mat-icon fontIcon="folder" class="text-amber-500"></mat-icon>
+                <span class="truncate">{{ item.node.name }}</span>
+              </button>
+            }
+          }
+        </div>
+      }
+
+      <!-- Selected Target Display -->
+      @if (selectedTargetDir()) {
+        <div class="flex items-center gap-2 p-2 bg-blue-50 dark:bg-blue-900/30 rounded text-sm">
+          <mat-icon fontIcon="check_circle" class="text-blue-500"></mat-icon>
+          <span>Target: <strong>{{ selectedTargetDir() }}</strong></span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ═══════════ Step 2: Preflight Results ═══════════ -->
+  @if (currentStep() === 'preflight') {
+    <div class="space-y-3">
+      <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Preflight check results</p>
+
+      <div class="space-y-2">
+        <!-- Target Path -->
+        <div class="flex items-center gap-2 text-sm">
+          <mat-icon fontIcon="arrow_forward" class="text-gray-400 text-base!"></mat-icon>
+          <span>{{ sourceCurrentDir }} → {{ selectedTargetDir() }}</span>
+        </div>
+
+        <!-- Space Check -->
+        @if (preflightResult()?.spaceSufficient !== null && preflightResult()?.spaceSufficient !== undefined) {
+          <div class="flex items-center gap-2 text-sm">
+            @if (preflightResult()!.spaceSufficient) {
+              <mat-icon fontIcon="check_circle" class="text-green-500 text-base!"></mat-icon>
+              <span>Space sufficient ({{ formatSize(preflightResult()!.spaceAvailable ?? 0) }} available)</span>
+            } @else {
+              <mat-icon fontIcon="error" class="text-red-500 text-base!"></mat-icon>
+              <span class="text-red-500">Insufficient space ({{ formatSize(preflightResult()!.spaceAvailable ?? 0) }} available)</span>
+            }
+          </div>
+        }
+
+        <!-- Same Location -->
+        @if (preflightResult()?.sameLocation) {
+          <div class="flex items-center gap-2 text-sm">
+            <mat-icon fontIcon="warning" class="text-amber-500 text-base!"></mat-icon>
+            <span class="text-amber-600 dark:text-amber-400">Source and target are the same location</span>
+          </div>
+        }
+
+        <!-- Already Migrating -->
+        @if (preflightResult()?.alreadyMigrating) {
+          <div class="flex items-center gap-2 text-sm">
+            <mat-icon fontIcon="warning" class="text-amber-500 text-base!"></mat-icon>
+            <span class="text-amber-600 dark:text-amber-400">This file is already being migrated</span>
+          </div>
+        }
+
+        <!-- Conflict -->
+        @if (preflightResult()?.conflictExists) {
+          <div class="flex items-center gap-2 text-sm">
+            <mat-icon fontIcon="file_copy" class="text-amber-500 text-base!"></mat-icon>
+            <span class="text-amber-600 dark:text-amber-400">A file with the same name exists in the target directory</span>
+          </div>
+
+          <div class="ml-6 space-y-1">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Conflict strategy:</p>
+            <mat-radio-group [ngModel]="conflictStrategy()" (ngModelChange)="conflictStrategy.set($event)">
+              <div class="flex flex-col gap-1">
+                <mat-radio-button value="rename">
+                  <span class="text-sm">Rename (add suffix to new file)</span>
+                </mat-radio-button>
+                <mat-radio-button value="overwrite">
+                  <span class="text-sm text-red-600 dark:text-red-400">Overwrite existing file</span>
+                </mat-radio-button>
+                <mat-radio-button value="skip">
+                  <span class="text-sm">Skip (cancel migration)</span>
+                </mat-radio-button>
+              </div>
+            </mat-radio-group>
+          </div>
+        }
+
+        <!-- Error Message -->
+        @if (preflightResult()?.errorMessage) {
+          <div class="flex items-center gap-2 text-sm p-2 bg-red-50 dark:bg-red-900/30 rounded">
+            <mat-icon fontIcon="error" class="text-red-500 text-base!"></mat-icon>
+            <span class="text-red-600 dark:text-red-400">{{ preflightResult()!.errorMessage }}</span>
+          </div>
+        }
+
+        <!-- Valid -->
+        @if (preflightResult()?.valid && !preflightResult()?.conflictExists) {
+          <div class="flex items-center gap-2 text-sm p-2 bg-green-50 dark:bg-green-900/30 rounded">
+            <mat-icon fontIcon="check_circle" class="text-green-500 text-base!"></mat-icon>
+            <span class="text-green-600 dark:text-green-400">All checks passed. Ready to migrate.</span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════ Step 3: Migration Progress ═══════════ -->
+  @if (currentStep() === 'progress') {
+    <div class="space-y-4">
+      <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Migration Progress</p>
+
+      <!-- Status Label -->
+      <div class="flex items-center gap-2">
+        @if (!isProgressTerminal()) {
+          <mat-icon class="text-blue-500 animate-spin text-base!" fontIcon="sync"></mat-icon>
+        } @else if (isProgressSuccess()) {
+          <mat-icon class="text-green-500 text-base!" fontIcon="check_circle"></mat-icon>
+        } @else {
+          <mat-icon class="text-red-500 text-base!" fontIcon="error"></mat-icon>
+        }
+        <span class="text-sm font-medium">{{ getProgressStatusLabel() }}</span>
+      </div>
+
+      <!-- Progress Bar -->
+      <div>
+        <mat-progress-bar
+          [mode]="isProgressTerminal() ? 'determinate' : 'determinate'"
+          [value]="getProgressPercentage()"
+        ></mat-progress-bar>
+        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <span>{{ formatSize(progressStatus()?.bytesTransferred ?? 0) }} / {{ formatSize(progressStatus()?.totalBytes ?? sourceFileSize) }}</span>
+          <span>{{ getProgressPercentage() | number:'1.1-1' }}%</span>
+        </div>
+      </div>
+
+      <!-- Status Message -->
+      @if (progressStatus()?.message) {
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ progressStatus()!.message }}</p>
+      }
+
+      <!-- Completion Message -->
+      @if (isProgressTerminal() && isProgressSuccess()) {
+        <div class="p-3 bg-green-50 dark:bg-green-900/30 rounded text-sm text-green-600 dark:text-green-400">
+          File migration completed successfully.
+        </div>
+      }
+      @if (isProgressTerminal() && !isProgressSuccess()) {
+        <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded text-sm text-red-600 dark:text-red-400">
+          Migration stopped. Check error details in the Migration Tasks tab.
+        </div>
+      }
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions [align]="'end'">
+  @if (preflightLoading()) {
+    <mat-progress-bar mode="indeterminate" class="w-full mb-2"></mat-progress-bar>
+  }
+
+  <span class="flex gap-2 mt-2">
+    <!-- Step 1: Select -->
+    @if (currentStep() === 'select') {
+      <button matButton="outlined" type="button" (click)="closeDialog()">Cancel</button>
+      <button
+        matButton="outlined"
+        type="button"
+        (click)="selectCurrentDirectory()"
+        [disabled]="browsePath().length === 0"
+      >
+        Select this directory
+      </button>
+      <button
+        matButton="tonal"
+        type="button"
+        (click)="runPreflight()"
+        [disabled]="!selectedTargetDir() || preflightLoading()"
+        color="primary"
+      >
+        @if (preflightLoading()) {
+          <span class="flex items-center gap-1">
+            <mat-icon class="animate-spin text-base!" fontIcon="sync"></mat-icon>
+            Checking...
+          </span>
+        } @else {
+          Preflight Check
+        }
+      </button>
+    }
+
+    <!-- Step 2: Preflight -->
+    @if (currentStep() === 'preflight') {
+      <button matButton="outlined" type="button" (click)="goBackToSelect()">Back</button>
+      <button
+        matButton="outlined"
+        type="button"
+        (click)="startMigrationInBackground()"
+        [disabled]="!canProceedPreflight()"
+      >
+        Run in background
+      </button>
+      <button
+        matButton="tonal"
+        type="button"
+        (click)="startMigration()"
+        [disabled]="!canProceedPreflight()"
+        color="primary"
+      >
+        Start Migration
+      </button>
+    }
+
+    <!-- Step 3: Progress -->
+    @if (currentStep() === 'progress') {
+      @if (isMigrating()) {
+        <button matButton="outlined" type="button" (click)="cancelMigration()">
+          Cancel Migration
+        </button>
+        <button matButton="outlined" type="button" (click)="closeDialog()">
+          Run in background
+        </button>
+      } @else {
+        <button matButton="tonal" type="button" (click)="closeDialog()" color="primary">
+          Close
+        </button>
+      }
+    }
+  </span>
+</mat-dialog-actions>

@@ -12,7 +12,7 @@ class TestCreateMigrationTaskInputModel:
     def test_valid_conflict_strategies(self, test_settings):
         for strategy in ("overwrite", "rename", "skip", None):
             model = CreateMigrationTaskInputModel(
-                source_relative_path={"relativePath": "Test-category/Test-resource/a.mp4", "parsedPath": None},
+                source_video_id="507f1f77bcf86cd799439011",
                 target_dir_relative_path={"relativePath": "Test-category/Test-resource", "parsedPath": None},
                 conflict_strategy=strategy,
             )
@@ -21,7 +21,7 @@ class TestCreateMigrationTaskInputModel:
     def test_invalid_conflict_strategy(self, test_settings):
         with pytest.raises(ValueError, match="conflict_strategy must be"):
             CreateMigrationTaskInputModel(
-                source_relative_path={"relativePath": "Test-category/Test-resource/a.mp4", "parsedPath": None},
+                source_video_id="507f1f77bcf86cd799439011",
                 target_dir_relative_path={"relativePath": "Test-category/Test-resource", "parsedPath": None},
                 conflict_strategy="invalid",
             )

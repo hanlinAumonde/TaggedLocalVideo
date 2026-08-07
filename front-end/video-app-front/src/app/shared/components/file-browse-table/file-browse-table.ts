@@ -24,13 +24,15 @@ import { ToastService } from '../../../services/toast-service/toast.service';
 import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
-import { 
-  DeleteCheckPanelData, 
-  DeleteType, 
-  VideoEditPanelData, 
-  VideoEditPanelMode 
+import {
+  DeleteCheckPanelData,
+  DeleteType,
+  MigrationPanelData,
+  VideoEditPanelData,
+  VideoEditPanelMode
 } from '../../models/panels.model';
 import { VideoEditPanel } from '../video-edit-panel/video-edit-panel';
+import { MigrationPanel } from '../migration-panel/migration-panel';
 
 @Component({
   selector: 'app-file-browse-table',
@@ -60,6 +62,7 @@ export class FileBrowseTable {
   selectAllToggle = output<void>();
   editVideoResult = output<boolean>();
   deleteVideoResult = output<boolean>();
+  migrationResult = output<boolean>();
   batchSyncDirectoryResult = output<boolean>();
   refreshDirectoryMeta = output<FileBrowseNode>();
   tableResize = output<number>();
@@ -219,6 +222,25 @@ export class FileBrowseTable {
         deleteType: DeleteType.Directory,
         directoryPath: this.currentPath().join('/') + '/' + dirPath
        } as DeleteCheckPanelData
+    });
+  }
+
+  openMigrationPanel(video: BrowsedVideo) {
+    const currentDir = this.currentPath().join('/');
+    const data: MigrationPanelData = {
+      sourceVideoId: video.id,
+      sourceVideoName: video.name,
+      sourceFileSize: video.size,
+      sourceCurrentDir: currentDir || '/',
+    };
+
+    const dialogRef = this.dialog.open(MigrationPanel, {
+      width: '560px',
+      data,
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      this.migrationResult.emit(!!result);
     });
   }
 
