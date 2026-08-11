@@ -12,6 +12,7 @@
 - 📁 **目录浏览** - 多源文件系统目录浏览，支持 category 层级分类
 - 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成，支持可选的S3持久化存储
 - ☁️ **S3兼容存储** - 通过策略模式支持S3兼容存储后端（MinIO、RustFS等）
+- 📦 **文件迁移** - 在不同存储位置（本地/S3）之间迁移视频文件，支持预检验证、冲突处理、进度追踪和状态机驱动的任务生命周期
 - ❤️ **收藏功能** - 视频收藏与播放统计
 - 📱 **响应式设计** - 适配多种屏幕尺寸
 
@@ -24,7 +25,7 @@
 | Strawberry | GraphQL服务 |
 | MongoDB | 数据库 |
 | Beanie | MongoDB ODM |
-| pytest | 单元测试（重构中） |
+| pytest | 测试（单元 + 集成 + GraphQL） |
 
 ### 前端
 | 技术 | 用途 |
@@ -325,18 +326,21 @@ video-app/
 │   │   └── models/
 │   │       ├── Video_model.py     # VideoModel (含 category / series / duration 字段)
 │   │       ├── VideoTag_model.py  # VideoTagModel
-│   │       └── DirMetadata_model.py # DirMetadataModel (含 category 字段)
+│   │       ├── DirMetadata_model.py # DirMetadataModel (含 category 字段)
+│   │       └── MigrationTask_model.py # MigrationTaskModel (文件迁移任务持久化)
 │   ├── router/
 │   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
 │   ├── schema/
 │   │   ├── query_schema.py        # GraphQL 查询根
 │   │   ├── mutation_schema.py     # GraphQL 变更根
 │   │   ├── subscription_schema.py # GraphQL 订阅根
-│   │   ├── strawberry_schema.py   # Schema 组装 + 错误日志
+│   │   ├── strawberry_schema.py   # Schema 组装 + 自定义标量配置 (BigInt) + 错误日志
 │   │   └── types/
 │   │       ├── video_type.py      # Video, VideoTag 类型
 │   │       ├── search_type.py     # 搜索相关类型
 │   │       ├── fileBrowse_type.py # 文件浏览 / 批量操作类型
+│   │       ├── migration_type.py  # 迁移任务类型 + 预检结果
+│   │       ├── scalars.py         # 自定义标量 (BigInt)
 │   │       └── pydantic_types/    # 输入验证模型 (Pydantic)
 │   │           ├── video_type.py
 │   │           ├── search_type.py
@@ -345,7 +349,8 @@ video-app/
 │   ├── resolvers/
 │   │   ├── query_resolver.py          # 查询解析器
 │   │   ├── mutation_resolver.py       # 变更解析器
-│   │   └── subscription_resolver.py   # 订阅解析器 (批量操作)
+│   │   ├── subscription_resolver.py   # 订阅解析器 (批量操作)
+│   │   └── migration_resolver.py      # 迁移解析器 (预检、CRUD、进度/重试订阅)
 │   └── services/
 │       ├── browse_file_service.py     # 目录浏览 (三级导航)
 │       ├── batch_operation_service.py # 批量更新/删除
@@ -355,6 +360,9 @@ video-app/
 │       ├── thumbnail_service.py       # 缩略图编排 (ffmpeg + 可选 S3 存储)
 │       ├── ffmpeg_service.py          # ffmpeg/ffprobe 封装：缩略图、时长、实时转码 (信号量限流)
 │       ├── video_stream_service.py    # 视频流服务 (Range 请求、分块传输、转码兜底)
+│       ├── tasks/                     # 任务服务
+│       │   ├── state_machine.py      # 可复用的任务生命周期状态机
+│       │   └── migration_service.py  # 文件迁移编排 (复制、校验、清理)
 │       ├── cache/                     # 缓存服务
 │       │   ├── base_cache.py         # 缓存抽象基类
 │       │   ├── cachetools_cache.py   # cachetools 实现
@@ -370,7 +378,10 @@ video-app/
 │           └── s3/                        # S3 兼容存储实现
 │               ├── s3_handler.py          # S3 处理器 (boto3 resource API)
 │               └── s3_file_entry.py       # S3 文件条目
-└── tests/                           # 测试文件 (pytest，含 graphql/ 子目录)
+└── tests/                           # 测试套件 (pytest --strict-markers)
+    ├── unit/                        # 单元测试 (@pytest.mark.unit)
+    ├── graphql/                     # GraphQL 解析器测试 (查询、变更、订阅)
+    └── integration/                 # 端到端集成测试
 ```
 
 > **依赖注入**：`src/context.py` 基于 FastAPI `Depends` 提供所有服务的工厂函数，并将它们组装为 GraphQL `context`（按 `ContextEnum` 键索引）。Resolver 通过 `get_context_value(info, ContextEnum.XXX)` 获取服务；HTTP 路由则使用导出的 `*Dep` 注解（如 `ThumbnailServiceDep`、`VideoStreamServiceDep`）。
@@ -384,13 +395,15 @@ front-end/video-app-front/src/app/
 │   ├── documents/                         # GraphQL 操作文档
 │   │   ├── queries.graphql.ts
 │   │   ├── mutations.graphql.ts
-│   │   └── subscription.graphql.ts
-│   └── generated/graphql.ts              # graphql-codegen 自动生成
+│   │   ├── subscription.graphql.ts
+│   │   └── migration.graphql.ts          # 迁移操作 (预检、CRUD、进度)
+│   └── generated/graphql.ts              # graphql-codegen 自动生成 (BigInt → string)
 ├── pages/
 │   ├── homepage/                          # 首页 (Loved/Latest/MostViewed + Top标签)
 │   ├── search/                            # 搜索页面
 │   ├── video-player/                      # 视频播放 (video.js)
-│   └── management/                        # 管理页面 (目录浏览/批量操作)
+│   ├── file-browser/                      # 文件浏览器 (目录浏览/批量操作)
+│   └── management/                        # 管理页面 (Tasks标签页 + Settings标签页)
 ├── services/
 │   ├── GQL-service/                       # GraphQL 操作统一服务
 │   ├── Http-client-service/               # HTTP 客户端服务
@@ -407,9 +420,13 @@ front-end/video-app-front/src/app/
 │   │   ├── batch-operation-panel/         # 批量标签操作面板
 │   │   ├── delete-check-panel/            # 删除确认对话框
 │   │   ├── file-browse-table/             # 文件浏览表格 (支持列宽调整)
+│   │   ├── migration-panel/              # 迁移对话框 (选择目标 + 预检)
+│   │   ├── migration-task-list/          # 迁移任务列表 (状态/进度)
+│   │   ├── series-panel/                 # 系列管理面板
+│   │   ├── series-reorder-list/          # 系列拖拽排序列表
 │   │   ├── pagination/                    # 分页组件 (支持加载状态)
 │   │   ├── bottom-toolbar/                # 底部工具栏
-│   │   ├── toast-displayer/               # Toast 显示组件
+│   │   ├── toast-displayer/               # Toast 显示组件 (Error/Warning/Success)
 │   │   ├── sidebar/                       # 侧边栏
 │   │   └── header/                        # 顶部导航栏
 │   ├── interceptor/
@@ -417,10 +434,11 @@ front-end/video-app-front/src/app/
 │   └── models/                            # 类型定义
 │       ├── GQL-result.model.ts            # ResultState<T>
 │       ├── management.model.ts
+│       ├── migration.model.ts             # 迁移任务模型 + 状态映射
 │       ├── search.model.ts
 │       ├── events.model.ts
 │       ├── panels.model.ts
-│       └── toast.model.ts
+│       └── toast.model.ts                 # ToastType (Error/Warning/Success)
 ├── route-resolver/
 │   └── video-player.resolver.ts           # 路由守卫
 └── environments/                          # 环境配置
@@ -445,6 +463,7 @@ http://localhost:12000/graphql
 | `getDirectoryMetadata` | 获取目录元数据（大小/修改时间） |
 | `searchSeriesByPrefix` | 按前缀搜索系列名（不区分大小写，对 `seriesName` 做 distinct） |
 | `getSeriesVideos` | 获取系列内的视频列表（按 `seriesOrder` 升序） |
+| `getMigrationTasks` | 获取迁移任务列表（支持分页和状态过滤） |
 
 ### 变更 (Mutations)
 
@@ -453,6 +472,9 @@ http://localhost:12000/graphql
 | `updateVideoMetadata` | 更新视频元数据（含系列名/系列序号） |
 | `deleteVideo` | 删除视频 |
 | `recordVideoView` | 记录播放次数 |
+| `migrationPreflight` | 迁移预检验证（空间、冲突、重复检查） |
+| `createMigrationTask` | 创建并启动文件迁移任务 |
+| `cancelMigrationTask` | 取消正在运行的迁移任务 |
 
 ### 订阅 (Subscriptions)
 
@@ -460,6 +482,8 @@ http://localhost:12000/graphql
 |------|------|
 | `batchUpdateSubscription` | 批量更新视频（流式返回进度） |
 | `batchDeleteSubscription` | 批量删除视频（流式返回进度） |
+| `migrationProgressSubscription` | 流式传输迁移复制进度（已传输字节数） |
+| `migrationRetrySubscription` | 重试失败的迁移任务（流式返回进度） |
 
 ### HTTP 端点
 
