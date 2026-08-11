@@ -160,53 +160,6 @@
     </div>
   }
 
-  <!-- ═══════════ Step 3: Migration Progress ═══════════ -->
-  @if (currentStep() === 'progress') {
-    <div class="space-y-4">
-      <p class="text-sm font-semibold text-gray-700 dark:text-gray-300">Migration Progress</p>
-
-      <!-- Status Label -->
-      <div class="flex items-center gap-2">
-        @if (!isProgressTerminal()) {
-          <mat-icon class="text-blue-500 animate-spin text-base!" fontIcon="sync"></mat-icon>
-        } @else if (isProgressSuccess()) {
-          <mat-icon class="text-green-500 text-base!" fontIcon="check_circle"></mat-icon>
-        } @else {
-          <mat-icon class="text-red-500 text-base!" fontIcon="error"></mat-icon>
-        }
-        <span class="text-sm font-medium">{{ getProgressStatusLabel() }}</span>
-      </div>
-
-      <!-- Progress Bar -->
-      <div>
-        <mat-progress-bar
-          [mode]="isProgressTerminal() ? 'determinate' : 'determinate'"
-          [value]="getProgressPercentage()"
-        ></mat-progress-bar>
-        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
-          <span>{{ formatSize(progressStatus()?.bytesTransferred ?? 0) }} / {{ formatSize(progressStatus()?.totalBytes ?? sourceFileSize) }}</span>
-          <span>{{ getProgressPercentage() | number:'1.1-1' }}%</span>
-        </div>
-      </div>
-
-      <!-- Status Message -->
-      @if (progressStatus()?.message) {
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ progressStatus()!.message }}</p>
-      }
-
-      <!-- Completion Message -->
-      @if (isProgressTerminal() && isProgressSuccess()) {
-        <div class="p-3 bg-green-50 dark:bg-green-900/30 rounded text-sm text-green-600 dark:text-green-400">
-          File migration completed successfully.
-        </div>
-      }
-      @if (isProgressTerminal() && !isProgressSuccess()) {
-        <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded text-sm text-red-600 dark:text-red-400">
-          Migration stopped. Check error details in the Migration Tasks tab.
-        </div>
-      }
-    </div>
-  }
 </mat-dialog-content>
 
 <mat-dialog-actions [align]="'end'">
@@ -248,14 +201,6 @@
     @if (currentStep() === 'preflight') {
       <button matButton="outlined" type="button" (click)="goBackToSelect()">Back</button>
       <button
-        matButton="outlined"
-        type="button"
-        (click)="startMigrationInBackground()"
-        [disabled]="!canProceedPreflight()"
-      >
-        Run in background
-      </button>
-      <button
         matButton="tonal"
         type="button"
         (click)="startMigration()"
@@ -264,22 +209,6 @@
       >
         Start Migration
       </button>
-    }
-
-    <!-- Step 3: Progress -->
-    @if (currentStep() === 'progress') {
-      @if (isMigrating()) {
-        <button matButton="outlined" type="button" (click)="cancelMigration()">
-          Cancel Migration
-        </button>
-        <button matButton="outlined" type="button" (click)="closeDialog()">
-          Run in background
-        </button>
-      } @else {
-        <button matButton="tonal" type="button" (click)="closeDialog()" color="primary">
-          Close
-        </button>
-      }
     }
   </span>
 </mat-dialog-actions>

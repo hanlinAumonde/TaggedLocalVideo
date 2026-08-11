@@ -127,7 +127,7 @@ export class GqlService {
         }),
         tap(result => {
           if(result.error){
-            this.toastService.emitErrorOrWarning(`Failed GraphQL request: ${result.error}`, ToastType.Error);
+            this.toastService.emitNewToast(`Failed GraphQL request: ${result.error}`, ToastType.Error);
           }
         })
         

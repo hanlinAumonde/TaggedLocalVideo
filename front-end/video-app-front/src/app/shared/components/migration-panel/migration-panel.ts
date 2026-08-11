@@ -1,5 +1,4 @@
 import { Component, inject, signal, DestroyRef } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,25 +7,22 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatRadioModule } from '@angular/material/radio';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule } from '@angular/forms';
-import { takeWhile } from 'rxjs';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastType } from '../../models/toast.model';
 import { MigrationPanelData } from '../../models/panels.model';
-import { ConflictStrategy, MIGRATION_STATUS_MAP } from '../../models/migration.model';
+import { ConflictStrategy } from '../../models/migration.model';
 import {
   BrowseDirectoryDetail,
   MigrationPreflightDetail,
-  MigrationProgressDetail,
   ResultState,
 } from '../../models/GQL-result.model';
 
-type Step = 'select' | 'preflight' | 'progress';
+type Step = 'select' | 'preflight';
 
 @Component({
   selector: 'app-migration-panel',
   imports: [
-    DecimalPipe,
     MatDialogModule,
     MatButtonModule,
     MatIconModule,
@@ -64,12 +60,6 @@ export class MigrationPanel {
   preflightResult = signal<MigrationPreflightDetail | null>(null);
   preflightLoading = signal(false);
   conflictStrategy = signal<ConflictStrategy | null>(null);
-
-  // --- Step 3: Migration Progress ---
-  migrationTaskId = signal<string | null>(null);
-  progressStatus = signal<MigrationProgressDetail | null>(null);
-  isMigrating = signal(false);
-  migrationCompleted = signal(false);
 
   constructor() {
     this.browseTargetDirectory([]);
@@ -154,81 +144,14 @@ export class MigrationPanel {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
-          if (result.data?.success && result.data.task) {
-            const taskId = result.data.task.id;
-            this.migrationTaskId.set(taskId);
-            this.currentStep.set('progress');
-            this.isMigrating.set(true);
-            this.subscribeToProgress(taskId);
-          } else if (result.data?.errorMessage) {
-            this.toastService.emitErrorOrWarning(result.data.errorMessage, ToastType.Error);
-          }
-        }
-      });
-  }
-
-  startMigrationInBackground() {
-    const targetDir = this.selectedTargetDir();
-    if (!targetDir) return;
-
-    const input = {
-      sourceVideoId: this.sourceVideoId,
-      targetDirRelativePath: { relativePath: targetDir },
-      conflictStrategy: this.conflictStrategy() ?? undefined,
-    };
-
-    this.gqlService.createMigrationTaskMutation(input)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (result) => {
           if (result.data?.success) {
-            this.toastService.emitErrorOrWarning(
-              'Migration task created. Check the Migration Tasks tab for progress.',
-              ToastType.Warning
+            this.toastService.emitNewToast(
+              `Migration task created successfully. You can view its progress in the task management panel.`,
+              ToastType.Success
             );
             this.dialogRef.close(true);
           } else if (result.data?.errorMessage) {
-            this.toastService.emitErrorOrWarning(result.data.errorMessage, ToastType.Error);
-          }
-        }
-      });
-  }
-
-  private subscribeToProgress(taskId: string) {
-    this.gqlService.migrationProgressSubscription({ taskId })
-      .pipe(
-        takeWhile(r => {
-          const status = r.data?.status;
-          return status !== undefined && !MIGRATION_STATUS_MAP[status].isTerminal;
-        }, true),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe({
-        next: (result) => {
-          if (result.data) {
-            this.progressStatus.set(result.data);
-            if (MIGRATION_STATUS_MAP[result.data.status].isTerminal) {
-              this.isMigrating.set(false);
-              this.migrationCompleted.set(true);
-            }
-          }
-        }
-      });
-  }
-
-  // ─── Cancel ────────────────────────────────────────────────────────
-
-  cancelMigration() {
-    const taskId = this.migrationTaskId();
-    if (!taskId) return;
-
-    this.gqlService.cancelMigrationTaskMutation({ taskId })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (result) => {
-          if (result.data?.success) {
-            this.isMigrating.set(false);
-            this.migrationCompleted.set(true);
+            this.toastService.emitNewToast(result.data.errorMessage, ToastType.Error);
           }
         }
       });
@@ -243,7 +166,7 @@ export class MigrationPanel {
   }
 
   closeDialog() {
-    this.dialogRef.close(this.migrationCompleted());
+    this.dialogRef.close(false);
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────
@@ -264,25 +187,5 @@ export class MigrationPanel {
     if (result.conflictExists && !this.conflictStrategy()) return false;
     if (result.conflictExists && this.conflictStrategy() === 'skip') return false;
     return true;
-  }
-
-  getProgressPercentage(): number {
-    return this.progressStatus()?.progressPercentage ?? 0;
-  }
-
-  getProgressStatusLabel(): string {
-    const status = this.progressStatus()?.status;
-    if (!status) return '';
-    return MIGRATION_STATUS_MAP[status]?.label ?? status;
-  }
-
-  isProgressTerminal(): boolean {
-    const status = this.progressStatus()?.status;
-    if (!status) return false;
-    return MIGRATION_STATUS_MAP[status].isTerminal;
-  }
-
-  isProgressSuccess(): boolean {
-    return this.progressStatus()?.status === 'COMPLETED';
   }
 }

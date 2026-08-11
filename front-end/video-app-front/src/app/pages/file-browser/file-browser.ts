@@ -170,7 +170,7 @@ export class FileBrowser implements OnDestroy{
           this.selectedIds.set(new Set());
         },
         error: (err) => {
-          this.toastService.emitErrorOrWarning('Failed to load directory: ' + err.message, ToastType.Error);
+          this.toastService.emitNewToast('Failed to load directory: ' + err.message, ToastType.Error);
         }
       });
   }
@@ -213,7 +213,7 @@ export class FileBrowser implements OnDestroy{
         }
       },
       error: (err) => {
-        this.toastService.emitErrorOrWarning('Failed to refresh directory metadata: ' + err.message, ToastType.Error);
+        this.toastService.emitNewToast('Failed to refresh directory metadata: ' + err.message, ToastType.Error);
       }
     });
   }

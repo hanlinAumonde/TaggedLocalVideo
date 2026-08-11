@@ -15,12 +15,12 @@ export class ImageRequestInterceptor implements HttpInterceptor {
         return next.handle(req).pipe(
             catchError((error) => {
                 if(req.url.includes(environment.videopage_thumbnail_api)) {
-                    this.toastService.emitErrorOrWarning(
+                    this.toastService.emitNewToast(
                         `Failed to load video thumbnail image or video duration - video_id: ${req.params.get('video_id')}`,
                         ToastType.Error
                     );
                 }else if(req.url.includes(environment.video_stream_api)) {
-                    this.toastService.emitErrorOrWarning(
+                    this.toastService.emitNewToast(
                         `Failed to load video stream - video_id: ${req.params.get('video_id')}`,
                         ToastType.Error
                     );

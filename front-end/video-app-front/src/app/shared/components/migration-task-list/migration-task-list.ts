@@ -87,7 +87,7 @@ export class MigrationTaskList implements OnInit {
           }
         },
         error: (err) => {
-          this.toastService.emitErrorOrWarning('Failed to load migration tasks: ' + err.message, ToastType.Error);
+          this.toastService.emitNewToast('Failed to load migration tasks: ' + err.message, ToastType.Error);
         }
       });
   }
@@ -110,7 +110,7 @@ export class MigrationTaskList implements OnInit {
       .subscribe({
         next: (result) => {
           if (result.data?.success) {
-            this.toastService.emitErrorOrWarning('Migration task cancelled', ToastType.Warning);
+            this.toastService.emitNewToast('Migration task cancelled.', ToastType.Success);
             this.loadTasks();
           }
         }

@@ -350,15 +350,16 @@ export class VideoEditPanel implements OnInit {
             this.isSaving.set(false);
             if (result.data?.success) {
               this.videoUpdateEventService.emitUpdated([this.video()!.id]);
+              this.toastService.emitNewToast('Video information updated successfully.', ToastType.Success);
               this.dialogRef.close(result.data);
             } else {
               // update failed, keep the dialog open for user to retry
-              this.toastService.emitErrorOrWarning('Failed to update video metadata', ToastType.Error);
+              this.toastService.emitNewToast('Failed to update video metadata.', ToastType.Error);
             }
           },
           error: (err) => {
             this.isSaving.set(false);
-            this.toastService.emitErrorOrWarning('Error updating video metadata: ' + err.message, ToastType.Error);
+            this.toastService.emitNewToast('Error updating video metadata: ' + err.message, ToastType.Error);
           }
         });
       }
