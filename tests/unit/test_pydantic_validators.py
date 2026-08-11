@@ -1,8 +1,4 @@
-"""Unit tests for Pydantic input-model validators.
-
-Covers the validation-error branches (ValueError raises) that are not
-reached by GraphQL-level tests, pushing those models closer to 100%.
-"""
+"""Unit tests for Pydantic input-model validators."""
 
 import pytest
 
@@ -20,6 +16,8 @@ from src.schema.types.pydantic_types.video_type import (
     SeriesFieldInputModel,
     UpdateVideoMetadataInputModel,
 )
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

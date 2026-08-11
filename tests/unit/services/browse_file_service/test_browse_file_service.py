@@ -1,3 +1,5 @@
+"""Unit tests for BrowseFileService — directory listing, video browsing, and sorting."""
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -6,6 +8,8 @@ import pytest
 from src.db.models.Video_model import VideoModel
 from src.errors import FileBrowseError
 from src.services.resource_handler.absolute_path import AbsolutePath
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

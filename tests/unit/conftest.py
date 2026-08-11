@@ -1,4 +1,5 @@
-"""Unit-test scaffolding shared across tests/unit/.
+"""
+Unit-test scaffolding shared across tests/unit/.
 
 - Auto-applies the ``unit`` marker to every test under tests/unit/.
 - Builds a real on-disk video tree under ``tmp_path`` for FS-touching tests.

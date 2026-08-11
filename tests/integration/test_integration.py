@@ -1,3 +1,5 @@
+"""Integration tests — end-to-end GraphQL operations against a real database."""
+
 import pytest
 from src.db.models.Video_model import VideoModel
 from src.db.models.VideoTag_model import VideoTagModel

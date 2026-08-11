@@ -1,9 +1,14 @@
+"""Unit tests for TagOperationService — tag count updates and bulk operations."""
+
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from pymongo.errors import BulkWriteError
 
 from src.db.models.VideoTag_model import VideoTagModel
 from src.services.tag_operation_service import TagOperationService
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

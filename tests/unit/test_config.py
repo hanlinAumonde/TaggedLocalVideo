@@ -5,6 +5,8 @@ import pytest
 from src import config
 from src.config import Settings, get_settings
 
+pytestmark = pytest.mark.unit
+
 
 class TestSettingsUtilities:
     def test_get_all_host_paths(self, test_settings: Settings):

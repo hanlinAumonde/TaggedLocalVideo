@@ -7,6 +7,8 @@ from src.schema.types.pydantic_types.migration_type import (
     MigrationTaskQueryInputModel,
 )
 
+pytestmark = pytest.mark.unit
+
 
 class TestCreateMigrationTaskInputModel:
     def test_valid_conflict_strategies(self, test_settings):

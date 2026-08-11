@@ -9,6 +9,8 @@ from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError
 from src.services.resource_handler.absolute_path import AbsolutePath
 
+pytestmark = pytest.mark.unit
+
 
 # -----------------------------------------------------------------------
 # helpers

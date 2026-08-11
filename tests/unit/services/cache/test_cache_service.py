@@ -1,3 +1,5 @@
+"""Unit tests for CacheService — backend selection and cache operations."""
+
 from unittest.mock import MagicMock
 
 import pytest
@@ -5,6 +7,8 @@ import pytest
 from src.config import CacheConfig
 from src.services.cache.cache_service import CacheService
 from src.services.cache.cachetools_cache import CachetoolsCache
+
+pytestmark = pytest.mark.unit
 
 
 def test_cachetools_backend_is_selected_by_default():

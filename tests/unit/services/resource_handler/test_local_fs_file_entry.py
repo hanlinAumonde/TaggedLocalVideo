@@ -1,7 +1,11 @@
+"""Unit tests for LocalFSFileEntry — file metadata reading and construction modes."""
+
 import os
 from pathlib import Path
 import pytest
 from src.services.resource_handler.local_fs.local_fs_file_entry import LocalFSFileEntry
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

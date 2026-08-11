@@ -1,8 +1,12 @@
+"""Unit tests for AbsolutePath — construction, validation, and path resolution."""
+
 from unittest.mock import MagicMock
 import pytest
 from src.config import Settings
 from src.errors import FileBrowseError
 from src.services.resource_handler.absolute_path import AbsolutePath
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

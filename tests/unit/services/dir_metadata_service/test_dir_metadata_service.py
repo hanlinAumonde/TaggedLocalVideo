@@ -1,5 +1,12 @@
+"""Unit tests for DirectoryMetadataService — get, set, and aggregate metadata."""
+
 from pathlib import Path
+
+import pytest
+
 from src.services.resource_handler.absolute_path import AbsolutePath
+
+pytestmark = pytest.mark.unit
 
 # -----------------------------------------------------------------------
 # ----------------------- get / set metadata -----------------------------

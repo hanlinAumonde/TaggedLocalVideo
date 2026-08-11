@@ -8,6 +8,8 @@ import pytest
 from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
 from src.services.tasks.state_machine import StateMachine, MigrationProgressStatus
 
+pytestmark = pytest.mark.unit
+
 
 # =======================================================================
 # _should_run_phase

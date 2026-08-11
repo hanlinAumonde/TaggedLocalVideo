@@ -1,4 +1,10 @@
+"""Unit tests for CachetoolsCache — get, set, delete, and TTL behaviour."""
+
+import pytest
+
 from src.services.cache.cachetools_cache import CachetoolsCache
+
+pytestmark = pytest.mark.unit
 
 
 def test_get_returns_none_for_missing_key():

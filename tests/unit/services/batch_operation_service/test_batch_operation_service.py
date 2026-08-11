@@ -1,4 +1,8 @@
+"""Unit tests for BatchOperationService — batch update, delete, and sync operations."""
+
 from pathlib import Path
+
+import pytest
 
 from src.db.models.Video_model import VideoModel
 from src.db.models.VideoTag_model import VideoTagModel
@@ -10,6 +14,8 @@ from src.schema.types.pydantic_types.batch_operation_type import (
 )
 from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+
+pytestmark = pytest.mark.unit
 
 
 async def _collect(gen) -> list:

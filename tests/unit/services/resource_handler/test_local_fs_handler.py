@@ -1,6 +1,13 @@
+"""Unit tests for LocalFSResourceHandler — directory listing and IO operations."""
+
 from pathlib import Path
+
+import pytest
+
 from src.config import Settings
 from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

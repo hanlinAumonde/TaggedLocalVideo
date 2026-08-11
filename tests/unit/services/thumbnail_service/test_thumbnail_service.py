@@ -1,3 +1,5 @@
+"""Unit tests for ThumbnailService — thumbnail retrieval, generation, and storage."""
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -6,6 +8,8 @@ from fastapi import HTTPException
 from src.config import Settings
 from src.db.models.Video_model import VideoModel
 from src.services.thumbnail_service import ThumbnailService
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------
