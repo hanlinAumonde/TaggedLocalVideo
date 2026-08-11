@@ -1,5 +1,12 @@
+"""Unit tests for DirectoryMetadataService — get, set, and aggregate metadata."""
+
 from pathlib import Path
+
+import pytest
+
 from src.services.resource_handler.absolute_path import AbsolutePath
+
+pytestmark = pytest.mark.unit
 
 # -----------------------------------------------------------------------
 # ----------------------- get / set metadata -----------------------------
@@ -122,6 +129,56 @@ async def test_calculate_returns_zeros_for_null_category(dir_svc, init_db):
     assert (total, mtime) == (0.0, 0.0)
 
 
+async def test_get_metadata_db_hit_not_in_cache(
+    dir_svc, init_db, local_cache_service,
+):
+    await dir_svc.set_metadata("Test-category", "db-only/path", 42.0, 99.0)
+    local_cache_service.delete("Test-category:db-only/path")
+
+    result = await dir_svc.get_metadata("Test-category", "db-only/path")
+    assert result == (42.0, 99.0)
+    assert local_cache_service.get("Test-category:db-only/path") == (42.0, 99.0)
+
+
+async def test_calculate_error_returns_negative_ones(
+    dir_svc, init_db, local_resource_handler_service,
+):
+    handler = local_resource_handler_service.get_handler("Test-category")
+    abs_path = AbsolutePath.from_existing_path(
+        path="Z:/nonexistent/directory",
+        category="Test-category",
+        handler=handler,
+    )
+    total, mtime = await dir_svc.calculate_directory_metadata(
+        abs_path, skipCache=True, recursiveCalculation=True,
+    )
+    assert total == -1.0
+    assert mtime == -1.0
+
+
+# -----------------------------------------------------------------------
+# ----------------------- batch_update_metadata_forward -------------------
+# -----------------------------------------------------------------------
+
+async def test_batch_update_metadata_forward_empty_is_noop(dir_svc, init_db):
+    await dir_svc.batch_update_metadata_forward("Test-category", [])
+
+
+async def test_batch_update_metadata_forward_traverses_parents(
+    dir_svc, init_db, local_resource_handler_service, local_resource_dir: Path,
+):
+    handler = local_resource_handler_service.get_handler("Test-category")
+    subdir_db = handler.convert_to_DB_format_path(
+        str(local_resource_dir / "subdir").replace("\\", "/")
+    )
+
+    await dir_svc.batch_update_metadata_forward("Test-category", [subdir_db])
+
+    result = await dir_svc.get_metadata("Test-category", subdir_db)
+    assert result is not None
+    assert result[0] == 300.0
+
+
 # -----------------------------------------------------------------------
 # ----------------------- update_directory_metadata_forward ---------------
 # -----------------------------------------------------------------------
@@ -142,3 +199,15 @@ async def test_update_forward_persists_root(
     result = await dir_svc.get_metadata("Test-category", subdir_db_path)
     assert result is not None
     assert result[0] == 300.0
+
+
+async def test_update_forward_stops_on_error(
+    dir_svc, init_db, local_resource_handler_service,
+):
+    handler = local_resource_handler_service.get_handler("Test-category")
+    abs_path = AbsolutePath.from_existing_path(
+        path="Z:/nonexistent/deep/path",
+        category="Test-category",
+        handler=handler,
+    )
+    await dir_svc.update_directory_metadata_forward(abs_path)

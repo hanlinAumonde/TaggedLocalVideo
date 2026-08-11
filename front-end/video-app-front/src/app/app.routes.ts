@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { Homepage } from './pages/homepage/homepage';
 import { Search } from './pages/search/search'
 import { VideoPlayer } from './pages/video-player/video-player'
+import { FileBrowser } from './pages/file-browser/file-browser';
 import { Management } from './pages/management/management'
 import { VideoMetaDataResolver } from './route-resolver/video-player.resolver';
 
@@ -34,10 +35,16 @@ export const routes: Routes = [
     }
   },
   {
+    path: 'file-browser',
+    component: FileBrowser,
+    title: 'File Browser - Tagged Local Video App',
+    data: { headerTitle: 'File Browser' }
+  },
+  {
     path: 'management',
     component: Management,
     title: 'Management - Tagged Local Video App',
-    data: { headerTitle: 'Management' } 
+    data: { headerTitle: 'Management' }
   },
   {
     path: '**',

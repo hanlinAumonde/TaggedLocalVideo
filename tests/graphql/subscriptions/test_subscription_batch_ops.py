@@ -225,3 +225,51 @@ async def test_batch_update_by_directory_expands_and_calls_browse(
     assert all(ev.errors is None for ev in events)
     mock_browse_file_service.get_all_video_entries_in_directory.assert_called()
     mock_batch_operation_service.batch_update.assert_called_once()
+
+
+# ------------------- batch_delete by directory path ---------------------------
+
+async def test_batch_delete_by_directory_expands_and_calls_browse(
+    subscribe_gql,
+    mock_batch_operation_service,
+    mock_browse_file_service,
+    init_db,
+):
+    fake_entry = MagicMock(name="fake-entry")
+    mock_browse_file_service.get_all_video_entries_in_directory.return_value = [
+        fake_entry
+    ]
+    mock_batch_operation_service.batch_delete.side_effect = _async_iter_factory(
+        [_success_status("deleted")]
+    )
+
+    payload = make_batch_input(
+        video_ids=[],
+        relative_path="Test-category/Test-resource",
+    )
+    events = await subscribe_gql(BATCH_DELETE_SUBSCRIPTION, {"input": payload})
+
+    assert len(events) >= 2
+    assert all(ev.errors is None for ev in events)
+    mock_browse_file_service.get_all_video_entries_in_directory.assert_called()
+    mock_batch_operation_service.batch_delete.assert_called_once()
+
+
+# ----------------------- Migration lock in batch ops -------------------------
+
+async def test_batch_update_migration_locked_video(
+    subscribe_gql, mock_batch_operation_service, mock_migration_service, video_factory
+):
+    a = await video_factory(name="locked-video")
+    mock_migration_service.is_file_locked.return_value = True
+
+    payload = make_batch_input(
+        video_ids=[str(a.id)],
+        relative_path="Test-category/Test-resource",
+        tags_operation={"append": True, "tags": ["new"]},
+    )
+    events = await subscribe_gql(BATCH_UPDATE_SUBSCRIPTION, {"input": payload})
+
+    assert events
+    assert events[0].errors
+    mock_batch_operation_service.batch_update.assert_not_called()

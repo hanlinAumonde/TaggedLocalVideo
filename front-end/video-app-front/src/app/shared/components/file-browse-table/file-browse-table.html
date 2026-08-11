@@ -141,6 +141,10 @@
                 <mat-icon fontIcon="edit"></mat-icon>
                 <span>Edit</span>
               </button>
+              <button mat-menu-item (click)="openMigrationPanel(item.node)">
+                <mat-icon fontIcon="drive_file_move"></mat-icon>
+                <span>Migrate</span>
+              </button>
               <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
                 <mat-icon fontIcon="delete"></mat-icon>
                 <span>Delete</span>

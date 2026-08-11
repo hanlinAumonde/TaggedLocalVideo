@@ -1,8 +1,12 @@
+"""Unit tests for ResourceHandlerService — handler creation and dispatch."""
+
 import pytest
 
 from src.config import Settings
 from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+
+pytestmark = pytest.mark.unit
 
 
 def _make_settings(resource_paths: dict[str, dict[str, str]]) -> Settings:

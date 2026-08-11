@@ -1,30 +1,54 @@
-<div class="p-6 mx-4">
-  <p class="mb-4 text-gray-600 dark:text-gray-400 italic">Right-click on an video item for more operations of videos.</p>
+<mat-tab-group
+  [selectedIndex]="activeTab()"
+  (selectedIndexChange)="onTabChange($event)"
+  class="h-full"
+>
+  <!-- Tasks Tab -->
+  <mat-tab label="Tasks">
+    <div class="flex h-[calc(100vh-120px)]">
+      <!-- Left: Task Category Nav -->
+      <nav class="w-48 shrink-0 border-r border-gray-300 dark:border-neutral-600
+                  bg-gray-100 dark:bg-neutral-900 overflow-y-auto pt-1">
+        @for (category of taskCategories; track category.label; let i = $index) {
+          <button
+            class="w-full flex items-center gap-2 px-4 py-3 text-left text-sm
+                   transition-colors cursor-pointer border-l-3 bg-transparent
+                   text-gray-600 dark:text-gray-400"
+            [class.border-blue-500]="activeTaskCategory() === i"
+            [class.bg-white]="activeTaskCategory() === i"
+            [class.dark:bg-neutral-700]="activeTaskCategory() === i"
+            [class.text-gray-900]="activeTaskCategory() === i"
+            [class.dark:text-gray-100]="activeTaskCategory() === i"
+            [class.font-semibold]="activeTaskCategory() === i"
+            [class.border-transparent]="activeTaskCategory() !== i"
+            [class.hover:bg-gray-300]="activeTaskCategory() !== i"
+            [class.dark:hover:bg-neutral-700]="activeTaskCategory() !== i"
+            (click)="selectTaskCategory(i)"
+          >
+            <mat-icon [fontIcon]="category.icon" class="text-base!"></mat-icon>
+            <span>{{ category.label }}</span>
+          </button>
+        }
+      </nav>
 
-  <!-- Table -->
-  <div class="flex gap-4 items-end mb-12">
-    <app-file-browse-table
-      [directoryContents]="directoryContents()"
-      [sortCriteria]="sortCriteria()"
-      [selectedIds]="selectedIds()"
-      [currentPath]="currentPath()"
-      (sort)="toggleSort($event)"
-      (refresh)="refreshDirectory()"
-      (nodeClick)="onClickFileBrowseNode($event)"
-      (selectionToggle)="toggleSelection($event)"
-      (selectAllToggle)="toggleSelectAll()"
-      (refreshDirectoryMeta)="refreshSelectedDirectory($event)"
-      (tableResize)="updateTableWidth($event)"
-    />
-  </div>
-  <app-bottom-toolbar
-    [currentPath]="currentPath()"
-    [hasSelection]="hasSelection()"
-    [selectedCount]="selectedCount()"
-    [selectedIds]="selectedIds()"
-    [selectedVideoItems]="selectedVideoItems()"
-    [isAtRoot]="isAtRoot()"
-    [tableWidth]="tableWidth()"
-    (navigateToPath)="navigateToPath($event)"
-  />
-</div>
+      <!-- Right: Task Content -->
+      <div class="flex-1 overflow-y-auto">
+        @if (activeTaskCategory() === 0) {
+          <app-migration-task-list />
+        }
+      </div>
+    </div>
+  </mat-tab>
+
+  <!-- Settings Tab -->
+  <mat-tab label="Settings">
+    <ng-template matTabContent>
+      <div class="flex items-center justify-center h-64 text-gray-400 dark:text-gray-500">
+        <div class="text-center">
+          <mat-icon fontIcon="settings" class="text-5xl! mb-2"></mat-icon>
+          <p>Settings coming soon</p>
+        </div>
+      </div>
+    </ng-template>
+  </mat-tab>
+</mat-tab-group>

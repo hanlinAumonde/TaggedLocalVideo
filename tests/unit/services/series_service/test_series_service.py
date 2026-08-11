@@ -1,4 +1,10 @@
+"""Unit tests for SeriesService — prefix search, reorder, and series management."""
+
+import pytest
+
 from src.services.series_service import SeriesService
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------

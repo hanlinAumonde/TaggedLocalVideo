@@ -1,0 +1,31 @@
+<div class="p-6 mx-4">
+  <p class="mb-4 text-gray-600 dark:text-gray-400 italic">Right-click on an video item for more operations of videos.</p>
+
+  <!-- Table -->
+  <div class="flex gap-4 items-end mb-12">
+    <app-file-browse-table
+      [directoryContents]="directoryContents()"
+      [sortCriteria]="sortCriteria()"
+      [selectedIds]="selectedIds()"
+      [currentPath]="currentPath()"
+      (sort)="toggleSort($event)"
+      (refresh)="refreshDirectory()"
+      (nodeClick)="onClickFileBrowseNode($event)"
+      (selectionToggle)="toggleSelection($event)"
+      (selectAllToggle)="toggleSelectAll()"
+      (refreshDirectoryMeta)="refreshSelectedDirectory($event)"
+      (migrationResult)="$event && refreshDirectory()"
+      (tableResize)="updateTableWidth($event)"
+    />
+  </div>
+  <app-bottom-toolbar
+    [currentPath]="currentPath()"
+    [hasSelection]="hasSelection()"
+    [selectedCount]="selectedCount()"
+    [selectedIds]="selectedIds()"
+    [selectedVideoItems]="selectedVideoItems()"
+    [isAtRoot]="isAtRoot()"
+    [tableWidth]="tableWidth()"
+    (navigateToPath)="navigateToPath($event)"
+  />
+</div>

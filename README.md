@@ -12,6 +12,7 @@ English | [中文](README.cn.md)
 - 📁 **Directory Browsing** - Multi-source file system browsing with category-level classification
 - 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg, with optional S3 persistent storage
 - ☁️ **S3-Compatible Storage** - Support for S3-compatible storage backends (MinIO, RustFS, etc.) via Strategy Pattern
+- 📦 **File Migration** - Migrate video files between storage locations (local/S3), with preflight checks, conflict handling, progress tracking, and state machine–driven task lifecycle
 - ❤️ **Favorites** - Video favorites and view statistics
 - 📱 **Responsive Design** - Adapts to various screen sizes
 
@@ -24,7 +25,7 @@ English | [中文](README.cn.md)
 | Strawberry | GraphQL Server |
 | MongoDB | Database |
 | Beanie | MongoDB ODM |
-| pytest | Unit Testing (Refactoring in progress) |
+| pytest | Testing (unit + integration + GraphQL) |
 
 ### Frontend
 | Technology | Purpose |
@@ -323,18 +324,21 @@ video-app/
 │   │   └── models/
 │   │       ├── Video_model.py     # VideoModel (category, series, duration fields)
 │   │       ├── VideoTag_model.py  # VideoTagModel
-│   │       └── DirMetadata_model.py # DirMetadataModel (with category field)
+│   │       ├── DirMetadata_model.py # DirMetadataModel (with category field)
+│   │       └── MigrationTask_model.py # MigrationTaskModel (file migration task persistence)
 │   ├── router/
 │   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
 │   ├── schema/
 │   │   ├── query_schema.py        # GraphQL query root
 │   │   ├── mutation_schema.py     # GraphQL mutation root
 │   │   ├── subscription_schema.py # GraphQL subscription root
-│   │   ├── strawberry_schema.py   # Schema assembly + error logging
+│   │   ├── strawberry_schema.py   # Schema assembly + custom scalar config (BigInt) + error logging
 │   │   └── types/
 │   │       ├── video_type.py      # Video, VideoTag types
 │   │       ├── search_type.py     # Search-related types
 │   │       ├── fileBrowse_type.py # File browse / batch operation types
+│   │       ├── migration_type.py  # Migration task types + preflight result
+│   │       ├── scalars.py         # Custom scalars (BigInt)
 │   │       └── pydantic_types/    # Input validation models (Pydantic)
 │   │           ├── video_type.py
 │   │           ├── search_type.py
@@ -343,7 +347,8 @@ video-app/
 │   ├── resolvers/
 │   │   ├── query_resolver.py          # Query resolvers
 │   │   ├── mutation_resolver.py       # Mutation resolvers
-│   │   └── subscription_resolver.py   # Subscription resolvers (batch ops)
+│   │   ├── subscription_resolver.py   # Subscription resolvers (batch ops)
+│   │   └── migration_resolver.py      # Migration resolvers (preflight, CRUD, progress/retry subscriptions)
 │   └── services/
 │       ├── browse_file_service.py     # Directory browsing (3-level nav)
 │       ├── batch_operation_service.py # Batch update/delete
@@ -353,6 +358,9 @@ video-app/
 │       ├── thumbnail_service.py       # Thumbnail orchestration (ffmpeg + optional S3 storage)
 │       ├── ffmpeg_service.py          # ffmpeg/ffprobe wrapper: thumbnail, duration, on-the-fly transcoding (semaphore-gated)
 │       ├── video_stream_service.py    # Video streaming (Range, chunked, transcoded fallback)
+│       ├── tasks/                     # Task services
+│       │   ├── state_machine.py      # Reusable state machine for task lifecycle
+│       │   └── migration_service.py  # File migration orchestration (copy, verify, cleanup)
 │       ├── cache/                     # Cache service
 │       │   ├── base_cache.py         # Cache abstract base class
 │       │   ├── cachetools_cache.py   # cachetools implementation
@@ -368,7 +376,10 @@ video-app/
 │           └── s3/                        # S3-compatible storage implementation
 │               ├── s3_handler.py          # S3 handler (boto3 resource API)
 │               └── s3_file_entry.py       # S3 file entry
-└── tests/                           # Test files (pytest, includes graphql/ subdir)
+└── tests/                           # Test suite (pytest --strict-markers)
+    ├── unit/                        # Unit tests (@pytest.mark.unit)
+    ├── graphql/                     # GraphQL resolver tests (queries, mutations, subscriptions)
+    └── integration/                 # End-to-end integration tests
 ```
 
 > **Dependency injection**: `src/context.py` provides FastAPI `Depends`-based factories for every service and assembles them into the GraphQL `context` (keyed by `ContextEnum`). Resolvers retrieve services with `get_context_value(info, ContextEnum.XXX)`; HTTP routes use the exported `*Dep` annotations (e.g. `ThumbnailServiceDep`, `VideoStreamServiceDep`).
@@ -382,13 +393,15 @@ front-end/video-app-front/src/app/
 │   ├── documents/                         # GraphQL operation documents
 │   │   ├── queries.graphql.ts
 │   │   ├── mutations.graphql.ts
-│   │   └── subscription.graphql.ts
-│   └── generated/graphql.ts              # graphql-codegen auto-generated
+│   │   ├── subscription.graphql.ts
+│   │   └── migration.graphql.ts          # Migration operations (preflight, CRUD, progress)
+│   └── generated/graphql.ts              # graphql-codegen auto-generated (BigInt → string)
 ├── pages/
 │   ├── homepage/                          # Home (Loved/Latest/MostViewed + Top tags)
 │   ├── search/                            # Search page
 │   ├── video-player/                      # Video player (video.js)
-│   └── management/                        # Management (directory browse/batch ops)
+│   ├── file-browser/                      # File browser (directory browse/batch ops)
+│   └── management/                        # Management (Tasks tab + Settings tab)
 ├── services/
 │   ├── GQL-service/                       # GraphQL operations service
 │   ├── Http-client-service/               # HTTP client service
@@ -405,9 +418,13 @@ front-end/video-app-front/src/app/
 │   │   ├── batch-operation-panel/         # Batch tag operation panel
 │   │   ├── delete-check-panel/            # Delete confirmation dialog
 │   │   ├── file-browse-table/             # File browse table (resizable columns)
+│   │   ├── migration-panel/              # Migration dialog (select target + preflight)
+│   │   ├── migration-task-list/          # Migration task list with status/progress
+│   │   ├── series-panel/                 # Series management panel
+│   │   ├── series-reorder-list/          # Series reorder drag list
 │   │   ├── pagination/                    # Pagination (loading state support)
 │   │   ├── bottom-toolbar/                # Bottom toolbar
-│   │   ├── toast-displayer/               # Toast display component
+│   │   ├── toast-displayer/               # Toast display (Error/Warning/Success)
 │   │   ├── sidebar/                       # Sidebar
 │   │   └── header/                        # Top navigation bar
 │   ├── interceptor/
@@ -415,10 +432,11 @@ front-end/video-app-front/src/app/
 │   └── models/                            # Type definitions
 │       ├── GQL-result.model.ts            # ResultState<T>
 │       ├── management.model.ts
+│       ├── migration.model.ts             # Migration task models + status map
 │       ├── search.model.ts
 │       ├── events.model.ts
 │       ├── panels.model.ts
-│       └── toast.model.ts
+│       └── toast.model.ts                 # ToastType (Error/Warning/Success)
 ├── route-resolver/
 │   └── video-player.resolver.ts           # Route guard
 └── environments/                          # Environment config
@@ -442,6 +460,7 @@ http://localhost:12000/graphql
 | `getDirectoryMetadata` | Get directory metadata (size/mtime) |
 | `searchSeriesByPrefix` | Prefix-search series names (case-insensitive, distinct over `seriesName`) |
 | `getSeriesVideos` | List videos in a series, ordered by `seriesOrder` |
+| `getMigrationTasks` | List migration tasks with pagination and status filtering |
 
 ### Mutations
 
@@ -450,6 +469,9 @@ http://localhost:12000/graphql
 | `updateVideoMetadata` | Update video metadata (incl. series name/order) |
 | `deleteVideo` | Delete video |
 | `recordVideoView` | Record view count |
+| `migrationPreflight` | Pre-migration validation (space, conflicts, duplicate check) |
+| `createMigrationTask` | Create and start a file migration task |
+| `cancelMigrationTask` | Cancel a running migration task |
 
 ### Subscriptions
 
@@ -457,6 +479,8 @@ http://localhost:12000/graphql
 |--------------|-------------|
 | `batchUpdateSubscription` | Batch update videos (streaming progress) |
 | `batchDeleteSubscription` | Batch delete videos (streaming progress) |
+| `migrationProgressSubscription` | Stream migration copy progress (bytes transferred) |
+| `migrationRetrySubscription` | Retry a failed migration task with progress streaming |
 
 ### HTTP Endpoints
 

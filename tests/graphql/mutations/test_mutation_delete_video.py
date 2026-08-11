@@ -63,3 +63,17 @@ async def test_delete_video_invalid_id(execute_gql, init_db):
 async def test_delete_video_missing_argument(execute_gql, init_db):
     result = await execute_gql(DELETE_VIDEO, {})
     assert_error_contains(result, "videoId")
+
+
+# ----------------------------- Migration lock --------------------------------
+
+async def test_delete_video_migration_locked(
+    execute_gql, video_factory, mock_migration_service
+):
+    video = await video_factory(name="locked-video")
+    mock_migration_service.is_file_locked.return_value = True
+
+    result = await execute_gql(DELETE_VIDEO, {"videoId": str(video.id)})
+
+    assert_error_contains(result, "being migrated")
+    mock_migration_service.is_file_locked.assert_awaited_once()

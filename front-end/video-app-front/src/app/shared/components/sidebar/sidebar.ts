@@ -34,9 +34,14 @@ export class Sidebar {
       icon: 'search',
     },
     {
+      path: '/file-browser',
+      label: 'File Browser',
+      icon: 'folder',
+    },
+    {
       path: '/management',
       label: 'Management',
-      icon: 'build',
+      icon: 'settings',
     },
   ];
 

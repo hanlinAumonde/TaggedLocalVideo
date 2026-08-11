@@ -15,6 +15,8 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  /** A large integer that may exceed GraphQL's 32-bit Int limit. Serialized as a string. */
+  BigInt: { input: string; output: string; }
 };
 
 export type BatchOperationStatus = {
@@ -30,6 +32,12 @@ export enum BatchResultType {
   Success = 'Success'
 }
 
+export type CreateMigrationTaskInput = {
+  conflictStrategy?: InputMaybe<Scalars['String']['input']>;
+  sourceVideoId: Scalars['String']['input'];
+  targetDirRelativePath: RelativePathInput;
+};
+
 export type DirectoryMetadataResult = {
   __typename?: 'DirectoryMetadataResult';
   lastModifiedTime: Scalars['Float']['output'];
@@ -41,16 +49,118 @@ export type FileBrowseNode = {
   node: Video;
 };
 
+export type MigrationPreflightInput = {
+  sourceVideoId: Scalars['String']['input'];
+  targetDirRelativePath: RelativePathInput;
+};
+
+export type MigrationPreflightResult = {
+  __typename?: 'MigrationPreflightResult';
+  alreadyMigrating: Scalars['Boolean']['output'];
+  conflictExists: Scalars['Boolean']['output'];
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  sameLocation: Scalars['Boolean']['output'];
+  sourceFileSize: Scalars['BigInt']['output'];
+  spaceAvailable?: Maybe<Scalars['BigInt']['output']>;
+  spaceSufficient?: Maybe<Scalars['Boolean']['output']>;
+  valid: Scalars['Boolean']['output'];
+};
+
+export type MigrationProgressStatus = {
+  __typename?: 'MigrationProgressStatus';
+  bytesTransferred: Scalars['BigInt']['output'];
+  message?: Maybe<Scalars['String']['output']>;
+  progressPercentage: Scalars['Float']['output'];
+  status: MigrationStatusEnum;
+  taskId: Scalars['String']['output'];
+  totalBytes: Scalars['BigInt']['output'];
+};
+
+export enum MigrationStatusEnum {
+  Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  DbUpdated = 'DB_UPDATED',
+  DeletingSource = 'DELETING_SOURCE',
+  Failed = 'FAILED',
+  Pending = 'PENDING',
+  Processing = 'PROCESSING',
+  ProcessDone = 'PROCESS_DONE',
+  UpdatingDb = 'UPDATING_DB'
+}
+
+export type MigrationTask = {
+  __typename?: 'MigrationTask';
+  bytesTransferred: Scalars['BigInt']['output'];
+  completedAt?: Maybe<Scalars['Float']['output']>;
+  conflictStrategy?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['Float']['output'];
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  failedStep?: Maybe<Scalars['String']['output']>;
+  fileName: Scalars['String']['output'];
+  fileSize: Scalars['BigInt']['output'];
+  id: Scalars['ID']['output'];
+  renamedTargetPath?: Maybe<Scalars['String']['output']>;
+  sourceCategory: Scalars['String']['output'];
+  sourcePath: Scalars['String']['output'];
+  status: MigrationStatusEnum;
+  targetCategory: Scalars['String']['output'];
+  targetPath: Scalars['String']['output'];
+  updatedAt: Scalars['Float']['output'];
+};
+
+export type MigrationTaskActionInput = {
+  taskId: Scalars['String']['input'];
+};
+
+export type MigrationTaskListResult = {
+  __typename?: 'MigrationTaskListResult';
+  page: Scalars['Int']['output'];
+  pageSize: Scalars['Int']['output'];
+  tasks: Array<MigrationTask>;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type MigrationTaskMutationResult = {
+  __typename?: 'MigrationTaskMutationResult';
+  errorMessage?: Maybe<Scalars['String']['output']>;
+  success: Scalars['Boolean']['output'];
+  task?: Maybe<MigrationTask>;
+};
+
+export type MigrationTaskQueryInput = {
+  page?: Scalars['Int']['input'];
+  pageSize?: Scalars['Int']['input'];
+  statusFilter?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
 export type Mutation = {
   __typename?: 'Mutation';
+  cancelMigrationTask: MigrationTaskMutationResult;
+  createMigrationTask: MigrationTaskMutationResult;
   deleteVideo: VideoMutationResult;
+  migrationPreflight: MigrationPreflightResult;
   recordVideoView: VideoMutationResult;
   updateVideoMetadata: VideoMutationResult;
 };
 
 
+export type MutationCancelMigrationTaskArgs = {
+  input: MigrationTaskActionInput;
+};
+
+
+export type MutationCreateMigrationTaskArgs = {
+  input: CreateMigrationTaskInput;
+};
+
+
 export type MutationDeleteVideoArgs = {
   videoId: Scalars['ID']['input'];
+};
+
+
+export type MutationMigrationPreflightArgs = {
+  input: MigrationPreflightInput;
 };
 
 
@@ -75,6 +185,7 @@ export type Query = {
   SearchVideos: VideoSearchResult;
   browseDirectory: Array<FileBrowseNode>;
   getDirectoryMetadata: DirectoryMetadataResult;
+  getMigrationTasks: MigrationTaskListResult;
   getSeriesVideos: Array<Video>;
   getSuggestions: Array<Scalars['String']['output']>;
   getTopTags: Array<VideoTag>;
@@ -95,6 +206,11 @@ export type QueryBrowseDirectoryArgs = {
 
 export type QueryGetDirectoryMetadataArgs = {
   input: RelativePathInput;
+};
+
+
+export type QueryGetMigrationTasksArgs = {
+  input: MigrationTaskQueryInput;
 };
 
 
@@ -161,6 +277,8 @@ export type Subscription = {
   __typename?: 'Subscription';
   batchDeleteSubscription: BatchOperationStatus;
   batchUpdateSubscription: BatchOperationStatus;
+  migrationProgressSubscription: MigrationProgressStatus;
+  migrationRetrySubscription: MigrationProgressStatus;
 };
 
 
@@ -171,6 +289,16 @@ export type SubscriptionBatchDeleteSubscriptionArgs = {
 
 export type SubscriptionBatchUpdateSubscriptionArgs = {
   input: VideosBatchOperationInput;
+};
+
+
+export type SubscriptionMigrationProgressSubscriptionArgs = {
+  input: MigrationTaskActionInput;
+};
+
+
+export type SubscriptionMigrationRetrySubscriptionArgs = {
+  input: MigrationTaskActionInput;
 };
 
 export type SuggestionInput = {
@@ -259,6 +387,48 @@ export type VideosBatchOperationResult = {
   message?: Maybe<Scalars['String']['output']>;
   resultType: BatchResultType;
 };
+
+export type MigrationPreflightMutationVariables = Exact<{
+  input: MigrationPreflightInput;
+}>;
+
+
+export type MigrationPreflightMutation = { __typename?: 'Mutation', migrationPreflight: { __typename?: 'MigrationPreflightResult', valid: boolean, sourceFileSize: string, conflictExists: boolean, spaceAvailable?: string | null, spaceSufficient?: boolean | null, alreadyMigrating: boolean, sameLocation: boolean, errorMessage?: string | null } };
+
+export type CreateMigrationTaskMutationVariables = Exact<{
+  input: CreateMigrationTaskInput;
+}>;
+
+
+export type CreateMigrationTaskMutation = { __typename?: 'Mutation', createMigrationTask: { __typename?: 'MigrationTaskMutationResult', success: boolean, errorMessage?: string | null, task?: { __typename?: 'MigrationTask', id: string, sourcePath: string, sourceCategory: string, targetPath: string, targetCategory: string, fileName: string, fileSize: string, bytesTransferred: string, status: MigrationStatusEnum, errorMessage?: string | null, failedStep?: string | null, conflictStrategy?: string | null, renamedTargetPath?: string | null, createdAt: number, updatedAt: number, completedAt?: number | null } | null } };
+
+export type CancelMigrationTaskMutationVariables = Exact<{
+  input: MigrationTaskActionInput;
+}>;
+
+
+export type CancelMigrationTaskMutation = { __typename?: 'Mutation', cancelMigrationTask: { __typename?: 'MigrationTaskMutationResult', success: boolean, errorMessage?: string | null, task?: { __typename?: 'MigrationTask', id: string, sourcePath: string, targetPath: string, fileName: string, status: MigrationStatusEnum } | null } };
+
+export type GetMigrationTasksQueryVariables = Exact<{
+  input: MigrationTaskQueryInput;
+}>;
+
+
+export type GetMigrationTasksQuery = { __typename?: 'Query', getMigrationTasks: { __typename?: 'MigrationTaskListResult', totalCount: number, page: number, pageSize: number, tasks: Array<{ __typename?: 'MigrationTask', id: string, sourcePath: string, sourceCategory: string, targetPath: string, targetCategory: string, fileName: string, fileSize: string, bytesTransferred: string, status: MigrationStatusEnum, errorMessage?: string | null, failedStep?: string | null, conflictStrategy?: string | null, renamedTargetPath?: string | null, createdAt: number, updatedAt: number, completedAt?: number | null }> } };
+
+export type MigrationProgressSubscriptionVariables = Exact<{
+  input: MigrationTaskActionInput;
+}>;
+
+
+export type MigrationProgressSubscription = { __typename?: 'Subscription', migrationProgressSubscription: { __typename?: 'MigrationProgressStatus', taskId: string, status: MigrationStatusEnum, bytesTransferred: string, totalBytes: string, progressPercentage: number, message?: string | null } };
+
+export type MigrationRetrySubscriptionVariables = Exact<{
+  input: MigrationTaskActionInput;
+}>;
+
+
+export type MigrationRetrySubscription = { __typename?: 'Subscription', migrationRetrySubscription: { __typename?: 'MigrationProgressStatus', taskId: string, status: MigrationStatusEnum, bytesTransferred: string, totalBytes: string, progressPercentage: number, message?: string | null } };
 
 export type UpdateVideoMetadataMutationVariables = Exact<{
   input: UpdateVideoMetadataInput;
@@ -355,6 +525,178 @@ export type BatchDeleteSubscriptionSubscriptionVariables = Exact<{
 
 export type BatchDeleteSubscriptionSubscription = { __typename?: 'Subscription', batchDeleteSubscription: { __typename?: 'BatchOperationStatus', status?: string | null, result?: { __typename?: 'VideosBatchOperationResult', resultType: BatchResultType, message?: string | null } | null } };
 
+export const MigrationPreflightDocument = gql`
+    mutation MigrationPreflight($input: MigrationPreflightInput!) {
+  migrationPreflight(input: $input) {
+    valid
+    sourceFileSize
+    conflictExists
+    spaceAvailable
+    spaceSufficient
+    alreadyMigrating
+    sameLocation
+    errorMessage
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class MigrationPreflightGQL extends Apollo.Mutation<MigrationPreflightMutation, MigrationPreflightMutationVariables> {
+    override document = MigrationPreflightDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CreateMigrationTaskDocument = gql`
+    mutation CreateMigrationTask($input: CreateMigrationTaskInput!) {
+  createMigrationTask(input: $input) {
+    success
+    errorMessage
+    task {
+      id
+      sourcePath
+      sourceCategory
+      targetPath
+      targetCategory
+      fileName
+      fileSize
+      bytesTransferred
+      status
+      errorMessage
+      failedStep
+      conflictStrategy
+      renamedTargetPath
+      createdAt
+      updatedAt
+      completedAt
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CreateMigrationTaskGQL extends Apollo.Mutation<CreateMigrationTaskMutation, CreateMigrationTaskMutationVariables> {
+    override document = CreateMigrationTaskDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CancelMigrationTaskDocument = gql`
+    mutation CancelMigrationTask($input: MigrationTaskActionInput!) {
+  cancelMigrationTask(input: $input) {
+    success
+    errorMessage
+    task {
+      id
+      sourcePath
+      targetPath
+      fileName
+      status
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CancelMigrationTaskGQL extends Apollo.Mutation<CancelMigrationTaskMutation, CancelMigrationTaskMutationVariables> {
+    override document = CancelMigrationTaskDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const GetMigrationTasksDocument = gql`
+    query GetMigrationTasks($input: MigrationTaskQueryInput!) {
+  getMigrationTasks(input: $input) {
+    totalCount
+    page
+    pageSize
+    tasks {
+      id
+      sourcePath
+      sourceCategory
+      targetPath
+      targetCategory
+      fileName
+      fileSize
+      bytesTransferred
+      status
+      errorMessage
+      failedStep
+      conflictStrategy
+      renamedTargetPath
+      createdAt
+      updatedAt
+      completedAt
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class GetMigrationTasksGQL extends Apollo.Query<GetMigrationTasksQuery, GetMigrationTasksQueryVariables> {
+    override document = GetMigrationTasksDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const MigrationProgressDocument = gql`
+    subscription MigrationProgress($input: MigrationTaskActionInput!) {
+  migrationProgressSubscription(input: $input) {
+    taskId
+    status
+    bytesTransferred
+    totalBytes
+    progressPercentage
+    message
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class MigrationProgressGQL extends Apollo.Subscription<MigrationProgressSubscription, MigrationProgressSubscriptionVariables> {
+    override document = MigrationProgressDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const MigrationRetryDocument = gql`
+    subscription MigrationRetry($input: MigrationTaskActionInput!) {
+  migrationRetrySubscription(input: $input) {
+    taskId
+    status
+    bytesTransferred
+    totalBytes
+    progressPercentage
+    message
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class MigrationRetryGQL extends Apollo.Subscription<MigrationRetrySubscription, MigrationRetrySubscriptionVariables> {
+    override document = MigrationRetryDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
 export const UpdateVideoMetadataDocument = gql`
     mutation UpdateVideoMetadata($input: UpdateVideoMetadataInput!) {
   updateVideoMetadata(input: $input) {

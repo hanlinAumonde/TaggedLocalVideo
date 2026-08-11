@@ -1,11 +1,16 @@
 import {
     BatchUpdateSubscriptionSubscription,
     BrowseDirectoryQuery,
+    CancelMigrationTaskMutation,
+    CreateMigrationTaskMutation,
     DeleteVideoMutation,
     GetDirectoryMetadataQuery,
+    GetMigrationTasksQuery,
     GetSeriesVideosQuery,
     GetTopTagsQuery,
     GetVideoByIdQuery,
+    MigrationPreflightMutation,
+    MigrationProgressSubscription,
     RecordVideoViewMutation,
     SearchVideosQuery,
     UpdateVideoMetadataMutation
@@ -40,3 +45,9 @@ export type DirectoryMetadataDetail = GetDirectoryMetadataQuery['getDirectoryMet
 
 export type SeriesVideosDetail = GetSeriesVideosQuery['getSeriesVideos'];
 export type SeriesVideoItem = GetSeriesVideosQuery['getSeriesVideos'][0];
+
+export type MigrationPreflightDetail = MigrationPreflightMutation['migrationPreflight'];
+export type CreateMigrationTaskDetail = CreateMigrationTaskMutation['createMigrationTask'];
+export type CancelMigrationTaskDetail = CancelMigrationTaskMutation['cancelMigrationTask'];
+export type MigrationTaskListDetail = GetMigrationTasksQuery['getMigrationTasks'];
+export type MigrationProgressDetail = MigrationProgressSubscription['migrationProgressSubscription'];

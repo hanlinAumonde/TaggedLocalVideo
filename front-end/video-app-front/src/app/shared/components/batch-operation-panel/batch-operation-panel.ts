@@ -288,32 +288,34 @@ export class BatchOperationPanel {
             case BatchResultType.PartialSuccess:
               this.videoUpdateEventService.emitUpdated(Array.from(this.videoIds));
               if(resultType === BatchResultType.PartialSuccess){
-                this.toastService.emitErrorOrWarning(
-                  `Batch update partially success. Some videos may not have been updated.
+                this.toastService.emitNewToast(
+                  `Batch update completed with partial success, some videos may not have been updated.
                   \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
                   ToastType.Warning
                 );
+              } else {
+                this.toastService.emitNewToast('Batch update completed successfully.', ToastType.Success);
               }
               this.dialogRef.close(true);
               break;
             case BatchResultType.AlreadyUpToDate:
-              this.toastService.emitErrorOrWarning(
+              this.toastService.emitNewToast(
                 'All selected videos are already up to date. No changes were made.',
                 ToastType.Warning
               );
               break;
           }
         } else {
-          this.toastService.emitErrorOrWarning(
+          this.toastService.emitNewToast(
             'Batch update failed. Please try again.',
-            ToastType.Error, true
+            ToastType.Error
           );
           this.processingMessage.set('');
         }
       },
       error: (err) => {
         this.isSaving.set(false);
-        this.toastService.emitErrorOrWarning(
+        this.toastService.emitNewToast(
           'Error performing batch update: ' + err.message,
           ToastType.Error
         );

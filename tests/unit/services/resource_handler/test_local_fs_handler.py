@@ -1,6 +1,13 @@
+"""Unit tests for LocalFSResourceHandler — directory listing and IO operations."""
+
 from pathlib import Path
+
+import pytest
+
 from src.config import Settings
 from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------
@@ -211,3 +218,71 @@ def test_join_path_uses_forward_slashes():
 def test_dirname_uses_forward_slashes():
     assert LocalFSResourceHandler.dirname("a/b/c.mp4") == "a/b"
     assert LocalFSResourceHandler.dirname("only_file.mp4") == ""
+
+
+# -----------------------------------------------------------------------
+# --------------------- write_file_streaming ----------------------------
+# -----------------------------------------------------------------------
+
+async def test_write_file_streaming_creates_file(local_handler, tmp_path: Path):
+    target = tmp_path / "streamed" / "out.bin"
+
+    async def _chunks():
+        yield b"chunk1"
+        yield b"chunk2"
+        yield b"chunk3"
+
+    total = await local_handler.write_file_streaming(str(target), _chunks())
+    assert total == 18
+    assert target.read_bytes() == b"chunk1chunk2chunk3"
+
+
+# -----------------------------------------------------------------------
+# --------------------- get_available_space -----------------------------
+# -----------------------------------------------------------------------
+
+def test_get_available_space_returns_positive_int(local_handler, local_resource_dir: Path):
+    space = local_handler.get_available_space(str(local_resource_dir / "movie_a.mp4"))
+    assert isinstance(space, int)
+    assert space > 0
+
+
+def test_get_available_space_invalid_path_returns_none(local_handler):
+    space = local_handler.get_available_space("Z:/nonexistent/path/file.mp4")
+    assert space is None
+
+
+# -----------------------------------------------------------------------
+# --------------------- read_file_streaming (from base class) -----------
+# -----------------------------------------------------------------------
+
+async def test_read_file_streaming_yields_all_data(
+    local_handler, local_resource_dir: Path
+):
+    path = str(local_resource_dir / "movie_b.mp4")
+    chunks = []
+    async for chunk in local_handler.read_file_streaming(path, chunk_size=80):
+        chunks.append(chunk)
+    full = b"".join(chunks)
+    assert full == b"b" * 200
+    assert len(chunks) == 3  # 80 + 80 + 40
+
+
+# -----------------------------------------------------------------------
+# --- convert_to_db/fs with root_path deep paths (line 112, 140) --------
+# -----------------------------------------------------------------------
+
+def test_convert_to_db_root_path_pseudo_root_no_relative(tmp_path: Path):
+    handler = LocalFSResourceHandler(
+        category="Cat", pseudo_paths={"P1": "/ignored"}, root_path=str(tmp_path),
+    )
+    mounted_root = (str(tmp_path) + "/Cat/P1").replace("\\", "/")
+    assert handler.convert_to_DB_format_path(mounted_root) == "Cat/P1"
+
+
+def test_convert_to_fs_root_path_with_relative(tmp_path: Path):
+    handler = LocalFSResourceHandler(
+        category="Cat", pseudo_paths={"P1": "/ignored"}, root_path=str(tmp_path),
+    )
+    expected = (str(tmp_path) + "/Cat/P1/sub/file.mp4").replace("\\", "/")
+    assert handler.convert_to_FS_format_path("Cat/P1/sub/file.mp4") == expected

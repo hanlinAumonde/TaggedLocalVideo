@@ -66,7 +66,7 @@ export class DeleteCheckPanel implements OnDestroy {
     const type = this.data.deleteType;
     if(!this.data.videoIds && !this.data.directoryPath) {
       this.isSaving.set(false);
-      this.toastService.emitErrorOrWarning(
+      this.toastService.emitNewToast(
         'No videoIds or directoryPath provided for deletion.', ToastType.Error
       );
       this.dialogRef.close(false);
@@ -96,7 +96,7 @@ export class DeleteCheckPanel implements OnDestroy {
         break;
     }
     if(!this.gqlRequest$) {
-      this.toastService.emitErrorOrWarning(
+      this.toastService.emitNewToast(
         'No deletion operation specified.', ToastType.Error
       );
       this.dialogRef.close(false);
@@ -105,7 +105,7 @@ export class DeleteCheckPanel implements OnDestroy {
     this.gqlRequest$.subscribe({
       error: (err) => {
         this.isSaving.set(false);
-        this.toastService.emitErrorOrWarning(
+        this.toastService.emitNewToast(
           `An error occurred during deletion: ${err.message || err}`, ToastType.Error
         );
         this.dialogRef.close(false);
@@ -124,9 +124,10 @@ export class DeleteCheckPanel implements OnDestroy {
           this.videoUpdateEventService.emitVideosDeleted(
             this.data.videoIds ? Array.from(this.data.videoIds) : []
           );
+          this.toastService.emitNewToast('Video deleted successfully.', ToastType.Success);
           this.dialogRef.close(true);
         }else{
-          this.toastService.emitErrorOrWarning('Failed to delete video', ToastType.Error, true);
+          this.toastService.emitNewToast('Failed to delete video.', ToastType.Error);
           this.dialogRef.close(false);
         }
       })
@@ -151,16 +152,18 @@ export class DeleteCheckPanel implements OnDestroy {
                   this.videoUpdateEventService.emitDirectoryDeleted(this.data.directoryPath);
                 }
                 if(resultType === BatchResultType.PartialSuccess) {
-                  this.toastService.emitErrorOrWarning(
-                    `Batch update partially success. Some videos may not have been updated.
+                  this.toastService.emitNewToast(
+                    `Batch delete completed with partial success, some videos may not have been deleted.
                     \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`,
                     ToastType.Warning
                   );
+                } else {
+                  this.toastService.emitNewToast('Batch delete completed successfully.', ToastType.Success);
                 }
                 this.dialogRef.close(true);
                 break;
               case BatchResultType.Failure:
-                this.toastService.emitErrorOrWarning(
+                this.toastService.emitNewToast(
                   `Batch delete failed. Please try again.
                   \nMessage: ${result.data.result.message ?? 'No additional information provided.'}`, 
                   ToastType.Error

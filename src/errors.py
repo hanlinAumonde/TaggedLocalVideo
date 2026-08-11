@@ -26,3 +26,6 @@ class InputValidationError(Exception):
         self.field = field
         self.issue = issue
         super().__init__(f"Input validation error on field '{field}': {issue}")
+
+class _MigrationCancelled(Exception):
+    pass

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Iterator
+from typing import AsyncIterator, Generator, Iterator
 
 from src.services.resource_handler.base_file_entry import BaseFileEntry
 
@@ -12,14 +12,14 @@ class BaseResourceHandler(ABC):
 
     @abstractmethod
     @contextmanager
-    def list_directory(self, path: str) -> Iterator[Iterator[BaseFileEntry]]:
+    def list_directory(self, path: str) -> Generator[Iterator[BaseFileEntry], None, None]:
         """
         List entries in a directory. Returns a context manager yielding BaseFileEntry iterator.
 
         :param path: The path to the directory to list.
         :type path: str
         :return: A context manager yielding an iterator of BaseFileEntry objects representing the directory entries.
-        :rtype: Iterator[Iterator[BaseFileEntry]]
+        :rtype: Generator[Iterator[BaseFileEntry], None, None]
         """
         ...
 
@@ -87,6 +87,25 @@ class BaseResourceHandler(ABC):
         """
         ...
 
+    async def read_file_streaming(self, path: str, chunk_size: int = 1024 * 1024) -> AsyncIterator[bytes]:
+        """
+        Read a file in a streaming manner, yielding chunks of data.
+
+        :param path: FS-format path (filesystem path for LocalFS, object key for S3)
+        :type path: str
+        :param chunk_size: Size of each chunk to read (default: 1MB)
+        :type chunk_size: int
+        :yield: Chunks of file data as bytes
+        :rtype: AsyncIterator[bytes]
+        """
+        total_size = self.get_size(path)
+        offset = 0
+        while offset < total_size:
+            length = min(chunk_size, total_size - offset)
+            chunk = await self.read_file_chunk(path, offset, length)
+            yield chunk
+            offset += len(chunk)
+
     @abstractmethod
     async def write_file(self, path: str, data: bytes) -> None:
         """
@@ -98,6 +117,31 @@ class BaseResourceHandler(ABC):
         :type data: bytes
         """
         ...
+
+    @abstractmethod
+    async def write_file_streaming(self, path: str, data_iterator: AsyncIterator[bytes]) -> int:
+        """
+        Write a file in a streaming manner (for large files like videos).
+
+        :param path: FS-format path
+        :type path: str
+        :param data_iterator: An async iterator yielding bytes to write
+        :type data_iterator: AsyncIterator[bytes]
+        :return: Total number of bytes written
+        :rtype: int
+        """
+        ...
+
+    def get_available_space(self, path: str) -> int | None:
+        """
+        Get the available space at the given path. Returns None if not applicable.
+
+        :param path: The path to check for available space.
+        :type path: str
+        :return: Available space in bytes, or None if not applicable.
+        :rtype: int | None
+        """
+        return None
 
     # --- Path resolution ---
 

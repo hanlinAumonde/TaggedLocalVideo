@@ -1,4 +1,4 @@
-<!-- Error / Warning Toasts -->
+<!-- Error / Warning / Success Toasts -->
 <div class="fixed bottom-4 right-4 z-1000 flex flex-col gap-2 pointer-events-none">
   @for (toast of toasts(); track toast.id) {
     <div
@@ -9,18 +9,26 @@
       [class.text-red-500]="toast.type === 'error'"
       [class.border-yellow-500]="toast.type === 'warning'"
       [class.text-yellow-500]="toast.type === 'warning'"
+      [class.border-green-500]="toast.type === 'success'"
+      [class.text-green-500]="toast.type === 'success'"
       [class.animate-toast-enter]="!toast.removing"
       [class.animate-toast-exit]="toast.removing">
       @if(toast.type === 'error') {
         <mat-icon fontIcon="error"></mat-icon>
       } @else if (toast.type === 'warning') {
         <mat-icon fontIcon="warning"></mat-icon>
+      } @else if (toast.type === 'success') {
+        <mat-icon fontIcon="check_circle"></mat-icon>
       }
       <span class="flex-1 text-xs">{{ toast.message }}</span>
       <button
         (click)="toastService.dismiss(toast.id)"
         mat-icon-button>
-        <mat-icon fontIcon="close" [class.text-red-500]="toast.type === 'error'" [class.text-yellow-500]="toast.type === 'warning'" class="text-sm"></mat-icon>
+        <mat-icon fontIcon="close"
+          [class.text-red-500]="toast.type === 'error'"
+          [class.text-yellow-500]="toast.type === 'warning'"
+          [class.text-green-500]="toast.type === 'success'"
+          class="text-sm"></mat-icon>
       </button>
     </div>
   }

@@ -26,6 +26,7 @@ from src.services.browse_file_service import BrowseFileService
 from src.services.cache.cache_service import CacheService
 from src.services.dir_metadata_service import DirMetadataService
 from src.services.ffmpeg_service import FFmpegService
+from src.services.tasks.migration_service import MigrationService
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
 from src.services.tag_operation_service import TagOperationService
@@ -150,6 +151,13 @@ def mock_batch_operation_service() -> MagicMock:
     return svc
 
 
+@pytest.fixture
+def mock_migration_service() -> MagicMock:
+    svc = MagicMock(spec=MigrationService, name="MigrationService")
+    svc.is_file_locked = AsyncMock(return_value=False)
+    return svc
+
+
 # -----------------------------------------------------------------------
 # ----------------------- Real (DB-backed) services ----------------------
 # -----------------------------------------------------------------------
@@ -185,6 +193,7 @@ def graphql_context(
     mock_dir_metadata_service: MagicMock,
     mock_browse_file_service: MagicMock,
     mock_batch_operation_service: MagicMock,
+    mock_migration_service: MagicMock,
 ) -> dict[ContextEnum, Any]:
     """Context dict matching ``src.context.get_context``'s return shape."""
     return {
@@ -198,6 +207,7 @@ def graphql_context(
         ContextEnum.DIR_METADATA_SERVICE: mock_dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: mock_browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: mock_batch_operation_service,
+        ContextEnum.MIGRATION_SERVICE: mock_migration_service,
     }
 
 

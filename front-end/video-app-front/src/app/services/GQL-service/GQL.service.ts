@@ -22,25 +22,40 @@ import {
   GetSeriesVideosGQL,
   SeriesFieldInput,
   SeriesOperationInput,
+  MigrationPreflightGQL,
+  MigrationPreflightInput,
+  CreateMigrationTaskGQL,
+  CreateMigrationTaskInput,
+  CancelMigrationTaskGQL,
+  MigrationTaskActionInput,
+  GetMigrationTasksGQL,
+  MigrationTaskQueryInput,
+  MigrationProgressGQL,
+  MigrationRetryGQL,
 } from '../../core/graphql/generated/graphql';
-import { 
-  catchError, 
-  debounceTime, 
-  distinctUntilChanged, 
-  map, 
-  Observable, 
-  of, 
-  switchMap, 
-  tap 
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  map,
+  Observable,
+  of,
+  switchMap,
+  tap
 } from 'rxjs';
 import { ObservableQuery } from '@apollo/client';
 import { DeepPartial } from '@apollo/client/utilities';
 import {
   BatchUpdateVideosDetail,
   BrowseDirectoryDetail,
+  CancelMigrationTaskDetail,
+  CreateMigrationTaskDetail,
   DeleteVideoDetail,
   DirectoryMetadataDetail,
   GetTopTagsDetail,
+  MigrationPreflightDetail,
+  MigrationProgressDetail,
+  MigrationTaskListDetail,
   ResultState,
   SearchVideosDetail,
   SeriesVideosDetail,
@@ -71,6 +86,12 @@ export class GqlService {
   private batchDeleteVideosSubscriptionGQL = inject(BatchDeleteSubscriptionGQL)
   private searchSeriesByPrefixGQL = inject(SearchSeriesByPrefixGQL)
   private getSeriesVideosGQL = inject(GetSeriesVideosGQL)
+  private migrationPreflightGQL = inject(MigrationPreflightGQL)
+  private createMigrationTaskGQL = inject(CreateMigrationTaskGQL)
+  private cancelMigrationTaskGQL = inject(CancelMigrationTaskGQL)
+  private getMigrationTasksGQL = inject(GetMigrationTasksGQL)
+  private migrationProgressGQL = inject(MigrationProgressGQL)
+  private migrationRetryGQL = inject(MigrationRetryGQL)
   private validationService = inject(ValidationService);
   private toastService = inject(ToastService);
 
@@ -106,7 +127,7 @@ export class GqlService {
         }),
         tap(result => {
           if(result.error){
-            this.toastService.emitErrorOrWarning(`Failed GraphQL request: ${result.error}`, ToastType.Error);
+            this.toastService.emitNewToast(`Failed GraphQL request: ${result.error}`, ToastType.Error);
           }
         })
         
@@ -317,14 +338,62 @@ export class GqlService {
   batchDeleteVideosSubscription(input: VideosBatchOperationInput){
     return this.toResultStateObservable(
       this.batchDeleteVideosSubscriptionGQL.subscribe({
-        variables: { 
-          input: { 
+        variables: {
+          input: {
             videoIds: input.videoIds,
             relativePath: input.relativePath
-          } 
+          }
         }
       }),
       (data) => this.batchOperationDataConverter(data.batchDeleteSubscription)
+    )
+  }
+
+  // ----------------------------Migration----------------------------
+
+  migrationPreflightMutation(input: MigrationPreflightInput) {
+    return this.toResultStateObservable(
+      this.migrationPreflightGQL.mutate({ variables: { input } }),
+      (data) => (data.migrationPreflight ?? null) as MigrationPreflightDetail | null,
+      false
+    )
+  }
+
+  createMigrationTaskMutation(input: CreateMigrationTaskInput) {
+    return this.toResultStateObservable(
+      this.createMigrationTaskGQL.mutate({ variables: { input } }),
+      (data) => (data.createMigrationTask ?? null) as CreateMigrationTaskDetail | null,
+      false
+    )
+  }
+
+  cancelMigrationTaskMutation(input: MigrationTaskActionInput) {
+    return this.toResultStateObservable(
+      this.cancelMigrationTaskGQL.mutate({ variables: { input } }),
+      (data) => (data.cancelMigrationTask ?? null) as CancelMigrationTaskDetail | null,
+      false
+    )
+  }
+
+  getMigrationTasksQuery(input: MigrationTaskQueryInput) {
+    return this.toResultStateObservable(
+      this.getMigrationTasksGQL.fetch({ variables: { input } }),
+      (data) => (data.getMigrationTasks ?? null) as MigrationTaskListDetail | null,
+      false
+    )
+  }
+
+  migrationProgressSubscription(input: MigrationTaskActionInput) {
+    return this.toResultStateObservable(
+      this.migrationProgressGQL.subscribe({ variables: { input } }),
+      (data) => (data.migrationProgressSubscription ?? null) as MigrationProgressDetail | null
+    )
+  }
+
+  migrationRetrySubscription(input: MigrationTaskActionInput) {
+    return this.toResultStateObservable(
+      this.migrationRetryGQL.subscribe({ variables: { input } }),
+      (data) => (data.migrationRetrySubscription ?? null) as MigrationProgressDetail | null
     )
   }
 }

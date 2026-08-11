@@ -1,6 +1,15 @@
+"""Unit tests for BrowseFileService — directory listing, video browsing, and sorting."""
+
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
 from src.db.models.Video_model import VideoModel
+from src.errors import FileBrowseError
 from src.services.resource_handler.absolute_path import AbsolutePath
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------
@@ -118,3 +127,29 @@ def test_get_all_video_entries_empty_dir(
     empty = str(local_resource_dir / "subdir" / "empty").replace("\\", "/")
     entries = browse_svc.get_all_video_entries_in_directory(empty, "Test-category")
     assert entries == []
+
+
+# -----------------------------------------------------------------------
+# ------------------- Error paths ----------------------------------------
+# -----------------------------------------------------------------------
+
+def test_get_all_video_entries_os_error_returns_empty(
+    browse_svc, local_resource_handler_service,
+):
+    entries = browse_svc.get_all_video_entries_in_directory(
+        "Z:/nonexistent/path", "Test-category",
+    )
+    assert entries == []
+
+
+async def test_directory_level_general_exception_raises_file_browse_error(
+    browse_svc, init_db, local_resource_handler_service,
+):
+    handler = local_resource_handler_service.get_handler("Test-category")
+    abs_path = AbsolutePath.from_existing_path(
+        path="Z:/nonexistent/directory",
+        category="Test-category",
+        handler=handler,
+    )
+    with pytest.raises(FileBrowseError):
+        await browse_svc.get_node_list_in_directory(abs_path)

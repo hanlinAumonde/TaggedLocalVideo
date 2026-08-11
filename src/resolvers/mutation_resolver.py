@@ -8,6 +8,7 @@ from pymongo.errors import BulkWriteError
 from src.context import ContextEnum, get_context_value
 from src.db.models.Video_model import VideoModel
 from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
+from src.services.tasks.migration_service import MigrationService
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import VideoMutationResult
 from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
@@ -39,6 +40,10 @@ async def resolve_update_video_metadata(input: UpdateVideoMetadataInput, info: s
     try:
         video_model = await VideoModel.get(ObjectId(str(validated_input.videoId)))
         if video_model:
+            migration_service: MigrationService = get_context_value(info, ContextEnum.MIGRATION_SERVICE)
+            if await migration_service.is_file_locked(video_model.path):
+                raise InputValidationError(field="videoId", issue="the file is being migrated and cannot be modified")
+
             update_tags: dict[str, tuple[int, bool]] = {}
 
             old_tags = set(video_model.tags or [])
@@ -235,6 +240,10 @@ async def resolve_delete_video(videoId: strawberry.ID, info: strawberry.Info) ->
         video_model = await VideoModel.get(ObjectId(str(videoId)))
         if not video_model:
             raise VideoNotFoundError(str(videoId))
+
+        migration_service: MigrationService = get_context_value(info, ContextEnum.MIGRATION_SERVICE)
+        if await migration_service.is_file_locked(video_model.path):
+            raise InputValidationError(field="videoId", issue="the file is being migrated and cannot be deleted")
 
         old_tags = set(video_model.tags or [])
         resourceHandlerService: ResourceHandlerService = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)

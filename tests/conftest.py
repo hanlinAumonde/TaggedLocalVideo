@@ -9,6 +9,7 @@ import pytest
 
 from src import config
 from src.db.models.DirMetadata_model import DirMetadataModel
+from src.db.models.MigrationTask_model import MigrationTaskModel
 from src.config import Settings
 from src.db.models.VideoTag_model import VideoTagModel
 from src.db.models.Video_model import VideoModel
@@ -74,12 +75,13 @@ async def init_db(mock_get_settings, test_settings: Settings):
         mongo_uri += mongo_host_port
     print(f"Connecting to MongoDB at {mongo_uri}")
     client = AsyncMongoClient(mongo_uri)
-    await init_beanie(database=client.get_database(mongo_config.database), document_models=[VideoModel, VideoTagModel, DirMetadataModel])
+    await init_beanie(database=client.get_database(mongo_config.database), document_models=[VideoModel, VideoTagModel, DirMetadataModel, MigrationTaskModel])
 
     yield
     await VideoModel.delete_all()
     await VideoTagModel.delete_all()
     await DirMetadataModel.delete_all()
+    await MigrationTaskModel.delete_all()
 
 
 # -----------------------------------------------------------------------

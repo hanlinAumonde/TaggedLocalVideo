@@ -245,6 +245,108 @@ def make_update_input(video_id: str, **overrides: Any) -> dict:
     return base
 
 
+MIGRATION_PREFLIGHT = """
+mutation MigrationPreflight($input: MigrationPreflightInput!) {
+  migrationPreflight(input: $input) {
+    valid
+    sourceFileSize
+    conflictExists
+    spaceAvailable
+    spaceSufficient
+    alreadyMigrating
+    sameLocation
+    errorMessage
+  }
+}
+"""
+
+
+CREATE_MIGRATION_TASK = """
+mutation CreateMigrationTask($input: CreateMigrationTaskInput!) {
+  createMigrationTask(input: $input) {
+    success
+    task {
+      id
+      sourcePath
+      sourceCategory
+      targetPath
+      targetCategory
+      fileName
+      fileSize
+      status
+      conflictStrategy
+      renamedTargetPath
+    }
+    errorMessage
+  }
+}
+"""
+
+
+CANCEL_MIGRATION_TASK = """
+mutation CancelMigrationTask($input: MigrationTaskActionInput!) {
+  cancelMigrationTask(input: $input) {
+    success
+    task {
+      id
+      status
+    }
+  }
+}
+"""
+
+
+GET_MIGRATION_TASKS = """
+query GetMigrationTasks($input: MigrationTaskQueryInput!) {
+  getMigrationTasks(input: $input) {
+    tasks {
+      id
+      sourcePath
+      targetPath
+      status
+      fileName
+      fileSize
+    }
+    totalCount
+    page
+    pageSize
+  }
+}
+"""
+
+
+MIGRATION_PROGRESS_SUBSCRIPTION = """
+subscription MigrationProgress($input: MigrationTaskActionInput!) {
+  migrationProgressSubscription(input: $input) {
+    taskId
+    status
+    bytesTransferred
+    totalBytes
+    progressPercentage
+    message
+  }
+}
+"""
+
+
+MIGRATION_RETRY_SUBSCRIPTION = """
+subscription MigrationRetry($input: MigrationTaskActionInput!) {
+  migrationRetrySubscription(input: $input) {
+    taskId
+    status
+    bytesTransferred
+    totalBytes
+    progressPercentage
+    message
+  }
+}
+"""
+
+
+def make_migration_path_input(relative_path: str) -> dict:
+    return {"relativePath": relative_path}
+
+
 def make_batch_input(
     video_ids: list[str] | None = None,
     relative_path: str | None = None,

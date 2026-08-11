@@ -116,7 +116,7 @@ export class VideoPlayer implements OnDestroy {
         if (!currentId || !event.videoIds.includes(currentId)) return EMPTY;
 
         if (event.type === VideoUpdateType.Deleted) {
-          this.toastService.emitErrorOrWarning(
+          this.toastService.emitNewToast(
             'The video you are watching has been deleted.', 
             ToastType.Warning
           );
@@ -195,7 +195,7 @@ export class VideoPlayer implements OnDestroy {
       .subscribe({
         next: (result) => {
           if (!result.data?.success) {
-            this.toastService.emitErrorOrWarning('Failed to record video view', ToastType.Error);
+            this.toastService.emitNewToast('Failed to record video view', ToastType.Error);
           }else if(result.data.video){
             this.video.update(current => {
               if (!current.data) return current;
@@ -225,7 +225,7 @@ export class VideoPlayer implements OnDestroy {
             return this.toVideoDetailResultState(result.data!, current);
           })
         }else{
-          this.toastService.emitErrorOrWarning('Failed to update loved status', ToastType.Error);
+          this.toastService.emitNewToast('Failed to update loved status', ToastType.Error);
         }
       }
     });

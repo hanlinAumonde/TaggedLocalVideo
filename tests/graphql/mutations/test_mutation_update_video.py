@@ -245,3 +245,63 @@ async def test_update_video_metadata_unknown_video_id(execute_gql, init_db):
     payload = make_update_input(str(ObjectId()), tags=[])
     result = await execute_gql(UPDATE_VIDEO_METADATA, {"input": payload})
     assert result.errors  # cannot return null for non-null result type
+
+
+# ----------------------------- Migration lock --------------------------------
+
+async def test_update_video_migration_locked(
+    execute_gql, video_factory, mock_migration_service
+):
+    video = await video_factory(name="locked-video")
+    mock_migration_service.is_file_locked.return_value = True
+
+    payload = make_update_input(str(video.id), name="new-name", tags=[])
+    result = await execute_gql(UPDATE_VIDEO_METADATA, {"input": payload})
+
+    assert_error_contains(result, "being migrated")
+    mock_migration_service.is_file_locked.assert_awaited_once()
+
+
+# ----------------------- Series validation edge cases ------------------------
+
+async def test_update_video_series_duplicate_video_id_in_orders(
+    execute_gql, video_factory
+):
+    a = await video_factory(name="A", seriesName="S", seriesOrder=1)
+
+    payload = make_update_input(
+        str(a.id),
+        tags=[],
+        series={
+            "name": "S",
+            "clear": False,
+            "orders": [
+                {"videoId": str(a.id), "order": 1},
+                {"videoId": str(a.id), "order": 2},
+            ],
+        },
+    )
+    result = await execute_gql(UPDATE_VIDEO_METADATA, {"input": payload})
+    assert_error_contains(result, "duplicate videoId")
+
+
+async def test_update_video_series_nonexistent_video_id_in_orders(
+    execute_gql, video_factory
+):
+    a = await video_factory(name="A", seriesName="S", seriesOrder=1)
+    fake_id = str(ObjectId())
+
+    payload = make_update_input(
+        str(a.id),
+        tags=[],
+        series={
+            "name": "S",
+            "clear": False,
+            "orders": [
+                {"videoId": str(a.id), "order": 1},
+                {"videoId": fake_id, "order": 2},
+            ],
+        },
+    )
+    result = await execute_gql(UPDATE_VIDEO_METADATA, {"input": payload})
+    assert_error_contains(result, "not found")

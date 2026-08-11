@@ -1,5 +1,14 @@
+"""Unit tests for TagOperationService — tag count updates and bulk operations."""
+
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from pymongo.errors import BulkWriteError
+
 from src.db.models.VideoTag_model import VideoTagModel
 from src.services.tag_operation_service import TagOperationService
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------
@@ -114,3 +123,26 @@ async def test_get_top_tags_returns_empty_when_no_categories(init_db):
     empty = Settings.model_validate({"resource_paths": {}})
     svc = TagOperationService(settings=empty)
     assert await svc.get_top_tag_docs(limit=10) == []
+
+
+# -----------------------------------------------------------------------
+# ----------------------- exception handlers -----------------------------
+# -----------------------------------------------------------------------
+
+async def test_update_tag_counts_bulk_write_error_is_swallowed(test_settings, init_db):
+    svc = TagOperationService(settings=test_settings)
+    bwe = BulkWriteError({"writeErrors": [{"errmsg": "test"}]})
+    with patch.object(
+        VideoTagModel, "get_pymongo_collection",
+        return_value=AsyncMock(bulk_write=AsyncMock(side_effect=bwe)),
+    ):
+        await svc.update_tag_counts({"action": (1, True)})
+
+
+async def test_update_tag_counts_general_exception_is_swallowed(test_settings, init_db):
+    svc = TagOperationService(settings=test_settings)
+    with patch.object(
+        VideoTagModel, "get_pymongo_collection",
+        return_value=AsyncMock(bulk_write=AsyncMock(side_effect=RuntimeError("fail"))),
+    ):
+        await svc.update_tag_counts({"action": (1, True)})

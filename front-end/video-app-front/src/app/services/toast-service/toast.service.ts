@@ -11,7 +11,7 @@ export class ToastService {
   private _toasts = signal<Toast[]>([]);
   toasts = this._toasts.asReadonly();
 
-  emitErrorOrWarning(message: string, type: ToastType, beyondDialog: boolean = false) {
+  emitNewToast(message: string, type: ToastType) {
     const id = ++this.counter;
 
     const updateFn = this._toasts.update;

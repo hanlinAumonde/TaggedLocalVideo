@@ -23,14 +23,14 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
 
     const videoId = route.paramMap.get('id') ?? '';
     if(!videoId){
-        toastService.emitErrorOrWarning('Null video ID', ToastType.Error);
+        toastService.emitNewToast('Null video ID', ToastType.Error);
         return new RedirectCommand(router.parseUrl(environment.homepage_api));
     }
     return gqlService.getVideoByIdQuery(videoId).pipe(
         filter(result => !result.loading),
         switchMap(result => {
             if (result.error) {
-                toastService.emitErrorOrWarning(
+                toastService.emitNewToast(
                     `Failed to resolve video metadata: ${result.error}`, 
                     ToastType.Error
                 );

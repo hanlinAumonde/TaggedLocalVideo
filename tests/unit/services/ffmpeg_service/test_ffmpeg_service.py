@@ -1,6 +1,10 @@
+"""Unit tests for FFmpegService — thumbnail generation and video duration extraction."""
+
 import pytest
 from .conftest import _MockProcess
 from src.services.ffmpeg_service import FFmpegService
+
+pytestmark = pytest.mark.unit
 
 
 # -----------------------------------------------------------------------
