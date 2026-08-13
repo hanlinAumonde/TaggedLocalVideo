@@ -9,7 +9,8 @@ import {
   inject,
   signal,
   DestroyRef,
-  afterNextRender
+  afterNextRender,
+  untracked
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -71,6 +72,7 @@ export class FileBrowseTable {
 
   private toastService = inject(ToastService);
   private dialog = inject(MatDialog);
+  private resizeObserver: ResizeObserver | null = null;
   private destroyRef = inject(DestroyRef);
 
   // --- Column Resize ---
@@ -182,16 +184,24 @@ export class FileBrowseTable {
   constructor() {
     effect(() => this.resizeCallback());
 
-    const handleResize = () => {
-      this.resizeCallback();
-      this.adjustColumnWidthsOnResize();
-    };
-    window.addEventListener('resize', handleResize);
+    effect(() => {
+      const tableEl = this.tableElement()?.nativeElement;
+      untracked(() => {
+        if (tableEl) {
+          this.resizeObserver?.disconnect();
+          this.resizeObserver = new ResizeObserver(() => {
+            this.resizeCallback();
+            this.adjustColumnWidthsOnResize();
+          });
+          this.resizeObserver.observe(tableEl);
+        }
+      });
+    });
 
     afterNextRender(() => this.initColumnWidthsFromDOM());
 
     this.destroyRef.onDestroy(() => {
-      window.removeEventListener('resize', handleResize);
+      this.resizeObserver?.disconnect();
     });
   }
 

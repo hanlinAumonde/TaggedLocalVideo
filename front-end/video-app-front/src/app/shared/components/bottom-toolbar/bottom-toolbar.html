@@ -2,8 +2,8 @@
 <div class="fixed bottom-0 z-20 mt-5" [style.width]="tableWidth() + 'px'">
   <!-- Toggle Button -->
   <div class="flex justify-center">
-    <div 
-      class="px-6 py-1 bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-500 text-white 
+    <div
+      class="px-6 py-1 bg-neutral-300 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-500 text-white
              rounded-t-lg cursor-pointer transition-colors shadow-2xl"
       (click)="toggleToolbar()"
     >
@@ -23,8 +23,8 @@
     [style.opacity]="toolbarVisible() ? '1' : '0'"
   >
     <div class="flex items-center justify-between px-6 py-3 bg-neutral-300 dark:bg-neutral-700 text-white">
-      <div class="flex-1 flex items-center">
-        <div class="gap-2 flex items-center">
+      <div class="flex-1 flex items-center min-w-0">
+        <div class="gap-2 flex items-center shrink-0">
           <button
             mat-icon-button
             (click)="navigateOnClickButton(true)"
@@ -40,37 +40,59 @@
             <mat-icon fontIcon="arrow_forward"></mat-icon>
           </button>
         </div>
-        <span class="bg-gray-400 dark:bg-neutral-600 mx-4 px-4 py-2 rounded-lg font-medium">Current path:</span>
-        <strong class="font-mono text-gray-200 flex flex-wrap items-center gap-y-1">
-          @for(pathElement of paths(); track $index) {
-            <span class="text-black dark:text-white whitespace-nowrap">/</span>
-            <span
-              class="bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700 transition-colors whitespace-nowrap"
-              (click)="navigateOnClickPathElement($index)">
-              {{pathElement}}
-            </span>
+        <span class="bg-gray-400 dark:bg-neutral-600 mx-4 px-4 py-2 rounded-lg font-medium shrink-0">Current path:</span>
+        <div class="flex items-center min-w-0 flex-1 overflow-hidden font-mono font-bold text-gray-200" #pathContainer>
+          @if (hasOverflow()) {
+            <button
+              [matMenuTriggerFor]="overflowMenu"
+              class="flex justify-center items-center shrink-0 w-9! h-9! min-w-0! 
+                   hover:bg-neutral-500 hover:disabled:bg-neutral-500 disabled:cursor-no-drop rounded-full transition-colors"
+            >
+              <mat-icon fontIcon="keyboard_double_arrow_left"></mat-icon>
+            </button>
+            <mat-menu #overflowMenu>
+              @for (item of hiddenPaths(); track $index) {
+                <button mat-menu-item (click)="navigateOnClickPathElement($index)" [title]="item">
+                  <span class="block truncate max-w-50">{{ item }}</span>
+                </button>
+              }
+            </mat-menu>
+            <span class="path-sep text-black dark:text-white whitespace-nowrap px-1 shrink-0">></span>
           }
-        </strong>
+          @for (pathElement of visiblePaths(); track $index) {
+            <span
+              class="path-item bg-neutral-800 px-1 rounded-lg cursor-pointer hover:bg-neutral-700
+                     transition-colors truncate max-w-37.5 shrink-0"
+              [title]="pathElement"
+              (click)="navigateOnClickPathElement($index + visibleStartIndex())"
+            >
+              {{ pathElement }}
+            </span>
+            @if ($index < visiblePaths().length - 1) {
+              <span class="path-sep text-black dark:text-white whitespace-nowrap px-1 shrink-0">></span>
+            }
+          }
+        </div>
       </div>
       <div class="flex items-end">
         <div class="px-4 py-2 bg-neutral-500 gap-2 flex items-center
                   text-white rounded-lg font-medium transition-colors"
         >
           <span class="text-md">({{ selectedCount() }}) Batch</span>
-          <button class="flex items-center hover:bg-neutral-400 hover:disabled:bg-neutral-500 
+          <button class="flex items-center hover:bg-neutral-400 hover:disabled:bg-neutral-500
                          disabled:cursor-no-drop rounded-full transition-colors"
             [matMenuTriggerFor]="batchMenu" [disabled]="selectedCount() == 0">
             <mat-icon fontIcon="arrow_drop_up"></mat-icon>
           </button>
           <mat-menu #batchMenu>
-            <button 
+            <button
               mat-menu-item
               (click)="openBatchOperationPanel()"
             >
               <mat-icon fontIcon="edit"></mat-icon>
               <span>Edit</span>
             </button>
-            <button 
+            <button
               mat-menu-item
               (click)="openBatchDeleteCheckPanel()"
             >
@@ -80,7 +102,7 @@
           </mat-menu>
         </div>
       </div>
-        
+
     </div>
   </div>
 </div>

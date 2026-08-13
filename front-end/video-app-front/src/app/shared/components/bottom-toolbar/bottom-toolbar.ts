@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal, viewChild, ElementRef, afterEveryRender, effect, untracked, DestroyRef } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from "@angular/material/button";
 import { PathHistoryService } from '../../../services/path-history-service/path-history.service';
@@ -18,6 +18,7 @@ export class BottomToolbar {
   pathHistoryService = inject(PathHistoryService)
   private toastService = inject(ToastService);
   private dialog = inject(MatDialog);
+  private destroyRef = inject(DestroyRef);
 
   currentPath = input.required<string[]>();
   hasSelection = input.required<boolean>();
@@ -34,7 +35,109 @@ export class BottomToolbar {
     return ["Root", ...this.currentPath()];
   });
 
+  private pathContainer = viewChild<ElementRef>('pathContainer');
+
+  visibleStartIndex = signal(0);
+  hasOverflow = computed(() => this.visibleStartIndex() > 0);
+  hiddenPaths = computed(() => this.paths().slice(0, this.visibleStartIndex()));
+  visiblePaths = computed(() => this.paths().slice(this.visibleStartIndex()));
+
   toolbarVisible = signal<boolean>(true);
+
+  private pendingMeasurement = false;
+  private cachedItemWidths: number[] = [];
+  private cachedSeparatorWidth = 0;
+  private resizeObserver: ResizeObserver | null = null;
+
+  constructor() {
+    effect(() => {
+      this.paths();
+      untracked(() => {
+        this.visibleStartIndex.set(0);
+        this.pendingMeasurement = true;
+      });
+    });
+
+    afterEveryRender(() => {
+      if (this.pendingMeasurement) {
+        this.pendingMeasurement = false;
+        this.measureAndCompute();
+      }
+    });
+
+    effect(() => {
+      const container = this.pathContainer()?.nativeElement;
+      untracked(() => {
+        this.resizeObserver?.disconnect();
+        if (container) {
+          this.resizeObserver = new ResizeObserver(() => {
+            if (this.cachedItemWidths.length > 0) {
+              this.computeVisibleStart((container as HTMLElement).clientWidth);
+            }
+          });
+          this.resizeObserver.observe(container);
+        }
+      });
+    });
+
+    this.destroyRef.onDestroy(() => {
+      this.resizeObserver?.disconnect();
+    });
+  }
+
+  private measureAndCompute() {
+    const container = this.pathContainer()?.nativeElement as HTMLElement;
+    if (!container) return;
+
+    const items = container.querySelectorAll('.path-item');
+    const separators = container.querySelectorAll('.path-sep');
+    if (items.length === 0) return;
+
+    this.cachedItemWidths = Array.from(items).map(el => (el as HTMLElement).offsetWidth);
+    this.cachedSeparatorWidth = separators.length > 0
+      ? (separators[0] as HTMLElement).offsetWidth
+      : 0;
+
+    this.computeVisibleStart(container.clientWidth);
+  }
+
+  private computeVisibleStart(containerWidth: number) {
+    if (containerWidth <= 0) return;
+
+    const totalWidth = this.cachedItemWidths.reduce((sum, w) => sum + w, 0)
+      + Math.max(0, this.cachedItemWidths.length - 1) * this.cachedSeparatorWidth;
+
+    if (totalWidth <= containerWidth) {
+      if (this.visibleStartIndex() !== 0) {
+        this.visibleStartIndex.set(0);
+      }
+      return;
+    }
+
+    const btnWidth = 48;
+    const availableWidth = containerWidth - btnWidth - this.cachedSeparatorWidth;
+
+    let currentWidth = 0;
+    let startIndex = this.cachedItemWidths.length;
+
+    for (let i = this.cachedItemWidths.length - 1; i >= 0; i--) {
+      const elementWidth = this.cachedItemWidths[i];
+      const sepWidth = (i < this.cachedItemWidths.length - 1) ? this.cachedSeparatorWidth : 0;
+      const addedWidth = elementWidth + sepWidth;
+
+      if (currentWidth + addedWidth > availableWidth) break;
+      currentWidth += addedWidth;
+      startIndex = i;
+    }
+
+    if (startIndex >= this.cachedItemWidths.length) {
+      startIndex = Math.max(0, this.cachedItemWidths.length - 1);
+    }
+
+    if (this.visibleStartIndex() !== startIndex) {
+      this.visibleStartIndex.set(startIndex);
+    }
+  }
 
   toggleToolbar() {
     this.toolbarVisible.update(v => !v);
@@ -83,7 +186,7 @@ export class BottomToolbar {
 
     this.dialog.open(DeleteCheckPanel, {
       width: '400px',
-      data: { 
+      data: {
         deleteType: DeleteType.Batch,
         videoCount: this.selectedIds().size,
         videoIds: this.selectedIds(),

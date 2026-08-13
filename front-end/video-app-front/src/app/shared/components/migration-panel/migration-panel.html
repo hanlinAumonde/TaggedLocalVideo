@@ -21,8 +21,9 @@
 
       <!-- Breadcrumb -->
       <div class="flex items-center gap-1 text-sm flex-wrap bg-gray-50 dark:bg-neutral-800 rounded px-2 py-1">
-        <button mat-icon-button class="w-6! h-6!" (click)="navigateToBreadcrumb(0)" matTooltip="Root">
-          <mat-icon fontIcon="home" class="text-base!"></mat-icon>
+        <button class="flex justify-center items-center w-7! h-5! hover:bg-gray-200 dark:hover:bg-neutral-700 rounded" 
+          (click)="navigateToBreadcrumb(0)" matTooltip="Root">
+          <mat-icon fontIcon="home"/>
         </button>
         @for (segment of browsePath(); track $index; let i = $index) {
           <mat-icon fontIcon="chevron_right" class="text-base! text-gray-400"></mat-icon>
