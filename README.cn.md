@@ -12,7 +12,8 @@
 - 📁 **目录浏览** - 多源文件系统目录浏览，支持 category 层级分类
 - 🖼️ **缩略图生成** - 基于ffmpeg的自动缩略图生成，支持可选的S3持久化存储
 - ☁️ **S3兼容存储** - 通过策略模式支持S3兼容存储后端（MinIO、RustFS等）
-- 📦 **文件迁移** - 在不同存储位置（本地/S3）之间迁移视频文件，支持预检验证、冲突处理、进度追踪和状态机驱动的任务生命周期
+- 📦 **文件迁移** - 在不同存储位置（本地/S3）之间迁移视频文件，支持预检验证、冲突处理和状态机驱动的任务生命周期
+- ⚙️ **后台任务** - 迁移在进程级 worker 池中执行，与客户端连接无关：关闭标签页或刷新页面都不会中断任务，进度订阅是纯观察者；进程重启后未完成的任务会从中断的阶段继续
 - ❤️ **收藏功能** - 视频收藏与播放统计
 - 📱 **响应式设计** - 适配多种屏幕尺寸
 
@@ -276,6 +277,13 @@ validation:
   page_number_max: 10000
   series_name_max_length: 100
 
+# 后台任务调度器
+tasks:
+  max_concurrent: 2            # 同时执行的任务数，也是 worker 池大小。
+                               # 迁移是 IO 密集型，调高反而会让任务互相抢带宽
+  progress_flush_interval: 3.0 # 进度写入 MongoDB 的间隔（秒）。实时进度保存在内存中，
+                               # 该值只决定「没有活跃订阅时」任务列表的数据能有多旧
+
 # 日志配置
 logging:
   log_dir: logs
@@ -361,6 +369,7 @@ video-app/
 │       ├── ffmpeg_service.py          # ffmpeg/ffprobe 封装：缩略图、时长、实时转码 (信号量限流)
 │       ├── video_stream_service.py    # 视频流服务 (Range 请求、分块传输、转码兜底)
 │       ├── tasks/                     # 任务服务
+│       │   ├── task_runner.py        # 后台任务调度器：FIFO 队列、worker 池、进度广播、崩溃恢复
 │       │   ├── state_machine.py      # 可复用的任务生命周期状态机
 │       │   └── migration_service.py  # 文件迁移编排 (复制、校验、清理)
 │       ├── cache/                     # 缓存服务
@@ -473,8 +482,8 @@ http://localhost:12000/graphql
 | `deleteVideo` | 删除视频 |
 | `recordVideoView` | 记录播放次数 |
 | `migrationPreflight` | 迁移预检验证（空间、冲突、重复检查） |
-| `createMigrationTask` | 创建并启动文件迁移任务 |
-| `cancelMigrationTask` | 取消正在运行的迁移任务 |
+| `createMigrationTask` | 创建文件迁移任务并投入后台调度器执行 |
+| `cancelMigrationTask` | 取消迁移任务（排队中立即结算，复制中为协作式中断） |
 
 ### 订阅 (Subscriptions)
 
@@ -482,8 +491,8 @@ http://localhost:12000/graphql
 |------|------|
 | `batchUpdateSubscription` | 批量更新视频（流式返回进度） |
 | `batchDeleteSubscription` | 批量删除视频（流式返回进度） |
-| `migrationProgressSubscription` | 流式传输迁移复制进度（已传输字节数） |
-| `migrationRetrySubscription` | 重试失败的迁移任务（流式返回进度） |
+| `migrationProgressSubscription` | 观察后台迁移任务的进度。订阅不会启动任务、退订也不会终止任务，因此刷新页面或多标签页同时观察都是安全的 |
+| `migrationRetrySubscription` | 重新调度失败的迁移任务，从失败的阶段续跑，并观察其进度 |
 
 ### HTTP 端点
 

@@ -12,7 +12,8 @@ English | [中文](README.cn.md)
 - 📁 **Directory Browsing** - Multi-source file system browsing with category-level classification
 - 🖼️ **Thumbnail Generation** - Automatic thumbnail generation using ffmpeg, with optional S3 persistent storage
 - ☁️ **S3-Compatible Storage** - Support for S3-compatible storage backends (MinIO, RustFS, etc.) via Strategy Pattern
-- 📦 **File Migration** - Migrate video files between storage locations (local/S3), with preflight checks, conflict handling, progress tracking, and state machine–driven task lifecycle
+- 📦 **File Migration** - Migrate video files between storage locations (local/S3), with preflight checks, conflict handling and a state machine–driven task lifecycle
+- ⚙️ **Background Tasks** - Migrations run in a process-wide worker pool, independent of any client connection: closing the tab or refreshing the page never interrupts a task, progress subscriptions are pure observers, and tasks left unfinished by a restart resume from the phase they stopped at
 - ❤️ **Favorites** - Video favorites and view statistics
 - 📱 **Responsive Design** - Adapts to various screen sizes
 
@@ -274,6 +275,15 @@ validation:
   page_number_max: 10000
   series_name_max_length: 100
 
+# Background task runner
+tasks:
+  max_concurrent: 2            # Tasks running at once; also the worker pool size.
+                               # Migrations are IO-bound, so a high value mostly makes
+                               # them compete for bandwidth.
+  progress_flush_interval: 3.0 # Seconds between progress writes to MongoDB. Live progress
+                               # is kept in memory, so this only bounds how stale the task
+                               # list looks to a client with no active subscription.
+
 # Logging configuration
 logging:
   log_dir: logs
@@ -359,6 +369,7 @@ video-app/
 │       ├── ffmpeg_service.py          # ffmpeg/ffprobe wrapper: thumbnail, duration, on-the-fly transcoding (semaphore-gated)
 │       ├── video_stream_service.py    # Video streaming (Range, chunked, transcoded fallback)
 │       ├── tasks/                     # Task services
+│       │   ├── task_runner.py        # Background job runner: FIFO queue, worker pool, progress broadcast, crash recovery
 │       │   ├── state_machine.py      # Reusable state machine for task lifecycle
 │       │   └── migration_service.py  # File migration orchestration (copy, verify, cleanup)
 │       ├── cache/                     # Cache service
@@ -470,8 +481,8 @@ http://localhost:12000/graphql
 | `deleteVideo` | Delete video |
 | `recordVideoView` | Record view count |
 | `migrationPreflight` | Pre-migration validation (space, conflicts, duplicate check) |
-| `createMigrationTask` | Create and start a file migration task |
-| `cancelMigrationTask` | Cancel a running migration task |
+| `createMigrationTask` | Create a file migration task and queue it on the background runner |
+| `cancelMigrationTask` | Cancel a migration task (immediate while queued, cooperative once copying) |
 
 ### Subscriptions
 
@@ -479,8 +490,8 @@ http://localhost:12000/graphql
 |--------------|-------------|
 | `batchUpdateSubscription` | Batch update videos (streaming progress) |
 | `batchDeleteSubscription` | Batch delete videos (streaming progress) |
-| `migrationProgressSubscription` | Stream migration copy progress (bytes transferred) |
-| `migrationRetrySubscription` | Retry a failed migration task with progress streaming |
+| `migrationProgressSubscription` | Observe a background migration's progress. Subscribing never starts the task and unsubscribing never stops it, so refreshing the page or watching from several tabs is safe |
+| `migrationRetrySubscription` | Re-queue a failed migration, resuming from the phase it failed at, then observe its progress |
 
 ### HTTP Endpoints
 
