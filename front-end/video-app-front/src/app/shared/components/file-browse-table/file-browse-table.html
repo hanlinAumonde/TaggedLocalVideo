@@ -127,9 +127,12 @@
                 <span>Delete All videos</span>
               </button>
             }@else{
-              <button mat-menu-item>
+              <!-- Every file operation is unavailable while a migration holds the file.
+                   The backend rejects them too; disabling here just avoids a pointless
+                   round trip and a confusing error. -->
+              <button mat-menu-item [disabled]="isLocked(item.node)">
                 <a
-                  [routerLink]="videoPage(item.node)"
+                  [routerLink]="isLocked(item.node) ? null : videoPage(item.node)"
                   target="_blank"
                   class="flex items-center"
                 >
@@ -137,15 +140,15 @@
                   <span>Play Video</span>
                 </a>
               </button>
-              <button mat-menu-item (click)="openEditPanel(item.node)">
+              <button mat-menu-item [disabled]="isLocked(item.node)" (click)="openEditPanel(item.node)">
                 <mat-icon fontIcon="edit"></mat-icon>
                 <span>Edit</span>
               </button>
-              <button mat-menu-item (click)="openMigrationPanel(item.node)">
+              <button mat-menu-item [disabled]="isLocked(item.node)" (click)="openMigrationPanel(item.node)">
                 <mat-icon fontIcon="drive_file_move"></mat-icon>
                 <span>Migrate</span>
               </button>
-              <button mat-menu-item (click)="deleteVideo(item.node)" class="text-red-600">
+              <button mat-menu-item [disabled]="isLocked(item.node)" (click)="deleteVideo(item.node)" class="text-red-600">
                 <mat-icon fontIcon="delete"></mat-icon>
                 <span>Delete</span>
               </button>
@@ -156,8 +159,10 @@
             [class.bg-blue-50]="isSelected(item.node.id)"
             [class.dark:bg-neutral-600]="isSelected(item.node.id)"
             [class.cursor-pointer]="item.node.isDir"
+            [class.cursor-not-allowed]="isLocked(item.node)"
+            [class.opacity-55]="isLocked(item.node)"
             [matContextMenuTriggerFor]="operateMenu"
-            (click)="nodeClick.emit(item)"
+            (click)="onRowClick(item)"
           >
             <!-- Checkbox -->
             <td class="w-12 shrink-0 px-4 py-3 flex items-center justify-center">
@@ -166,6 +171,7 @@
               } @else {
                 <mat-checkbox
                   [checked]="isSelected(item.node.id)"
+                  [disabled]="isLocked(item.node)"
                   (change)="selectionToggle.emit(item.node.id)"
                   (click)="$event.stopPropagation()"
                 />
@@ -192,6 +198,16 @@
                 </span>
               } @else {
                 <span class="truncate font-medium" [matTooltip]="item.node.name">{{ item.node.name }}</span>
+                @if (isLocked(item.node)) {
+                  <span
+                    class="ml-2 shrink-0 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs whitespace-nowrap
+                           bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                    matTooltip="A migration task is holding this file; operations are unavailable until it finishes"
+                  >
+                    <mat-icon class="text-sm! w-3.5! h-3.5! leading-none animate-spin" fontIcon="sync"></mat-icon>
+                    Migrating
+                  </span>
+                }
               }
             </td>
 

@@ -1,7 +1,18 @@
 @if (video()) {
-  <a [routerLink]="['/video', video()!.id]" target="_blank">
+  <!-- A locked video gets a null routerLink: the anchor renders without an href, so the
+       click does nothing at all rather than being intercepted after the fact. -->
+  <a
+    [routerLink]="isLocked() ? null : ['/video', video()!.id]"
+    [attr.aria-disabled]="isLocked() ? true : null"
+    target="_blank"
+  >
     <mat-card
-      class="@container w-full hover:shadow-lg transition-shadow cursor-pointer m-3"
+      class="@container w-full transition-shadow m-3"
+      [class.hover:shadow-lg]="!isLocked()"
+      [class.cursor-pointer]="!isLocked()"
+      [class.cursor-not-allowed]="isLocked()"
+      [class.opacity-60]="isLocked()"
+      [matTooltip]="isLocked() ? 'This video is being migrated and cannot be opened' : ''"
     >
       <!-- 16:9 -->
       <div class="relative w-full pt-[56.25%] rounded-t-md bg-gray-200 dark:bg-gray-700 overflow-hidden">
@@ -12,7 +23,16 @@
           [class.object-cover]="!isDefaultThumbnail()"
           [class.object-contain]="isDefaultThumbnail()"
           [class.p-4]="isDefaultThumbnail()"
+          [class.grayscale]="isLocked()"
         />
+        @if(isLocked()){
+          <div class="absolute inset-0 flex items-center justify-center bg-black/45">
+            <div class="flex items-center gap-[2cqw] rounded-[4cqw] bg-black/75 px-[3cqw] py-[1.5cqw]">
+              <mat-icon class="text-white! text-[6cqw]! w-[6cqw]! h-[6cqw]! leading-none">sync</mat-icon>
+              <span class="text-white! text-[5cqw] font-semibold">Migrating</span>
+            </div>
+          </div>
+        }
         @if(video()?.duration && video()!.duration > 0){
           <div
             class="absolute rounded-[6cqw] bottom-[3cqw] right-[3cqw] bg-black/70!">

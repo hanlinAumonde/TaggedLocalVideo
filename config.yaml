@@ -59,6 +59,11 @@ validation:
   page_number_max: 10000
   series_name_max_length: 100
 
+# Background task runner
+tasks:
+  max_concurrent: 2
+  progress_flush_interval: 3.0
+
 # Logging config
 logging:
   log_dir: logs

@@ -26,6 +26,7 @@ from src.services.resource_handler.absolute_path import AbsolutePath
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
 from src.services.tag_operation_service import TagOperationService
+from src.services.tasks.migration_service import find_locked_paths
 from src.services.thumbnail_service import ThumbnailService
 
 logger = get_logger("query_resolver")
@@ -95,22 +96,27 @@ async def resolve_search_videos(input: VideoSearchInput, info: strawberry.Info) 
         total_count = await query.count()
         video_models = await query.sort(sort_criteria).skip(skip).limit(page_size).to_list()
 
+        # One lookup for the whole page rather than one per video.
+        locked_paths = await find_locked_paths(vm.path for vm in video_models)
+
         async def get_video(video_model: VideoModel, info: strawberry.Info = info) -> Video:
             handlerService: ResourceHandlerService = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
             ffmpegService: FFmpegService = get_context_value(info, ContextEnum.FFMPEG_SERVICE)
-            
+
             if video_model.duration is None or video_model.duration == 0.0:
                 handler = handlerService.get_handler(video_model.category)
                 video_path = AbsolutePath.from_existing_path(
-                    path=video_model.path, 
+                    path=video_model.path,
                     category=video_model.category,
                     handler=handler
                 ).FS_format_path()
                 duration = await ffmpegService.get_video_duration(handler, video_path)
                 video_model.duration = duration
                 await video_model.save()
-            return await Video.from_mongoDB(video_model)
-        
+            return await Video.from_mongoDB(
+                video_model, isLocked=video_model.path in locked_paths
+            )
+
         # build results
         videos = [await get_video(vm) for vm in video_models]
         pagination = Pagination(
@@ -231,7 +237,13 @@ async def resolve_get_video_by_id(videoId: strawberry.ID) -> Video:
     if not video_model:
         logger.exception(f"Video not found: {videoId}")
         raise VideoNotFoundError(str(videoId))
-    return await Video.from_mongoDB(video_model)
+
+    # Returned rather than refused: the player page needs the metadata in order to show
+    # why playback is unavailable.
+    locked_paths = await find_locked_paths([video_model.path])
+    return await Video.from_mongoDB(
+        video_model, isLocked=video_model.path in locked_paths
+    )
 
 async def resolve_browse_directory(input: RelativePathInput, info: strawberry.Info) -> list[FileBrowseNode]:
     """
@@ -298,7 +310,11 @@ async def resolve_get_series_videos(name: str, info: strawberry.Info) -> list[Vi
         seriesService: SeriesService = get_context_value(info, ContextEnum.SERIES_SERVICE)
         valid_categories = settings.get_valid_categories()
         video_models = await seriesService.get_videos_in_series(name, valid_categories)
-        return [await Video.from_mongoDB(vm) for vm in video_models]
+        locked_paths = await find_locked_paths(vm.path for vm in video_models)
+        return [
+            await Video.from_mongoDB(vm, isLocked=vm.path in locked_paths)
+            for vm in video_models
+        ]
     except Exception as e:
         logger.exception(f"Database operation error during get series videos: {e}")
         raise DatabaseOperationError(operation="get series videos", details=f"Name-{name}")

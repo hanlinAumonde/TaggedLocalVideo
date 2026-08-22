@@ -65,6 +65,7 @@ query GetVideoById($videoId: ID!) {
     seriesName
     seriesOrder
     thumbnail
+    isLocked
     tags { name count }
   }
 }

@@ -18,13 +18,20 @@
         @for (item of seriesVideos().data; track item.id; let i = $index) {
           <li
             #itemRef
-            class="flex items-center gap-2 p-2 rounded transition-colors cursor-pointer"
+            class="flex items-center gap-2 p-2 rounded transition-colors"
+            [class.cursor-pointer]="!item.isLocked"
+            [class.cursor-not-allowed]="item.isLocked"
+            [class.opacity-55]="item.isLocked"
             [class.bg-blue-100]="item.id === currentVideoId()"
             [class.dark:bg-neutral-500/20]="item.id === currentVideoId()"
-            [class.hover:bg-gray-100]="item.id !== currentVideoId()"
-            [class.dark:hover:bg-neutral-600/20]="item.id !== currentVideoId()">
+            [class.hover:bg-gray-100]="item.id !== currentVideoId() && !item.isLocked"
+            [class.dark:hover:bg-neutral-600/20]="item.id !== currentVideoId() && !item.isLocked">
+            <!-- Null routerLink for a locked entry: the anchor renders without an href,
+                 so navigation into an unplayable video never starts. -->
             <a
-              [routerLink]="linkToVideo(item.id)"
+              [routerLink]="item.isLocked ? null : linkToVideo(item.id)"
+              [attr.aria-disabled]="item.isLocked ? true : null"
+              [title]="item.isLocked ? 'This video is being migrated and cannot be played' : null"
               class="flex items-center gap-3 flex-1 min-w-0 no-underline text-inherit">
               <span class="text-xs font-mono text-gray-500 w-6 text-right shrink-0">
                 {{ item.seriesOrder ?? i + 1 }}.
@@ -34,7 +41,13 @@
                   [src]="thumbnailFor(item.id)"
                   [alt]="item.name"
                   class="w-full h-full object-cover"
+                  [class.grayscale]="item.isLocked"
                   loading="lazy" />
+                @if (item.isLocked) {
+                  <span class="absolute inset-0 flex items-center justify-center bg-black/50">
+                    <mat-icon class="text-white! text-base! w-4! h-4! leading-none animate-spin">sync</mat-icon>
+                  </span>
+                }
                 <span class="absolute bottom-0 right-0 text-[10px] px-1 bg-black/70 text-white rounded-tl">
                   {{ formatDuration(item.duration) }}
                 </span>

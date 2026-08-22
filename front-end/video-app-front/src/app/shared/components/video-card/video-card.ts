@@ -2,12 +2,14 @@ import { Component, computed, effect, inject, input, signal } from '@angular/cor
 import { RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { SearchedVideo } from '../../models/GQL-result.model';
 import { HttpClientService } from '../../../services/Http-client-service/Http-client.service';
 
 @Component({
   selector: 'app-video-card',
-  imports: [RouterLink, MatCardModule, MatChipsModule],
+  imports: [RouterLink, MatCardModule, MatChipsModule, MatIconModule, MatTooltipModule],
   templateUrl: './video-card.html',
 })
 export class VideoCard {
@@ -19,6 +21,9 @@ export class VideoCard {
 
   thumbnailSrc = signal(this.defaultThumbnail);
   isDefaultThumbnail = signal(true);
+
+  /** A video held by a migration task cannot be opened until the task settles. */
+  isLocked = computed(() => this.video()?.isLocked ?? false);
 
   formattedDuration = computed(() => {
     const totalSeconds = this.video()?.duration ?? 0.0;
