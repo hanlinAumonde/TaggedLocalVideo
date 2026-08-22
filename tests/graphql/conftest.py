@@ -20,6 +20,7 @@ import pytest_asyncio
 
 from src.config import Settings
 from src.context import ContextEnum
+from src.db.models.MigrationTask_model import TaskStatus
 from src.schema.strawberry_schema import schema as gql_schema
 from src.services.batch_operation_service import BatchOperationService
 from src.services.browse_file_service import BrowseFileService
@@ -27,6 +28,7 @@ from src.services.cache.cache_service import CacheService
 from src.services.dir_metadata_service import DirMetadataService
 from src.services.ffmpeg_service import FFmpegService
 from src.services.tasks.migration_service import MigrationService
+from src.services.tasks.task_runner import TaskRunner
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
 from src.services.tag_operation_service import TagOperationService
@@ -155,7 +157,21 @@ def mock_batch_operation_service() -> MagicMock:
 def mock_migration_service() -> MagicMock:
     svc = MagicMock(spec=MigrationService, name="MigrationService")
     svc.is_file_locked = AsyncMock(return_value=False)
+    svc.prepare_retry = AsyncMock(return_value=TaskStatus.PROCESSING)
     return svc
+
+
+@pytest.fixture
+def mock_task_runner() -> MagicMock:
+    """By default the runner accepts submissions and observes nothing."""
+    runner = MagicMock(spec=TaskRunner, name="TaskRunner")
+    runner.submit = AsyncMock(return_value=None)
+
+    async def _empty(*_a, **_kw):
+        if False:
+            yield
+    runner.observe.side_effect = _empty
+    return runner
 
 
 # -----------------------------------------------------------------------
@@ -194,6 +210,7 @@ def graphql_context(
     mock_browse_file_service: MagicMock,
     mock_batch_operation_service: MagicMock,
     mock_migration_service: MagicMock,
+    mock_task_runner: MagicMock,
 ) -> dict[ContextEnum, Any]:
     """Context dict matching ``src.context.get_context``'s return shape."""
     return {
@@ -208,6 +225,7 @@ def graphql_context(
         ContextEnum.BROWSE_FILE_SERVICE: mock_browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: mock_batch_operation_service,
         ContextEnum.MIGRATION_SERVICE: mock_migration_service,
+        ContextEnum.TASK_RUNNER: mock_task_runner,
     }
 
 
