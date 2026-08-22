@@ -11,6 +11,7 @@ from src.services.cache.cache_service import CacheService
 from src.services.dir_metadata_service import DirMetadataService
 from src.services.ffmpeg_service import FFmpegService
 from src.services.tasks.migration_service import MigrationService
+from src.services.tasks.task_runner import TaskRunner
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.services.series_service import SeriesService
 from src.services.tag_operation_service import TagOperationService
@@ -29,6 +30,7 @@ class ContextEnum(Enum):
     BROWSE_FILE_SERVICE = BrowseFileService
     BATCH_OPERATION_SERVICE = BatchOperationService
     MIGRATION_SERVICE = MigrationService
+    TASK_RUNNER = TaskRunner
 
 _cache_service: CacheService | None = None
 _resource_handler_service: ResourceHandlerService | None = None
@@ -36,6 +38,7 @@ _ffmpeg_service: FFmpegService | None = None
 _tag_operation_service: TagOperationService | None = None
 _series_service: SeriesService | None = None
 _migration_service: MigrationService | None = None
+_task_runner: TaskRunner | None = None
 
 def get_cache_service(settings: Settings = Depends(get_settings)):
     global _cache_service
@@ -124,14 +127,45 @@ def get_batch_operation_service(
 def get_migration_service(
     resource_handler_service=Depends(get_resource_handler_service),
     dir_metadata_service=Depends(get_dir_metadata_service),
+    settings: Settings = Depends(get_settings),
 ):
     global _migration_service
     if _migration_service is None:
         _migration_service = MigrationService(
             resource_handler_service=resource_handler_service,
             dir_metadata_service=dir_metadata_service,
+            progress_flush_interval=settings.tasks.progress_flush_interval,
         )
     return _migration_service
+
+def get_task_runner(settings: Settings = Depends(get_settings)):
+    global _task_runner
+    if _task_runner is None:
+        _task_runner = TaskRunner(max_concurrent=settings.tasks.max_concurrent)
+    return _task_runner
+
+async def init_task_runner() -> TaskRunner:
+    """
+    Build the runner and its executors eagerly at startup. Called from the app lifespan,
+    where the Depends() machinery is not available, so the dependency chain is resolved
+    by hand — the module-level singletons make later request-scoped lookups return these
+    same instances.
+    """
+    settings = get_settings()
+    resource_handler_service = get_resource_handler_service(settings)
+    cache_service = get_cache_service(settings)
+    dir_metadata_service = get_dir_metadata_service(
+        settings, resource_handler_service, cache_service
+    )
+    migration_service = get_migration_service(
+        resource_handler_service, dir_metadata_service, settings
+    )
+
+    runner = get_task_runner(settings)
+    runner.register_executor("migration", migration_service)
+    runner.start()
+    await runner.recover()
+    return runner
 
 def get_video_stream_service(
     resource_handler_service = Depends(get_resource_handler_service),
@@ -155,6 +189,7 @@ async def get_context(
     browse_file_service: BrowseFileService = Depends(get_browse_file_service),
     batch_operation_service: BatchOperationService = Depends(get_batch_operation_service),
     migration_service: MigrationService = Depends(get_migration_service),
+    task_runner: TaskRunner = Depends(get_task_runner),
 ):
     return {
         ContextEnum.SETTINGS: settings,
@@ -168,6 +203,7 @@ async def get_context(
         ContextEnum.BROWSE_FILE_SERVICE: browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: batch_operation_service,
         ContextEnum.MIGRATION_SERVICE: migration_service,
+        ContextEnum.TASK_RUNNER: task_runner,
     }
 
 def get_context_value(info: strawberry.Info, key: ContextEnum):

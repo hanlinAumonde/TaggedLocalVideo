@@ -36,6 +36,41 @@ async def test_get_video_by_id_with_tags(execute_gql, video_factory):
     assert tag_names == ["action", "drama"]
 
 
+async def test_get_video_by_id_unlocked_by_default(execute_gql, video_factory):
+    video = await video_factory(name="free")
+    result = await execute_gql(GET_VIDEO_BY_ID, {"videoId": str(video.id)})
+
+    assert_no_errors(result)
+    assert result.data["getVideoById"]["isLocked"] is False
+
+
+async def test_get_video_by_id_reports_migration_lock(execute_gql, video_factory):
+    """A video mid-migration is still returned, but flagged so the UI can block playback."""
+    import time
+
+    from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
+
+    video = await video_factory(name="moving")
+    now = time.time()
+    await MigrationTaskModel(
+        source_path=video.path,
+        source_category=video.category,
+        target_path="Target-category/Target-resource/moving.mp4",
+        target_category="Target-category",
+        file_name="moving",
+        file_size=100,
+        status=TaskStatus.PROCESSING,
+        created_at=now,
+        updated_at=now,
+    ).insert()
+
+    result = await execute_gql(GET_VIDEO_BY_ID, {"videoId": str(video.id)})
+
+    assert_no_errors(result)
+    assert result.data["getVideoById"]["isLocked"] is True
+    assert result.data["getVideoById"]["name"] == "moving"
+
+
 async def test_get_video_by_id_not_found(execute_gql, init_db):
     missing_id = str(ObjectId())
     result = await execute_gql(GET_VIDEO_BY_ID, {"videoId": missing_id})

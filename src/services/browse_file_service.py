@@ -11,6 +11,7 @@ from src.services.resource_handler.base_file_entry import BaseFileEntry
 from src.services.resource_handler.resource_handler_service import ResourceHandlerService
 from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.video_type import Video
+from src.services.tasks.migration_service import find_locked_paths
 
 logger = get_logger("browse_file_service")
 
@@ -75,6 +76,9 @@ class BrowseFileService:
             else:
                 category = abs_path.category
                 handler = self.resourceHandlerService.get_handler(category)
+                # (node, DB path) for each file, so one bulk lock lookup can mark them all
+                # once the walk is done.
+                file_nodes: list[tuple[FileBrowseNode, str]] = []
                 with handler.list_directory(abs_path.FS_format_path()) as entries:
                     hasNewFileFlag = False
                     for entry in entries:
@@ -112,17 +116,23 @@ class BrowseFileService:
                                     upsert=True, return_document=True
                                 )
 
-                                fileBrowse_nodes.append(
-                                    FileBrowseNode(
-                                        node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
-                                    )
+                                file_node = FileBrowseNode(
+                                    node=await Video.from_mongoDB(VideoModel(**video_doc), getTagsCount=False)
                                 )
+                                fileBrowse_nodes.append(file_node)
+                                file_nodes.append((file_node, entry_path.DB_format_path()))
                         except OSError as e:
                             logger.exception(f"Error processing file {entry.path}: {e}")
                             continue
 
                     if hasNewFileFlag:
                         await self.dirMetadataService.update_directory_metadata_forward(abs_path)
+
+                # Mark files held by a migration so the browser can disable them.
+                if file_nodes:
+                    locked_paths = await find_locked_paths(path for _, path in file_nodes)
+                    for file_node, path in file_nodes:
+                        file_node.node.isLocked = path in locked_paths
 
         except (OSError, Exception) as e:
             logger.exception(f"Error accessing directory {abs_path}: {e}")

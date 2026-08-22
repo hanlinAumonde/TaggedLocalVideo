@@ -328,6 +328,7 @@ export type Video = {
   id: Scalars['ID']['output'];
   introduction: Scalars['String']['output'];
   isDir: Scalars['Boolean']['output'];
+  isLocked: Scalars['Boolean']['output'];
   lastModifyTime: Scalars['Float']['output'];
   lastViewTime: Scalars['Float']['output'];
   loved: Scalars['Boolean']['output'];
@@ -456,7 +457,7 @@ export type SearchVideosQueryVariables = Exact<{
 }>;
 
 
-export type SearchVideosQuery = { __typename?: 'Query', SearchVideos: { __typename?: 'VideoSearchResult', pagination: { __typename?: 'Pagination', size: number, totalCount: number, currentPageNumber: number }, videos: Array<{ __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, thumbnail?: string | null, duration: number }> } };
+export type SearchVideosQuery = { __typename?: 'Query', SearchVideos: { __typename?: 'VideoSearchResult', pagination: { __typename?: 'Pagination', size: number, totalCount: number, currentPageNumber: number }, videos: Array<{ __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, thumbnail?: string | null, duration: number, isLocked: boolean }> } };
 
 export type GetTopTagsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -473,7 +474,7 @@ export type GetVideoByIdQueryVariables = Exact<{
 }>;
 
 
-export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, duration: number, seriesName?: string | null, seriesOrder?: number | null, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
+export type GetVideoByIdQuery = { __typename?: 'Query', getVideoById: { __typename?: 'Video', id: string, name: string, author: string, viewCount: number, loved: boolean, lastViewTime: number, lastModifyTime: number, introduction: string, duration: number, seriesName?: string | null, seriesOrder?: number | null, isLocked: boolean, tags: Array<{ __typename?: 'VideoTag', name: string }> } };
 
 export type SearchSeriesByPrefixQueryVariables = Exact<{
   prefix: Scalars['String']['input'];
@@ -488,7 +489,7 @@ export type GetSeriesVideosQueryVariables = Exact<{
 }>;
 
 
-export type GetSeriesVideosQuery = { __typename?: 'Query', getSeriesVideos: Array<{ __typename?: 'Video', id: string, name: string, seriesOrder?: number | null, thumbnail?: string | null, duration: number }> };
+export type GetSeriesVideosQuery = { __typename?: 'Query', getSeriesVideos: Array<{ __typename?: 'Video', id: string, name: string, seriesOrder?: number | null, thumbnail?: string | null, duration: number, isLocked: boolean }> };
 
 export type GetSuggestionsQueryVariables = Exact<{
   input: SuggestionInput;
@@ -502,7 +503,7 @@ export type BrowseDirectoryQueryVariables = Exact<{
 }>;
 
 
-export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, seriesName?: string | null, seriesOrder?: number | null, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
+export type BrowseDirectoryQuery = { __typename?: 'Query', browseDirectory: Array<{ __typename?: 'FileBrowseNode', node: { __typename?: 'Video', id: string, isDir: boolean, name: string, author: string, loved: boolean, lastModifyTime: number, introduction: string, size: number, duration: number, seriesName?: string | null, seriesOrder?: number | null, isLocked: boolean, tags: Array<{ __typename?: 'VideoTag', name: string }> } }> };
 
 export type GetDirectoryMetadataQueryVariables = Exact<{
   input: RelativePathInput;
@@ -789,6 +790,7 @@ export const SearchVideosDocument = gql`
       lastModifyTime
       thumbnail
       duration
+      isLocked
     }
   }
 }
@@ -858,6 +860,7 @@ export const GetVideoByIdDocument = gql`
     duration
     seriesName
     seriesOrder
+    isLocked
   }
 }
     `;
@@ -896,6 +899,7 @@ export const GetSeriesVideosDocument = gql`
     seriesOrder
     thumbnail
     duration
+    isLocked
   }
 }
     `;
@@ -944,6 +948,7 @@ export const BrowseDirectoryDocument = gql`
       duration
       seriesName
       seriesOrder
+      isLocked
     }
   }
 }

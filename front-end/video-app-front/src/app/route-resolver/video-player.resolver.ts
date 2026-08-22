@@ -31,8 +31,17 @@ export const VideoMetaDataResolver: ResolveFn<ResultState<VideoDetail | null> | 
         switchMap(result => {
             if (result.error) {
                 toastService.emitNewToast(
-                    `Failed to resolve video metadata: ${result.error}`, 
+                    `Failed to resolve video metadata: ${result.error}`,
                     ToastType.Error
+                );
+                return of(new RedirectCommand(router.parseUrl(environment.homepage_api)));
+            }
+            // Playback is blocked for the whole migration, not just the delete step: the
+            // source file disappears partway through and the player would break mid-stream.
+            if (result.data?.isLocked) {
+                toastService.emitNewToast(
+                    'This video is being migrated and cannot be played right now.',
+                    ToastType.Warning
                 );
                 return of(new RedirectCommand(router.parseUrl(environment.homepage_api)));
             }

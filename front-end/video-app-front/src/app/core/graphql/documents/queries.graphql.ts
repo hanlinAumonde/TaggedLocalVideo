@@ -18,6 +18,7 @@ export const SEARCH_VIDEOS = gql`
         lastModifyTime
         thumbnail
         duration
+        isLocked
       }
     }
   }
@@ -57,6 +58,7 @@ export const GET_VIDEO_BY_ID = gql`
       duration
       seriesName
       seriesOrder
+      isLocked
     }
   }
 `;
@@ -75,6 +77,7 @@ export const GET_SERIES_VIDEOS = gql`
       seriesOrder
       thumbnail
       duration
+      isLocked
     }
   }
 `;
@@ -103,6 +106,7 @@ export const BROWSE_DIRECTORY = gql`
         duration
         seriesName
         seriesOrder
+        isLocked
       }
     }
   }

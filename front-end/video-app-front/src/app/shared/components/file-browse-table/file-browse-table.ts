@@ -9,7 +9,8 @@ import {
   inject,
   signal,
   DestroyRef,
-  afterNextRender
+  afterNextRender,
+  untracked
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,6 +22,7 @@ import { ResultState, BrowsedVideo, FileBrowseNode } from '../../models/GQL-resu
 import { SortCriterion } from '../../models/management.model';
 import { environment } from '../../../../environments/environment';
 import { ToastService } from '../../../services/toast-service/toast.service';
+import { ToastType } from '../../models/toast.model';
 import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
@@ -71,6 +73,7 @@ export class FileBrowseTable {
 
   private toastService = inject(ToastService);
   private dialog = inject(MatDialog);
+  private resizeObserver: ResizeObserver | null = null;
   private destroyRef = inject(DestroyRef);
 
   // --- Column Resize ---
@@ -182,16 +185,24 @@ export class FileBrowseTable {
   constructor() {
     effect(() => this.resizeCallback());
 
-    const handleResize = () => {
-      this.resizeCallback();
-      this.adjustColumnWidthsOnResize();
-    };
-    window.addEventListener('resize', handleResize);
+    effect(() => {
+      const tableEl = this.tableElement()?.nativeElement;
+      untracked(() => {
+        if (tableEl) {
+          this.resizeObserver?.disconnect();
+          this.resizeObserver = new ResizeObserver(() => {
+            this.resizeCallback();
+            this.adjustColumnWidthsOnResize();
+          });
+          this.resizeObserver.observe(tableEl);
+        }
+      });
+    });
 
     afterNextRender(() => this.initColumnWidthsFromDOM());
 
     this.destroyRef.onDestroy(() => {
-      window.removeEventListener('resize', handleResize);
+      this.resizeObserver?.disconnect();
     });
   }
 
@@ -269,6 +280,29 @@ export class FileBrowseTable {
 
   isSelected(id: string): boolean {
     return this.selectedIds().has(id);
+  }
+
+  /**
+   * Whether a migration task currently holds this file. Directories are never locked —
+   * a migration targets a single file.
+   */
+  isLocked(node: BrowsedVideo): boolean {
+    return !node.isDir && node.isLocked;
+  }
+
+  /**
+   * Row click either enters a directory or toggles selection. Locked files do neither:
+   * every operation reachable from a selection would be rejected by the backend anyway.
+   */
+  onRowClick(item: FileBrowseNode) {
+    if (this.isLocked(item.node)) {
+      this.toastService.emitNewToast(
+        `"${item.node.name}" is being migrated and cannot be modified.`,
+        ToastType.Warning
+      );
+      return;
+    }
+    this.nodeClick.emit(item);
   }
 
   formatSize(bytes: number): string {

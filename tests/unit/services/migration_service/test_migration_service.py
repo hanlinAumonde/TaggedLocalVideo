@@ -262,7 +262,7 @@ class TestCancelTask:
         task = await task_factory(status=TaskStatus.PROCESSING)
 
         result = await two_cat_migration_svc.cancel_task(str(task.id))
-        assert two_cat_migration_svc._cancel_flags.get(str(task.id)) is True
+        assert two_cat_migration_svc._cancel_requested.get(str(task.id)) is True
 
     async def test_cancel_nonexistent_raises(self, two_cat_migration_svc, init_db):
         from bson import ObjectId
@@ -279,10 +279,10 @@ class TestCancelTask:
 
 
 # =======================================================================
-# execute_migration — full integration through all phases
+# run_task — full integration through all phases
 # =======================================================================
 
-class TestExecuteMigration:
+class TestRunTask:
     async def test_full_migration_flow(
         self, two_cat_migration_svc, init_db, two_cat_handler_service,
         video_factory, local_resource_dir, target_dir,
@@ -299,7 +299,7 @@ class TestExecuteMigration:
         target = _abs(hs, "Target-category", "Target-resource", None)
 
         task = await svc.create_task(source, target, conflict_strategy=None)
-        events = await _collect(svc.execute_migration(str(task.id)))
+        events = await _collect(svc.run_task(str(task.id)))
 
         assert len(events) >= 3
 
@@ -317,19 +317,72 @@ class TestExecuteMigration:
         assert video is not None
         assert video.category == "Target-category"
 
-    async def test_execute_nonexistent_task_raises(
+    async def test_execute_nonexistent_task_is_a_noop(
         self, two_cat_migration_svc, init_db,
     ):
+        """A worker must not crash on a task that vanished; it just produces nothing."""
         from bson import ObjectId
-        with pytest.raises(InputValidationError, match="does not exist"):
-            await _collect(two_cat_migration_svc.execute_migration(str(ObjectId())))
+        assert await _collect(two_cat_migration_svc.run_task(str(ObjectId()))) == []
 
-    async def test_execute_non_pending_task_raises(
+    async def test_execute_terminal_task_is_a_noop(
         self, two_cat_migration_svc, init_db, task_factory,
     ):
+        """Re-submitting a settled task must never re-run it."""
         task = await task_factory(status=TaskStatus.COMPLETED)
-        with pytest.raises(InputValidationError, match="does not allow execution"):
-            await _collect(two_cat_migration_svc.execute_migration(str(task.id)))
+        assert await _collect(two_cat_migration_svc.run_task(str(task.id))) == []
+
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.status == TaskStatus.COMPLETED
+
+    async def test_cancelled_while_queued_settles_without_copying(
+        self, two_cat_migration_svc, init_db, task_factory,
+    ):
+        """A task cancelled before a worker picks it up must not start the copy."""
+        svc = two_cat_migration_svc
+        task = await task_factory(status=TaskStatus.PENDING)
+        svc.request_cancel(str(task.id))
+
+        events = await _collect(svc.run_task(str(task.id)))
+
+        assert len(events) == 1
+        assert events[0].status == TaskStatus.CANCELLED
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.status == TaskStatus.CANCELLED
+
+    async def test_start_from_skips_earlier_phases(
+        self, two_cat_migration_svc, init_db, two_cat_handler_service,
+        video_factory, local_resource_dir, target_dir, task_factory,
+    ):
+        """Resuming from DELETING_SOURCE must not re-copy nor re-touch the DB record."""
+        svc = two_cat_migration_svc
+        hs = two_cat_handler_service
+
+        source_handler = hs.get_handler("Test-category")
+        source_fs = str(local_resource_dir / "movie_a.mp4").replace("\\", "/")
+        source_db = source_handler.convert_to_DB_format_path(source_fs)
+
+        target_handler = hs.get_handler("Target-category")
+        target_fs = str(target_dir / "movie_a.mp4").replace("\\", "/")
+        target_db = target_handler.convert_to_DB_format_path(target_fs)
+
+        # Simulate a crash right after DB_UPDATED: target file present, record moved.
+        (target_dir / "movie_a.mp4").write_bytes(b"a" * 100)
+        await video_factory(name="movie_a", path=target_db, category="Target-category")
+
+        task = await task_factory(
+            source_path=source_db,
+            target_path=target_db,
+            target_category="Target-category",
+            status=TaskStatus.DB_UPDATED,
+            file_size=100,
+        )
+
+        await _collect(svc.run_task(str(task.id), start_from=TaskStatus.DELETING_SOURCE))
+
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.status == TaskStatus.COMPLETED
+        assert not (local_resource_dir / "movie_a.mp4").exists()
+        assert (target_dir / "movie_a.mp4").read_bytes() == b"a" * 100
 
     async def test_migration_with_overwrite(
         self, two_cat_migration_svc, init_db, two_cat_handler_service,
@@ -355,7 +408,7 @@ class TestExecuteMigration:
         target = _abs(hs, "Target-category", "Target-resource", None)
 
         task = await svc.create_task(source, target, conflict_strategy="overwrite")
-        await _collect(svc.execute_migration(str(task.id)))
+        await _collect(svc.run_task(str(task.id)))
 
         refreshed = await MigrationTaskModel.get(task.id)
         assert refreshed.status == TaskStatus.COMPLETED
@@ -384,7 +437,7 @@ class TestExecuteMigration:
         target = _abs(hs, "Target-category", "Target-resource", None)
 
         task = await svc.create_task(source, target, conflict_strategy="rename")
-        await _collect(svc.execute_migration(str(task.id)))
+        await _collect(svc.run_task(str(task.id)))
 
         assert (target_dir / "movie_a(1).mp4").exists()
         assert (target_dir / "movie_a(1).mp4").read_bytes() == b"a" * 100
@@ -392,10 +445,10 @@ class TestExecuteMigration:
 
 
 # =======================================================================
-# retry_task
+# prepare_retry
 # =======================================================================
 
-class TestRetryTask:
+class TestPrepareRetry:
     async def test_retry_failed_task(
         self, two_cat_migration_svc, init_db, two_cat_handler_service,
         video_factory, local_resource_dir, target_dir, task_factory,
@@ -422,23 +475,169 @@ class TestRetryTask:
             error_message="previous failure",
         )
 
-        events = await _collect(svc.retry_task(str(task.id)))
+        start_from = await svc.prepare_retry(str(task.id))
+        assert start_from == TaskStatus.PROCESSING
+
+        reset = await MigrationTaskModel.get(task.id)
+        assert reset.status == TaskStatus.PENDING
+        assert reset.error_message is None
+        assert reset.failed_step is None
+
+        events = await _collect(svc.run_task(str(task.id), start_from=start_from))
         assert len(events) >= 1
 
         refreshed = await MigrationTaskModel.get(task.id)
         assert refreshed.status == TaskStatus.COMPLETED
 
+    async def test_retry_resumes_from_recorded_step(
+        self, two_cat_migration_svc, init_db, task_factory,
+    ):
+        """failed_step must survive the DB round-trip and map onto a resumable phase."""
+        task = await task_factory(
+            status=TaskStatus.FAILED,
+            failed_step=TaskStatus.DB_UPDATED.value,
+        )
+        assert await two_cat_migration_svc.prepare_retry(str(task.id)) == TaskStatus.DELETING_SOURCE
+
+    async def test_retry_tolerates_unparsable_failed_step(
+        self, two_cat_migration_svc, init_db, task_factory,
+    ):
+        task = await task_factory(status=TaskStatus.FAILED, failed_step="garbage")
+        assert await two_cat_migration_svc.prepare_retry(str(task.id)) == TaskStatus.PROCESSING
+
     async def test_retry_nonexistent_raises(self, two_cat_migration_svc, init_db):
         from bson import ObjectId
         with pytest.raises(InputValidationError, match="does not exist"):
-            await _collect(two_cat_migration_svc.retry_task(str(ObjectId())))
+            await two_cat_migration_svc.prepare_retry(str(ObjectId()))
 
     async def test_retry_non_failed_raises(
         self, two_cat_migration_svc, init_db, task_factory,
     ):
         task = await task_factory(status=TaskStatus.PENDING)
         with pytest.raises(InputValidationError, match="only failed tasks"):
-            await _collect(two_cat_migration_svc.retry_task(str(task.id)))
+            await two_cat_migration_svc.prepare_retry(str(task.id))
+
+
+# =======================================================================
+# plan_recovery — restart after the process died mid-task
+# =======================================================================
+
+class TestPlanRecovery:
+    @pytest.mark.parametrize(
+        "interrupted_at,expected_resume",
+        [
+            (TaskStatus.PENDING, TaskStatus.PROCESSING),
+            (TaskStatus.PROCESSING, TaskStatus.PROCESSING),
+            (TaskStatus.PROCESS_DONE, TaskStatus.UPDATING_DB),
+            (TaskStatus.UPDATING_DB, TaskStatus.UPDATING_DB),
+            (TaskStatus.DB_UPDATED, TaskStatus.DELETING_SOURCE),
+            (TaskStatus.DELETING_SOURCE, TaskStatus.DELETING_SOURCE),
+        ],
+    )
+    async def test_resume_point_per_status(
+        self, two_cat_migration_svc, init_db, task_factory,
+        interrupted_at, expected_resume,
+    ):
+        task = await task_factory(status=interrupted_at)
+        plan = await two_cat_migration_svc.plan_recovery()
+
+        assert (str(task.id), expected_resume) in plan
+
+        # Every recovered task is handed back to the queue as PENDING.
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.status == TaskStatus.PENDING
+
+    @pytest.mark.parametrize(
+        "status", [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
+    )
+    async def test_terminal_tasks_are_left_alone(
+        self, two_cat_migration_svc, init_db, task_factory, status,
+    ):
+        task = await task_factory(status=status)
+        plan = await two_cat_migration_svc.plan_recovery()
+
+        assert all(task_id != str(task.id) for task_id, _ in plan)
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.status == status
+
+    async def test_partial_target_is_cleaned_up(
+        self, two_cat_migration_svc, init_db, two_cat_handler_service,
+        target_dir, task_factory,
+    ):
+        """A copy killed mid-flight leaves a truncated file that must not be kept."""
+        target_handler = two_cat_handler_service.get_handler("Target-category")
+        target_fs = str(target_dir / "partial.mp4").replace("\\", "/")
+        target_db = target_handler.convert_to_DB_format_path(target_fs)
+        (target_dir / "partial.mp4").write_bytes(b"half")
+
+        task = await task_factory(
+            target_path=target_db,
+            target_category="Target-category",
+            status=TaskStatus.PROCESSING,
+            bytes_transferred=4,
+        )
+
+        await two_cat_migration_svc.plan_recovery()
+
+        assert not (target_dir / "partial.mp4").exists()
+        refreshed = await MigrationTaskModel.get(task.id)
+        assert refreshed.bytes_transferred == 0
+
+
+# =======================================================================
+# find_locked_paths — bulk lock lookup used by the read resolvers
+# =======================================================================
+
+class TestFindLockedPaths:
+    async def test_empty_input_skips_the_query(self, init_db):
+        from src.services.tasks.migration_service import find_locked_paths
+        assert await find_locked_paths([]) == set()
+        assert await find_locked_paths(["", None]) == set()
+
+    async def test_returns_only_requested_paths(self, init_db, task_factory):
+        """A matched task also names a target; that must not leak into the result."""
+        from src.services.tasks.migration_service import find_locked_paths
+
+        await task_factory(
+            source_path="cat/res/locked.mp4",
+            target_path="cat/other/locked.mp4",
+            status=TaskStatus.PROCESSING,
+        )
+
+        assert await find_locked_paths(["cat/res/locked.mp4"]) == {"cat/res/locked.mp4"}
+
+    async def test_matches_source_target_and_renamed_target(self, init_db, task_factory):
+        from src.services.tasks.migration_service import find_locked_paths
+
+        await task_factory(
+            source_path="cat/res/a.mp4",
+            target_path="cat/other/a.mp4",
+            renamed_target_path="cat/other/a(1).mp4",
+            status=TaskStatus.PROCESSING,
+        )
+
+        requested = ["cat/res/a.mp4", "cat/other/a.mp4", "cat/other/a(1).mp4", "cat/res/free.mp4"]
+        assert await find_locked_paths(requested) == {
+            "cat/res/a.mp4", "cat/other/a.mp4", "cat/other/a(1).mp4",
+        }
+
+    @pytest.mark.parametrize(
+        "status", [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
+    )
+    async def test_settled_tasks_do_not_lock(self, init_db, task_factory, status):
+        from src.services.tasks.migration_service import find_locked_paths
+
+        await task_factory(source_path="cat/res/done.mp4", status=status)
+        assert await find_locked_paths(["cat/res/done.mp4"]) == set()
+
+    async def test_one_query_covers_many_paths(self, init_db, task_factory):
+        """The point of the bulk helper: a page of videos costs a single lookup."""
+        from src.services.tasks.migration_service import find_locked_paths
+
+        await task_factory(source_path="cat/res/v3.mp4", status=TaskStatus.PROCESSING)
+
+        paths = [f"cat/res/v{i}.mp4" for i in range(10)]
+        assert await find_locked_paths(paths) == {"cat/res/v3.mp4"}
 
 
 # =======================================================================

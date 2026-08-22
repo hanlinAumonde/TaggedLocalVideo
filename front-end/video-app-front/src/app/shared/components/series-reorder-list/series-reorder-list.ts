@@ -14,7 +14,6 @@ export class SeriesReorderList {
   // When set, only the row whose id matches can be moved via arrow buttons.
   // When null/undefined, every row is movable.
   movableId = input<string | null | undefined>(null);
-  highlightId = input<string | null | undefined>(null);
   emptyHint = input<string>('No videos in this series yet.');
 
   itemsChange = output<BatchPanelVideoItem[]>();
@@ -47,5 +46,9 @@ export class SeriesReorderList {
     const next = [...this.items()];
     [next[index], next[index + 1]] = [next[index + 1], next[index]];
     this.itemsChange.emit(next);
+  }
+
+  showVideoTitle(videoId: string, videoName: string): string{
+    return videoId == this.movableId() ? 'Current Video' : videoName;
   }
 }

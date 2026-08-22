@@ -7,14 +7,16 @@
     @for (item of items(); track item.id; let i = $index) {
       <li
         class="flex items-center gap-2 px-2 py-1 rounded"
-        [class.bg-white]="item.id !== highlightId()"
-        [class.dark:bg-gray-600]="item.id !== highlightId()"
-        [class.bg-blue-100]="item.id === highlightId()"
-        [class.dark:bg-blue-900/30]="item.id === highlightId()"
-        [class.ring-1]="item.id === highlightId()"
-        [class.ring-blue-500]="item.id === highlightId()">
+        [class.bg-white]="item.id !== movableId()"
+        [class.dark:bg-gray-600]="item.id !== movableId()"
+        [class.bg-blue-100]="item.id === movableId()"
+        [class.dark:bg-blue-900/30]="item.id === movableId()"
+        [class.ring-1]="item.id === movableId()"
+        [class.ring-blue-500]="item.id === movableId()">
         <span class="text-xs font-mono w-6 text-right text-gray-500">{{ i + 1 }}.</span>
-        <span class="flex-1 text-sm truncate" [matTooltip]="item.name">{{ item.name }}</span>
+        <span class="flex-1 text-sm truncate" [matTooltip]="showVideoTitle(item.id, item.name)">
+          {{ showVideoTitle(item.id, item.name) }}
+        </span>
         <button
           mat-icon-button
           type="button"

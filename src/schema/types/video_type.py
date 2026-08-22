@@ -35,10 +35,30 @@ class Video:
     seriesName: Optional[str] = None
     seriesOrder: Optional[int] = None
 
+    # True while a migration task holds this file. The frontend disables every action on
+    # a locked video; the backend enforces the same rule in its mutations.
+    isLocked: bool = False
+
     @classmethod
-    async def from_mongoDB(cls, videoModel: VideoModel, getTagsCount: bool = False) -> "Video":
+    async def from_mongoDB(
+        cls,
+        videoModel: VideoModel,
+        getTagsCount: bool = False,
+        isLocked: bool = False,
+    ) -> "Video":
         """
         Convert a VideoModel instance from MongoDB to a Video GraphQL type.
+
+        :param videoModel: The source document.
+        :type videoModel: VideoModel
+        :param getTagsCount: Whether to look up reference counts for the video's tags.
+        :type getTagsCount: bool
+        :param isLocked: Whether a migration task currently holds this file. Passed in
+            rather than queried here, so a list of videos costs one lookup instead of N —
+            see ``find_locked_paths``.
+        :type isLocked: bool
+        :return: The GraphQL representation.
+        :rtype: Video
         """
         tag_names = videoModel.tags or []
 
@@ -67,6 +87,7 @@ class Video:
             duration=videoModel.duration or 0.0,
             seriesName=videoModel.seriesName,
             seriesOrder=videoModel.seriesOrder,
+            isLocked=isLocked,
         )
     
     @classmethod

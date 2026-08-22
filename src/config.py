@@ -44,6 +44,13 @@ class LoggingConfig(BaseModel):
     retention: str = "30 days"
 
 
+class TaskConfig(BaseModel):
+    # How many background tasks may run at the same time.
+    max_concurrent: int = 2
+    # How often (seconds) a running task flushes its progress to MongoDB.
+    progress_flush_interval: float = 3.0
+
+
 class S3HandlerConfig(BaseModel):
     endpoint_url: str
     access_key: str
@@ -72,6 +79,7 @@ class Settings(BaseSettings):
     mongo: MongoConfig = MongoConfig()
     validation: ValidationConfig = ValidationConfig()
     logging: LoggingConfig = LoggingConfig()
+    tasks: TaskConfig = TaskConfig()
 
     def get_valid_categories(self) -> list[str]:
         return list(self.resource_paths.keys())

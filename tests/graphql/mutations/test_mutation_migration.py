@@ -118,6 +118,36 @@ class TestCreateMigrationTask:
         assert data["task"]["fileName"] == "movie"
         assert data["task"]["status"] == "PENDING"
 
+    async def test_create_task_is_handed_to_the_runner(
+        self, execute_gql, mock_migration_service, mock_task_runner, video_factory,
+    ):
+        """Regression: a created task must start on its own, without the client
+        opening the progress subscription first."""
+        video = await video_factory(name="movie")
+        now = time.time()
+        mock_task = MigrationTaskModel(
+            source_path="Test-category/Test-resource/movie.mp4",
+            source_category="Test-category",
+            target_path="Target-category/Target-resource/movie.mp4",
+            target_category="Target-category",
+            file_name="movie",
+            file_size=1000,
+            status=TaskStatus.PENDING,
+            created_at=now,
+            updated_at=now,
+        )
+        await mock_task.insert()
+        mock_migration_service.create_task = AsyncMock(return_value=mock_task)
+
+        result = await execute_gql(CREATE_MIGRATION_TASK, {
+            "input": {
+                "sourceVideoId": str(video.id),
+                "targetDirRelativePath": make_migration_path_input("Test-category/Test-resource"),
+            }
+        })
+        assert_no_errors(result)
+        mock_task_runner.submit.assert_awaited_once_with(str(mock_task.id))
+
     async def test_create_task_with_conflict_strategy(
         self, execute_gql, mock_migration_service, video_factory,
     ):
