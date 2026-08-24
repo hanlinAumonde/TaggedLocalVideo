@@ -99,12 +99,14 @@ ThumbnailServiceDep = Annotated[ThumbnailService, Depends(get_thumbnail_service)
 def get_browse_file_service(
     settings: Settings = Depends(get_settings),
     dir_metadata_service = Depends(get_dir_metadata_service), 
-    resource_handler_service = Depends(get_resource_handler_service)
+    resource_handler_service = Depends(get_resource_handler_service),
+    ffmpeg_service = Depends(get_ffmpeg_service)
 ):
     return BrowseFileService(
         settings=settings, 
         dir_metadata_service=dir_metadata_service, 
-        resource_handler_service=resource_handler_service
+        resource_handler_service=resource_handler_service,
+        ffmpegService=ffmpeg_service
     )
 # BrowseFileServiceDep = Annotated[BrowseFileService, Depends(get_browse_file_service)]
 

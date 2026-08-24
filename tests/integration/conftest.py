@@ -144,11 +144,13 @@ def real_browse_file_service(
     integration_settings: Settings,
     real_dir_metadata_service: DirMetadataService,
     real_resource_handler_service: ResourceHandlerService,
+    mock_ffmpeg_service: MagicMock,
 ) -> BrowseFileService:
     return BrowseFileService(
         settings=integration_settings,
         dir_metadata_service=real_dir_metadata_service,
         resource_handler_service=real_resource_handler_service,
+        ffmpegService=mock_ffmpeg_service,
     )
 
 

@@ -38,6 +38,29 @@ async def test_search_empty_prefix_returns_all(init_db, video_factory):
     assert set(result) == {"Alpha", "Beta"}
 
 
+async def test_search_matches_middle_and_suffix(init_db, video_factory):
+    await video_factory(name="a", seriesName="Dragon Ball")
+    await video_factory(name="b", seriesName="The Ball Game")
+    await video_factory(name="c", seriesName="Pinball")
+    await video_factory(name="d", seriesName="Unrelated")
+
+    svc = SeriesService()
+    result = await svc.search_by_prefix("ball", limit=10)
+    assert set(result) == {"Dragon Ball", "The Ball Game", "Pinball"}
+
+
+async def test_prefix_matches_rank_before_contains_matches(init_db, video_factory):
+    await video_factory(name="a", seriesName="Showdown")      # prefix match
+    await video_factory(name="b", seriesName="Amazing Show")  # contains match, sorts first
+    await video_factory(name="c", seriesName="Show Time")     # prefix match
+
+    svc = SeriesService()
+    result = await svc.search_by_prefix("show", limit=10)
+    # Both prefix matches come first (alphabetically), then the contains match —
+    # even though "Amazing Show" would sort ahead of them overall.
+    assert result == ["Show Time", "Showdown", "Amazing Show"]
+
+
 async def test_search_respects_limit(init_db, video_factory):
     for i in range(5):
         await video_factory(name=f"v{i}", seriesName=f"S{i}")
@@ -45,6 +68,24 @@ async def test_search_respects_limit(init_db, video_factory):
     svc = SeriesService()
     result = await svc.search_by_prefix("S", limit=3)
     assert len(result) == 3
+
+
+async def test_limit_trims_contains_matches_before_prefix_matches(init_db, video_factory):
+    await video_factory(name="a", seriesName="Arc Two")   # contains match
+    await video_factory(name="b", seriesName="Two Arcs")  # prefix match
+
+    svc = SeriesService()
+    result = await svc.search_by_prefix("two", limit=1)
+    assert result == ["Two Arcs"]
+
+
+async def test_search_escapes_regex_metacharacters(init_db, video_factory):
+    await video_factory(name="a", seriesName="Season 1.5")
+    await video_factory(name="b", seriesName="Season 145")
+
+    svc = SeriesService()
+    result = await svc.search_by_prefix("1.5", limit=10)
+    assert result == ["Season 1.5"]
 
 
 async def test_search_excludes_null_series(init_db, video_factory):

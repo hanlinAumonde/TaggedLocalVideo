@@ -30,8 +30,6 @@ from src.services.tasks.migration_service import find_locked_paths
 from src.services.thumbnail_service import ThumbnailService
 
 logger = get_logger("query_resolver")
-
-#class QueryResolver:
     
 async def resolve_search_videos(input: VideoSearchInput, info: strawberry.Info) -> VideoSearchResult:
     """
@@ -273,14 +271,15 @@ async def resolve_browse_directory(input: RelativePathInput, info: strawberry.In
 
 async def resolve_search_series_by_prefix(prefix: str, limit: int, info: strawberry.Info) -> list[str]:
     """
-    Resolve function to look up series names by prefix (case-insensitive). Used for the
-    autocomplete dropdown in the video edit panel.
+    Resolve function to look up series names containing the given keyword (case-insensitive),
+    with names starting with it ranked first. Used for the autocomplete dropdown in the video
+    edit panel.
 
-    :param prefix: The prefix to search for.
+    :param prefix: The keyword to search for; matched anywhere in the series name.
     :type prefix: str
     :param limit: The maximum number of series names to return.
     :type limit: int
-    :return: List of series names matching the prefix.
+    :return: List of series names matching the keyword.
     :rtype: list[str]
     """
     if limit <= 0:

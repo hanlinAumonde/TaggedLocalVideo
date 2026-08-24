@@ -240,6 +240,11 @@ async def test_batch_update_creates_new_video_from_entry(
     assert "new" in video.tags
     assert video.size == 100.0
 
+    # The insert payload must use the "_id" alias, not add a second "id" key.
+    raw = await VideoModel.get_pymongo_collection().find_one({"path": db_path})
+    assert "id" not in raw
+    assert raw["_id"] is not None
+
 
 # -----------------------------------------------------------------------
 # ---------------------- batch_delete empty input ------------------------

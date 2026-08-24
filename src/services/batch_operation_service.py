@@ -455,6 +455,8 @@ class BatchOperationService:
         ) or 0.0
 
         stat = entry.stat()
+        # by_alias so the primary key stays "_id", and exclude it so MongoDB assigns one:
+        # a plain model_dump() would write a second, always-null "id" field alongside it.
         set_on_insert = VideoModel(
             category=category,
             name=handler.get_filename_without_extension(entry.name),
@@ -464,7 +466,7 @@ class BatchOperationService:
             size=stat.size,
             duration=duration,
             tags=[]
-        ).model_dump()
+        ).model_dump(by_alias=True, exclude={"id"})
 
         if author is not None:
             set_on_insert["author"] = author

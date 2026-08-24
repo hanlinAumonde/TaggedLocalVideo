@@ -74,18 +74,29 @@ class ThumbnailService:
             raise HTTPException(status_code=404, detail="Video file doesn't exist")
 
         # 2- try to read stored thumbnail (only if storage is configured)
-        if self._storage_handler and video.thumbnail:
-            thumbnail_bytes = await self._read_stored_thumbnail(video.thumbnail)
-            if thumbnail_bytes:
-                return self._build_thumbnail_response(thumbnail_bytes)
+        storage_path = (
+            self._compute_thumbnail_storage_path(str(video.id))
+            if self._storage_handler else None
+        )
+        if storage_path and video.thumbnail:
+            if video.thumbnail == storage_path:
+                thumbnail_bytes = await self._read_stored_thumbnail(video.thumbnail)
+                if thumbnail_bytes:
+                    return self._build_thumbnail_response(thumbnail_bytes)
+            else:
+                # Legacy name-based key: it may be shared with a same-named video
+                # living in another directory, so its content cannot be trusted.
+                # Drop it and regenerate under the id-based key.
+                logger.info(
+                    f"Discarding legacy thumbnail key '{video.thumbnail}' for video "
+                    f"{video.id}; regenerating at '{storage_path}'"
+                )
 
         # 3- generate thumbnail with ffmpeg
         thumbnail_bytes = await self.ffmpeg.generate_thumbnail(video_handler, video_fs_path)
 
         # 4- persist to storage if configured, otherwise just update duration
-        if self._storage_handler:
-            video_name = video_handler.get_filename_without_extension(video_fs_path)
-            storage_path = self._compute_thumbnail_storage_path(video_name)
+        if storage_path:
             await self._store_thumbnail(storage_path, thumbnail_bytes)
             video.thumbnail = storage_path
 
@@ -127,19 +138,25 @@ class ThumbnailService:
         except Exception as e:
             logger.exception(f"Failed to store thumbnail at {path}: {e}")
 
-    def _compute_thumbnail_storage_path(self, video_name: str) -> str:
+    def _compute_thumbnail_storage_path(self, video_id: str) -> str:
         """
         Compute the S3 key / storage path for a thumbnail.
-        Format: thumbnails/{storage_pseudo_name}/{video_name}.jpg
+        Format: thumbnails/{storage_pseudo_name}/{video_id}.jpg
 
-        :param video_name: The base name of the video file (without extension) to compute the thumbnail path for.
-        :type video_name: str
+        The video id is used instead of the file name because a file name is only
+        unique inside a single directory: two same-named videos sitting in different
+        sub-directories of one category would otherwise share a single key and thus a
+        single thumbnail. The id is also stable across renames and migrations, so the
+        stored thumbnail survives a video moving to another directory or category.
+
+        :param video_id: The database id of the video to compute the thumbnail path for.
+        :type video_id: str
         :return: The computed storage path for the thumbnail.
         :rtype: str
         """
         cfg = self.settings.thumbnail_config
         return self._storage_handler.join_path(
-            "thumbnails", cfg.storage_pseudo_name, f"{video_name}.jpg"
+            "thumbnails", cfg.storage_pseudo_name, f"{video_id}.jpg"
         )
 
     @staticmethod
