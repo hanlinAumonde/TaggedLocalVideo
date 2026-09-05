@@ -9,8 +9,8 @@ import pytest
 
 from src import context as context_module
 from src.context import ContextEnum, init_task_runner
-from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
-from src.services.tasks.migration_service import MigrationService
+from src.features.migration.migration_task import MigrationTaskModel, TaskStatus
+from src.features.migration.migration_service import MigrationService
 
 pytestmark = pytest.mark.unit
 

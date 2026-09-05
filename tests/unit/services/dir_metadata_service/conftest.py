@@ -1,10 +1,10 @@
 import pytest
 
 from src.config import Settings
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.platform.cache.cache_service import CacheService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.storage.absolute_path import AbsolutePath
+from src.platform.storage.resource_handler_service import ResourceHandlerService
 
 
 @pytest.fixture

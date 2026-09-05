@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from src.db.models.Video_model import VideoModel
-from src.db.models.VideoTag_model import VideoTagModel
-from src.schema.types.fileBrowse_type import BatchResultType
+from src.features.catalog.video import VideoModel
+from src.features.catalog.video_tag import VideoTagModel
+from src.features.browsing.batch_operation_service import BatchResultType
 from src.schema.types.pydantic_types.batch_operation_type import (
     SeriesOperationInputModel,
     SeriesOrderEntryInputModel,
     TagsOperationMappingInputModel,
 )
-from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.platform.storage.absolute_path import AbsolutePath
+from src.platform.storage.resource_handler_service import ResourceHandlerService
 
 pytestmark = pytest.mark.unit
 
@@ -40,14 +40,14 @@ def test_construct_status_with_result(batch_svc):
     status = batch_svc.constructBatchOperationStatus(
         resultType=BatchResultType.Success, message="done",
     )
-    assert status.result.resultType == BatchResultType.Success
-    assert status.result.message == "done"
+    assert status.result_type == BatchResultType.Success
+    assert status.message == "done"
     assert status.status is None
 
 
 def test_construct_status_progress_only(batch_svc):
     status = batch_svc.constructBatchOperationStatus(status="scanning")
-    assert status.result is None
+    assert status.result_type is None
     assert status.status == "scanning"
 
 
@@ -84,8 +84,8 @@ async def test_batch_delete_by_ids_removes_from_db_and_disk(
     # Should yield at least a progress + final status.
     assert len(events) >= 2
     final = events[-1]
-    assert final.result is not None
-    assert final.result.resultType == BatchResultType.Success
+    assert final.result_type is not None
+    assert final.result_type == BatchResultType.Success
 
 
 async def test_batch_delete_updates_tag_counts(
@@ -208,7 +208,7 @@ async def test_batch_update_already_up_to_date(
     )
 
     final = events[-1]
-    assert final.result.resultType == BatchResultType.AlreadyUpToDate
+    assert final.result_type == BatchResultType.AlreadyUpToDate
 
 
 # -----------------------------------------------------------------------
@@ -261,7 +261,7 @@ async def test_batch_delete_empty_ids_yields_failure(
         batch_svc.batch_delete(dir_path, videoIds=[], fileEntries=None)
     )
     assert any(
-        e.result and e.result.resultType == BatchResultType.Failure
+        e.result_type == BatchResultType.Failure
         for e in events
     )
 
@@ -295,7 +295,7 @@ async def test_batch_delete_by_file_entries_removes_from_db_and_disk(
     assert not (local_resource_dir / "movie_a.mp4").exists()
     assert len(events) >= 2
     final = events[-1]
-    assert final.result is not None
+    assert final.result_type is not None
 
 
 # -----------------------------------------------------------------------
@@ -313,7 +313,7 @@ async def test_batch_update_empty_input_yields_failure(batch_svc, init_db, fs_se
         )
     )
     assert len(events) == 1
-    assert events[0].result.resultType == BatchResultType.Failure
+    assert events[0].result_type == BatchResultType.Failure
 
 
 # -----------------------------------------------------------------------

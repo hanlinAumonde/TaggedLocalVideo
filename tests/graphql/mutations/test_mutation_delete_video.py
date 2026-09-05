@@ -3,8 +3,10 @@
 from bson import ObjectId
 import pytest
 
-from src.db.models.Video_model import VideoModel
-from src.db.models.VideoTag_model import VideoTagModel
+from src.features.migration.migration_task import TaskStatus
+
+from src.features.catalog.video import VideoModel
+from src.features.catalog.video_tag import VideoTagModel
 from tests.graphql.helpers import (
     DELETE_VIDEO,
     assert_error_contains,
@@ -67,13 +69,10 @@ async def test_delete_video_missing_argument(execute_gql, init_db):
 
 # ----------------------------- Migration lock --------------------------------
 
-async def test_delete_video_migration_locked(
-    execute_gql, video_factory, mock_migration_service
-):
+async def test_delete_video_migration_locked(execute_gql, video_factory, task_factory):
     video = await video_factory(name="locked-video")
-    mock_migration_service.is_file_locked.return_value = True
+    await task_factory(source_path=video.path, status=TaskStatus.PROCESSING)
 
     result = await execute_gql(DELETE_VIDEO, {"videoId": str(video.id)})
 
     assert_error_contains(result, "being migrated")
-    mock_migration_service.is_file_locked.assert_awaited_once()

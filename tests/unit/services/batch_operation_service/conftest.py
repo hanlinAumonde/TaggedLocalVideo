@@ -3,12 +3,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config import Settings
-from src.services.batch_operation_service import BatchOperationService
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
-from src.services.tag_operation_service import TagOperationService
+from src.features.browsing.batch_operation_service import BatchOperationService
+from src.platform.cache.cache_service import CacheService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.storage.absolute_path import AbsolutePath
+from src.platform.storage.resource_handler_service import ResourceHandlerService
+from src.features.catalog.tag_operation_service import TagOperationService
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.services.series_service import SeriesService
+from src.features.catalog.series_service import SeriesService
 
 pytestmark = pytest.mark.unit
 

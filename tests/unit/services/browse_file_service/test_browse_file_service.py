@@ -5,11 +5,17 @@ from unittest.mock import patch
 
 import pytest
 
-from src.db.models.Video_model import VideoModel
+from src.features.catalog.video import VideoModel
+from src.features.browsing.browse_file_service import DirectoryEntry, VideoEntry
 from src.errors import FileBrowseError
-from src.services.resource_handler.absolute_path import AbsolutePath
+from src.platform.storage.absolute_path import AbsolutePath
 
 pytestmark = pytest.mark.unit
+
+
+def _entry_name(entry) -> str:
+    """Display name of a listing row, whichever kind it is."""
+    return entry.name if isinstance(entry, DirectoryEntry) else entry.document.name
 
 
 # -----------------------------------------------------------------------
@@ -20,9 +26,9 @@ async def test_root_level_lists_categories(browse_svc, init_db):
     abs_path = AbsolutePath(abs_path=None, category=None, handler=None)
     nodes = await browse_svc.get_node_list_in_directory(abs_path)
 
-    names = [n.node.name for n in nodes]
+    names = [_entry_name(n) for n in nodes]
     assert "Test-category" in names
-    assert all(n.node.isDir for n in nodes)
+    assert all(isinstance(n, DirectoryEntry) for n in nodes)
 
 
 # -----------------------------------------------------------------------
@@ -38,7 +44,7 @@ async def test_category_level_lists_pseudo_names(
     )
     nodes = await browse_svc.get_node_list_in_directory(abs_path)
 
-    names = [n.node.name for n in nodes]
+    names = [_entry_name(n) for n in nodes]
     assert "Test-resource" in names
 
 
@@ -56,7 +62,7 @@ async def test_directory_level_discovers_videos_and_subdirs(
     )
 
     nodes = await browse_svc.get_node_list_in_directory(abs_path)
-    names = [n.node.name for n in nodes]
+    names = [_entry_name(n) for n in nodes]
 
     # Should find movie_a, movie_b (videos) and subdir (directory).
     # notes.txt is not a video, skipped. empty/ has 0 size → skipped.
@@ -187,7 +193,10 @@ async def test_zero_duration_is_backfilled_on_browse(
     assert ffmpeg_svc.get_video_duration.await_count == 1
     refreshed = await VideoModel.find_one({"name": "movie_a"})
     assert refreshed.duration == 42.0
-    assert next(n.node.duration for n in nodes if n.node.name == "movie_a") == 42.0
+    assert next(
+        n.document.duration for n in nodes
+        if isinstance(n, VideoEntry) and n.document.name == "movie_a"
+    ) == 42.0
 
 
 async def test_directories_lead_the_listing_then_video_files(
@@ -201,7 +210,7 @@ async def test_directories_lead_the_listing_then_video_files(
     )
 
     nodes = await browse_svc.get_node_list_in_directory(abs_path)
-    names = [n.node.name for n in nodes]
+    names = [_entry_name(n) for n in nodes]
 
     assert names == ["subdir", "movie_a", "movie_b"]
 

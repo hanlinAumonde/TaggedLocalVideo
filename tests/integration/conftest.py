@@ -18,16 +18,17 @@ from src import config
 from src.config import Settings
 from src.context import ContextEnum
 from src.schema.strawberry_schema import schema as gql_schema
-from src.services.batch_operation_service import BatchOperationService
-from src.services.browse_file_service import BrowseFileService
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.ffmpeg_service import FFmpegService
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
-from src.services.series_service import SeriesService
-from src.services.tasks.migration_service import MigrationService
-from src.services.tag_operation_service import TagOperationService
-from src.services.thumbnail_service import ThumbnailService
+from src.features.browsing.batch_operation_service import BatchOperationService
+from src.features.browsing.browse_file_service import BrowseFileService
+from src.platform.cache.cache_service import CacheService
+from src.features.catalog.catalog_service import CatalogService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.media.ffmpeg_service import FFmpegService
+from src.platform.storage.resource_handler_service import ResourceHandlerService
+from src.features.catalog.series_service import SeriesService
+from src.features.migration.migration_service import MigrationService
+from src.features.catalog.tag_operation_service import TagOperationService
+from src.features.playback.thumbnail_service import ThumbnailService
 
 
 # -----------------------------------------------------------------------
@@ -171,6 +172,23 @@ def real_batch_operation_service(
     )
 
 
+@pytest.fixture
+def real_catalog_service(
+    integration_settings: Settings,
+    real_tag_operation_service: TagOperationService,
+    real_dir_metadata_service: DirMetadataService,
+    real_resource_handler_service: ResourceHandlerService,
+    mock_ffmpeg_service: MagicMock,
+) -> CatalogService:
+    return CatalogService(
+        settings=integration_settings,
+        tag_operation_service=real_tag_operation_service,
+        dir_metadata_service=real_dir_metadata_service,
+        resource_handler_service=real_resource_handler_service,
+        ffmpeg_service=mock_ffmpeg_service,
+    )
+
+
 # -----------------------------------------------------------------------
 # ----------------------- Mock migration service ---------------------------
 # -----------------------------------------------------------------------
@@ -198,6 +216,7 @@ def integration_context(
     real_dir_metadata_service: DirMetadataService,
     real_browse_file_service: BrowseFileService,
     real_batch_operation_service: BatchOperationService,
+    real_catalog_service: CatalogService,
     mock_migration_service: MagicMock,
 ) -> dict[ContextEnum, Any]:
     return {
@@ -211,6 +230,7 @@ def integration_context(
         ContextEnum.DIR_METADATA_SERVICE: real_dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: real_browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: real_batch_operation_service,
+        ContextEnum.CATALOG_SERVICE: real_catalog_service,
         ContextEnum.MIGRATION_SERVICE: mock_migration_service,
     }
 

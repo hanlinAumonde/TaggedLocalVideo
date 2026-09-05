@@ -5,8 +5,6 @@ import strawberry
 from bson import ObjectId
 
 from src.context import ContextEnum, get_context_value
-from src.db.models.MigrationTask_model import MigrationTaskModel
-from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError
 from src.logger import get_logger
 from src.schema.types.migration_type import (
@@ -20,10 +18,11 @@ from src.schema.types.migration_type import (
     MigrationTaskMutationResult,
     MigrationTaskQueryInput,
 )
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
-from src.services.tasks.migration_service import MigrationService
-from src.services.tasks.task_runner import TaskRunner
-from src.services.resource_handler.absolute_path import AbsolutePath
+from src.platform.storage.resource_handler_service import ResourceHandlerService
+from src.features.catalog.catalog_service import CatalogService
+from src.features.migration.migration_service import MIGRATION_EXECUTOR_KEY, MigrationService
+from src.platform.jobs.task_runner import TaskRunner
+from src.platform.storage.absolute_path import AbsolutePath
 
 logger = get_logger("migration_resolver")
 
@@ -43,12 +42,10 @@ async def _resolve_source_path(video_id: str, info: strawberry.Info) -> Absolute
     :rtype: AbsolutePath
     :raises InputValidationError: If the ID is malformed or matches no video.
     """
+    catalog_service: CatalogService = get_context_value(info, ContextEnum.CATALOG_SERVICE)
     try:
-        video = await VideoModel.get(ObjectId(video_id))
+        video = await catalog_service.get_video(video_id)
     except Exception:
-        raise InputValidationError(field="sourceVideoId", issue="Invalid video ID format")
-
-    if video is None:
         raise InputValidationError(field="sourceVideoId", issue="Video not found")
 
     handler_service: ResourceHandlerService = get_context_value(info, ContextEnum.RESOURCE_HANDLER_SERVICE)
@@ -140,7 +137,7 @@ async def resolve_create_migration_task(
     # Hand the task straight to the background runner: execution must not depend on a
     # client ever opening the progress subscription.
     runner: TaskRunner = get_context_value(info, ContextEnum.TASK_RUNNER)
-    await runner.submit(str(task.id))
+    await runner.submit(str(task.id), executor_key=MIGRATION_EXECUTOR_KEY)
 
     return MigrationTaskMutationResult(
         success=True,
@@ -204,7 +201,7 @@ async def resolve_migration_progress(
     # Observing is a pure read — it never starts or restarts the job, so refreshing the
     # page or opening several tabs is harmless.
     runner: TaskRunner = get_context_value(info, ContextEnum.TASK_RUNNER)
-    async for status in runner.observe(validated.task_id):
+    async for status in runner.observe(validated.task_id, executor_key=MIGRATION_EXECUTOR_KEY):
         yield MigrationProgressStatus.from_service(status)
 
 
@@ -233,9 +230,11 @@ async def resolve_migration_retry(
     runner: TaskRunner = get_context_value(info, ContextEnum.TASK_RUNNER)
 
     start_from = await service.prepare_retry(validated.task_id)
-    await runner.submit(validated.task_id, start_from=start_from)
+    await runner.submit(
+        validated.task_id, executor_key=MIGRATION_EXECUTOR_KEY, start_from=start_from
+    )
 
-    async for status in runner.observe(validated.task_id):
+    async for status in runner.observe(validated.task_id, executor_key=MIGRATION_EXECUTOR_KEY):
         yield MigrationProgressStatus.from_service(status)
 
 
@@ -260,19 +259,11 @@ async def resolve_get_migration_tasks(
         logger.exception(f"Input validation error: {e}")
         raise InputValidationError(field="MigrationTaskQueryInput", issue="Invalid input data")
 
-    query_filter: dict = {}
-    if validated.status_filter:
-        query_filter["status"] = {"$in": validated.status_filter}
-
-    total_count = await MigrationTaskModel.find(query_filter).count()
-
-    skip = (validated.page - 1) * validated.page_size
-    task_models = (
-        await MigrationTaskModel.find(query_filter)
-        .sort([("created_at", pymongo.DESCENDING)])
-        .skip(skip)
-        .limit(validated.page_size)
-        .to_list()
+    migration_service: MigrationService = get_context_value(info, ContextEnum.MIGRATION_SERVICE)
+    task_models, total_count = await migration_service.list_tasks(
+        status_filter=validated.status_filter,
+        page=validated.page,
+        page_size=validated.page_size,
     )
 
     tasks = [MigrationTask.from_model(m) for m in task_models]

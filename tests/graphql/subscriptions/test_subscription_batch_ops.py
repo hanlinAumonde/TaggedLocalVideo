@@ -4,11 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.schema.types.fileBrowse_type import (
-    BatchOperationStatus,
-    BatchResultType,
-    VideosBatchOperationResult,
-)
+from src.features.migration.migration_task import TaskStatus
+
+from src.features.browsing.batch_operation_service import BatchProgress, BatchResultType
 from tests.graphql.helpers import (
     BATCH_DELETE_SUBSCRIPTION,
     BATCH_UPDATE_SUBSCRIPTION,
@@ -20,17 +18,12 @@ from tests.graphql.helpers import (
 pytestmark = pytest.mark.subscription
 
 
-def _success_status(message: str) -> BatchOperationStatus:
-    return BatchOperationStatus(
-        result=VideosBatchOperationResult(
-            resultType=BatchResultType.Success, message=message
-        ),
-        status=None,
-    )
+def _success_status(message: str) -> BatchProgress:
+    return BatchProgress(result_type=BatchResultType.Success, message=message)
 
 
-def _progress(status: str) -> BatchOperationStatus:
-    return BatchOperationStatus(result=None, status=status)
+def _progress(status: str) -> BatchProgress:
+    return BatchProgress(status=status)
 
 
 def _async_iter_factory(events: list):
@@ -258,10 +251,10 @@ async def test_batch_delete_by_directory_expands_and_calls_browse(
 # ----------------------- Migration lock in batch ops -------------------------
 
 async def test_batch_update_migration_locked_video(
-    subscribe_gql, mock_batch_operation_service, mock_migration_service, video_factory
+    subscribe_gql, mock_batch_operation_service, video_factory, task_factory
 ):
     a = await video_factory(name="locked-video")
-    mock_migration_service.is_file_locked.return_value = True
+    await task_factory(source_path=a.path, status=TaskStatus.PROCESSING)
 
     payload = make_batch_input(
         video_ids=[str(a.id)],

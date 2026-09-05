@@ -1,8 +1,8 @@
 from typing import Optional
 import strawberry
 
-from src.db.models.Video_model import VideoModel
-from src.db.models.VideoTag_model import VideoTagModel
+from src.features.catalog.video import VideoModel
+from src.features.catalog.video_tag import VideoTagModel
 from src.schema.types.pydantic_types.batch_operation_type import SeriesOrderEntryInputModel
 from src.schema.types.pydantic_types.video_type import (
     SeriesFieldInputModel,

@@ -3,10 +3,12 @@
 import time
 
 import pytest
+
+from src.features.migration.migration_service import MIGRATION_EXECUTOR_KEY
 from unittest.mock import AsyncMock
 
-from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
-from src.services.tasks.migration_service import MigrationPreflightResult
+from src.features.migration.migration_task import MigrationTaskModel, TaskStatus
+from src.features.migration.migration_service import MigrationPreflightResult
 from tests.graphql.helpers import (
     MIGRATION_PREFLIGHT,
     CREATE_MIGRATION_TASK,
@@ -146,7 +148,9 @@ class TestCreateMigrationTask:
             }
         })
         assert_no_errors(result)
-        mock_task_runner.submit.assert_awaited_once_with(str(mock_task.id))
+        mock_task_runner.submit.assert_awaited_once_with(
+            str(mock_task.id), executor_key=MIGRATION_EXECUTOR_KEY
+        )
 
     async def test_create_task_with_conflict_strategy(
         self, execute_gql, mock_migration_service, video_factory,

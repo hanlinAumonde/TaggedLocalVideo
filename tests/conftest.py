@@ -1,3 +1,4 @@
+import time
 from typing import Callable
 
 from beanie import init_beanie
@@ -8,11 +9,11 @@ from testcontainers.mongodb import MongoDbContainer
 import pytest
 
 from src import config
-from src.db.models.DirMetadata_model import DirMetadataModel
-from src.db.models.MigrationTask_model import MigrationTaskModel
+from src.features.browsing.dir_metadata import DirMetadataModel
+from src.features.migration.migration_task import MigrationTaskModel, TaskStatus
 from src.config import Settings
-from src.db.models.VideoTag_model import VideoTagModel
-from src.db.models.Video_model import VideoModel
+from src.features.catalog.video_tag import VideoTagModel
+from src.features.catalog.video import VideoModel
 
 # -----------------------------------------------------------------------
 # ---------------------- Infrastructure fixtures -------------------------
@@ -112,6 +113,35 @@ def video_factory(init_db) -> Callable:
         video = VideoModel(**defaults)
         await video.insert()
         return video
+    return _create
+
+
+@pytest_asyncio.fixture
+def task_factory(init_db) -> Callable:
+    """
+    Factory fixture to create MigrationTaskModel documents in the test DB.
+
+    Usage:
+        task = await task_factory()
+        task = await task_factory(status=TaskStatus.PROCESSING, file_size=100)
+    """
+    async def _create(**kwargs) -> MigrationTaskModel:
+        now = time.time()
+        defaults = {
+            "source_path": "Test-category/Test-resource/movie_a.mp4",
+            "source_category": "Test-category",
+            "target_path": "Target-category/Target-resource/movie_a.mp4",
+            "target_category": "Target-category",
+            "file_name": "movie_a",
+            "file_size": 100,
+            "status": TaskStatus.PENDING,
+            "created_at": now,
+            "updated_at": now,
+        }
+        defaults.update(kwargs)
+        task = MigrationTaskModel(**defaults)
+        await task.insert()
+        return task
     return _create
 
 

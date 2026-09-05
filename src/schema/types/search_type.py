@@ -1,32 +1,26 @@
-import strawberry
 from enum import Enum
 
+import strawberry
+
 from src.schema.types.video_type import Video, VideoTag
+from src.features.catalog.catalog_service import SearchField, VideoSortOption
 from src.schema.types.pydantic_types.search_type import (
     SearchKeywordModel,
     SuggestionInputModel,
     VideoSearchInputModel
 )
 
-@strawberry.enum
-class VideoSortOption(Enum):
-    Latest = "Latest"
-    MostViewed = "MostViewed"
-    Loved = "Loved"
-    Longest = "Longest"
+# Both belong to the catalogue service, which is what interprets them. Registered here
+# rather than redeclared so the schema and the query logic cannot drift apart.
+VideoSortOption = strawberry.enum(VideoSortOption)
+SearchField = strawberry.enum(SearchField)
 
 
 @strawberry.enum
 class SearchFrom(Enum):
+    """Which surface is asking. Decides page size, so it is purely a transport concern."""
     FrontalPage = "FrontalPage"
     SearchPage = "SearchPage"
-
-
-@strawberry.enum
-class SearchField(Enum):
-    Name = "Name"
-    Author = "Author"
-    Tag = "Tag"
 
 
 @strawberry.type

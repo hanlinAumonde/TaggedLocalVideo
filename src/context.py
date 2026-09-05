@@ -5,18 +5,19 @@ from fastapi import Depends
 from src.config import Settings, get_settings
 
 from src.config import Settings
-from src.services.batch_operation_service import BatchOperationService
-from src.services.browse_file_service import BrowseFileService
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.ffmpeg_service import FFmpegService
-from src.services.tasks.migration_service import MigrationService
-from src.services.tasks.task_runner import TaskRunner
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
-from src.services.series_service import SeriesService
-from src.services.tag_operation_service import TagOperationService
-from src.services.thumbnail_service import ThumbnailService
-from src.services.video_stream_service import VideoStreamService
+from src.features.browsing.batch_operation_service import BatchOperationService
+from src.features.browsing.browse_file_service import BrowseFileService
+from src.features.catalog.catalog_service import CatalogService
+from src.platform.cache.cache_service import CacheService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.media.ffmpeg_service import FFmpegService
+from src.features.migration.migration_service import MIGRATION_EXECUTOR_KEY, MigrationService
+from src.platform.jobs.task_runner import TaskRunner
+from src.platform.storage.resource_handler_service import ResourceHandlerService
+from src.features.catalog.series_service import SeriesService
+from src.features.catalog.tag_operation_service import TagOperationService
+from src.features.playback.thumbnail_service import ThumbnailService
+from src.features.playback.video_stream_service import VideoStreamService
 
 class ContextEnum(Enum):
     SETTINGS = Settings
@@ -28,6 +29,7 @@ class ContextEnum(Enum):
     SERIES_SERVICE = SeriesService
     DIR_METADATA_SERVICE = DirMetadataService
     BROWSE_FILE_SERVICE = BrowseFileService
+    CATALOG_SERVICE = CatalogService
     BATCH_OPERATION_SERVICE = BatchOperationService
     MIGRATION_SERVICE = MigrationService
     TASK_RUNNER = TaskRunner
@@ -126,6 +128,21 @@ def get_batch_operation_service(
     )
 # BatchOperationServiceDep = Annotated[BatchOperationService, Depends(get_batch_operation_service)]
 
+def get_catalog_service(
+    settings: Settings = Depends(get_settings),
+    tag_operation_service = Depends(get_tag_operation_service),
+    dir_metadata_service = Depends(get_dir_metadata_service),
+    resource_handler_service = Depends(get_resource_handler_service),
+    ffmpeg_service = Depends(get_ffmpeg_service),
+):
+    return CatalogService(
+        settings=settings,
+        tag_operation_service=tag_operation_service,
+        dir_metadata_service=dir_metadata_service,
+        resource_handler_service=resource_handler_service,
+        ffmpeg_service=ffmpeg_service,
+    )
+
 def get_migration_service(
     resource_handler_service=Depends(get_resource_handler_service),
     dir_metadata_service=Depends(get_dir_metadata_service),
@@ -164,7 +181,7 @@ async def init_task_runner() -> TaskRunner:
     )
 
     runner = get_task_runner(settings)
-    runner.register_executor("migration", migration_service)
+    runner.register_executor(MIGRATION_EXECUTOR_KEY, migration_service)
     runner.start()
     await runner.recover()
     return runner
@@ -190,6 +207,7 @@ async def get_context(
     dir_metadata_service: DirMetadataService = Depends(get_dir_metadata_service),
     browse_file_service: BrowseFileService = Depends(get_browse_file_service),
     batch_operation_service: BatchOperationService = Depends(get_batch_operation_service),
+    catalog_service: CatalogService = Depends(get_catalog_service),
     migration_service: MigrationService = Depends(get_migration_service),
     task_runner: TaskRunner = Depends(get_task_runner),
 ):
@@ -204,6 +222,7 @@ async def get_context(
         ContextEnum.DIR_METADATA_SERVICE: dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: batch_operation_service,
+        ContextEnum.CATALOG_SERVICE: catalog_service,
         ContextEnum.MIGRATION_SERVICE: migration_service,
         ContextEnum.TASK_RUNNER: task_runner,
     }

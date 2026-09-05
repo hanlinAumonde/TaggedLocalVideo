@@ -4,20 +4,21 @@ import asyncio
 
 import pytest
 
-from src.db.models.MigrationTask_model import TaskStatus
-from src.services.tasks.state_machine import MigrationProgressStatus
-from src.services.tasks.task_runner import TaskRunner
+from src.features.migration.migration_task import TaskStatus
+from src.platform.jobs.progress import ProgressFrame
+from src.platform.jobs.task_runner import TaskRunner
 
 pytestmark = pytest.mark.unit
 
+EXECUTOR_KEY = "migration"
 
-def _frame(task_id: str, status=TaskStatus.PROCESSING, pct=0.0) -> MigrationProgressStatus:
-    return MigrationProgressStatus(
+
+def _frame(task_id: str, status=TaskStatus.PROCESSING, current=0) -> ProgressFrame:
+    return ProgressFrame(
         task_id=task_id,
         status=status,
-        bytes_transferred=0,
-        total_bytes=100,
-        progress_percentage=pct,
+        current=current,
+        total=100,
         message=None,
     )
 
@@ -43,13 +44,13 @@ class FakeExecutor:
             if self.gate is not None:
                 await self.gate.wait()
             for i in range(self.frames_per_task):
-                yield _frame(task_id, pct=float(i))
+                yield _frame(task_id, current=i)
                 await asyncio.sleep(0)
         finally:
             self.concurrent -= 1
 
     async def build_snapshot(self, task_id):
-        return _frame(task_id, status=TaskStatus.COMPLETED, pct=100.0)
+        return _frame(task_id, status=TaskStatus.COMPLETED, current=100)
 
     async def plan_recovery(self):
         return self.recovery_plan
@@ -65,7 +66,7 @@ async def runner_factory():
 
     def _make(executor, max_concurrent=2) -> TaskRunner:
         runner = TaskRunner(max_concurrent=max_concurrent)
-        runner.register_executor("migration", executor)
+        runner.register_executor(EXECUTOR_KEY, executor)
         runner.start()
         created.append(runner)
         return runner
@@ -86,7 +87,7 @@ class TestSubmit:
         executor = FakeExecutor()
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await _drain_queue(runner)
 
         assert executor.calls == [("task-1", TaskStatus.PROCESSING)]
@@ -95,7 +96,7 @@ class TestSubmit:
         executor = FakeExecutor()
         runner = runner_factory(executor)
 
-        await runner.submit("task-1", start_from=TaskStatus.DELETING_SOURCE)
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY, start_from=TaskStatus.DELETING_SOURCE)
         await _drain_queue(runner)
 
         assert executor.calls == [("task-1", TaskStatus.DELETING_SOURCE)]
@@ -105,9 +106,9 @@ class TestSubmit:
         executor = FakeExecutor(hold=True)
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await asyncio.wait_for(executor.started.wait(), timeout=5)
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
 
         executor.gate.set()
         await _drain_queue(runner)
@@ -124,7 +125,7 @@ class TestSubmit:
         runner = runner_factory(executor, max_concurrent=2)
 
         for i in range(5):
-            await runner.submit(f"task-{i}")
+            await runner.submit(f"task-{i}", executor_key=EXECUTOR_KEY)
         await asyncio.wait_for(executor.started.wait(), timeout=5)
         await asyncio.sleep(0.05)
 
@@ -145,8 +146,8 @@ class TestSubmit:
         executor = Boom()
         runner = runner_factory(executor, max_concurrent=1)
 
-        await runner.submit("bad")
-        await runner.submit("good")
+        await runner.submit("bad", executor_key=EXECUTOR_KEY)
+        await runner.submit("good", executor_key=EXECUTOR_KEY)
         await _drain_queue(runner)
 
         assert ("good", TaskStatus.PROCESSING) in executor.calls
@@ -161,11 +162,11 @@ class TestObserve:
         executor = FakeExecutor(frames_per_task=3, hold=True)
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await asyncio.wait_for(executor.started.wait(), timeout=5)
 
         async def collect():
-            return [f async for f in runner.observe("task-1")]
+            return [f async for f in runner.observe("task-1", executor_key=EXECUTOR_KEY)]
 
         collector = asyncio.create_task(collect())
         await asyncio.sleep(0)
@@ -180,11 +181,11 @@ class TestObserve:
         executor = FakeExecutor(frames_per_task=3, hold=True)
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await asyncio.wait_for(executor.started.wait(), timeout=5)
 
         async def collect():
-            return [f async for f in runner.observe("task-1")]
+            return [f async for f in runner.observe("task-1", executor_key=EXECUTOR_KEY)]
 
         a = asyncio.create_task(collect())
         b = asyncio.create_task(collect())
@@ -201,7 +202,7 @@ class TestObserve:
         executor = FakeExecutor()
         runner = runner_factory(executor)
 
-        frames = [f async for f in runner.observe("never-submitted")]
+        frames = [f async for f in runner.observe("never-submitted", executor_key=EXECUTOR_KEY)]
 
         assert executor.calls == []
         # Falls back to the persisted snapshot, then completes.
@@ -212,11 +213,11 @@ class TestObserve:
         executor = FakeExecutor(frames_per_task=3, hold=True)
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await asyncio.wait_for(executor.started.wait(), timeout=5)
 
         # Attach, take nothing, walk away — as a closed browser tab would.
-        agen = runner.observe("task-1")
+        agen = runner.observe("task-1", executor_key=EXECUTOR_KEY)
         await agen.__anext__()
         await agen.aclose()
 
@@ -230,7 +231,7 @@ class TestObserve:
         executor = FakeExecutor()
         runner = runner_factory(executor)
 
-        await runner.submit("task-1")
+        await runner.submit("task-1", executor_key=EXECUTOR_KEY)
         await _drain_queue(runner)
 
         frames = await asyncio.wait_for(
@@ -240,7 +241,7 @@ class TestObserve:
 
 
 async def _collect_observe(runner, task_id):
-    return [f async for f in runner.observe(task_id)]
+    return [f async for f in runner.observe(task_id, executor_key=EXECUTOR_KEY)]
 
 
 # =======================================================================

@@ -6,8 +6,8 @@ import pytest
 from fastapi import HTTPException
 
 from src.config import Settings
-from src.db.models.Video_model import VideoModel
-from src.services.thumbnail_service import ThumbnailService
+from src.features.catalog.video import VideoModel
+from src.features.playback.thumbnail_service import ThumbnailService
 
 pytestmark = pytest.mark.unit
 

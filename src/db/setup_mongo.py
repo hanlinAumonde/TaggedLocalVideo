@@ -1,10 +1,10 @@
 from beanie import init_beanie
 from pymongo import AsyncMongoClient
-from .models.Video_model import VideoModel
-from .models.VideoTag_model import VideoTagModel
-from .models.DirMetadata_model import DirMetadataModel
-from .models.MigrationTask_model import MigrationTaskModel
-from src.config import MongoConfig, get_settings
+from src.features.catalog.video import VideoModel
+from src.features.catalog.video_tag import VideoTagModel
+from src.features.browsing.dir_metadata import DirMetadataModel
+from src.features.migration.migration_task import MigrationTaskModel
+from src.config import MongoConfig
 from src.logger import get_logger
 
 logger = get_logger("setup_mongo")

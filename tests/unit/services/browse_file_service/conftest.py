@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config import Settings
-from src.services.browse_file_service import BrowseFileService
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.ffmpeg_service import FFmpegService
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.features.browsing.browse_file_service import BrowseFileService
+from src.platform.cache.cache_service import CacheService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.media.ffmpeg_service import FFmpegService
+from src.platform.storage.resource_handler_service import ResourceHandlerService
 
 
 @pytest.fixture
