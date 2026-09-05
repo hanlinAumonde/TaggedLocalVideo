@@ -317,6 +317,16 @@ backend_api: ""  // Empty string, uses relative path (nginx proxy)
 
 #### Backend
 
+The backend is organised by business capability, with a strictly one-way dependency chain:
+
+```
+resolvers/ + schema/   GraphQL delivery — validate, delegate, map
+        ↓
+features/              catalog · browsing · playback · migration
+        ↓
+platform/              storage · media · cache · jobs (reusable, knows no feature)
+```
+
 ```
 video-app/
 ├── main.py                          # Backend entry (localhost:12000)
@@ -326,74 +336,96 @@ video-app/
 ├── src/
 │   ├── app.py                      # FastAPI app factory, CORS, lifespan, GraphQL router mount
 │   ├── config.py                   # Configuration management (Settings, envyaml)
-│   ├── context.py                  # DI container: per-request service factories + GraphQL context
+│   ├── context.py                  # DI container: service factories + GraphQL context (13 services)
 │   ├── errors.py                   # Custom exceptions
 │   ├── logger.py                   # Logging config (loguru)
+│   │
 │   ├── db/
-│   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie init
-│   │   └── models/
-│   │       ├── Video_model.py     # VideoModel (category, series, duration fields)
-│   │       ├── VideoTag_model.py  # VideoTagModel
-│   │       ├── DirMetadata_model.py # DirMetadataModel (with category field)
-│   │       └── MigrationTask_model.py # MigrationTaskModel (file migration task persistence)
-│   ├── router/
-│   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
-│   ├── schema/
-│   │   ├── query_schema.py        # GraphQL query root
-│   │   ├── mutation_schema.py     # GraphQL mutation root
-│   │   ├── subscription_schema.py # GraphQL subscription root
-│   │   ├── strawberry_schema.py   # Schema assembly + custom scalar config (BigInt) + error logging
-│   │   └── types/
-│   │       ├── video_type.py      # Video, VideoTag types
-│   │       ├── search_type.py     # Search-related types
-│   │       ├── fileBrowse_type.py # File browse / batch operation types
-│   │       ├── migration_type.py  # Migration task types + preflight result
-│   │       ├── scalars.py         # Custom scalars (BigInt)
-│   │       └── pydantic_types/    # Input validation models (Pydantic)
-│   │           ├── video_type.py
-│   │           ├── search_type.py
-│   │           ├── fileBrowe_type.py   # RelativePath parsing (3-level path)
-│   │           └── batch_operation_type.py
-│   ├── resolvers/
-│   │   ├── query_resolver.py          # Query resolvers
-│   │   ├── mutation_resolver.py       # Mutation resolvers
-│   │   ├── subscription_resolver.py   # Subscription resolvers (batch ops)
-│   │   └── migration_resolver.py      # Migration resolvers (preflight, CRUD, progress/retry subscriptions)
-│   └── services/
-│       ├── browse_file_service.py     # Directory browsing (3-level nav)
-│       ├── batch_operation_service.py # Batch update/delete
-│       ├── dir_metadata_service.py    # Directory metadata (size/mtime)
-│       ├── tag_operation_service.py   # Tag count management
-│       ├── series_service.py          # Series prefix search + ordered listing
-│       ├── thumbnail_service.py       # Thumbnail orchestration (ffmpeg + optional S3 storage)
-│       ├── ffmpeg_service.py          # ffmpeg/ffprobe wrapper: thumbnail, duration, on-the-fly transcoding (semaphore-gated)
-│       ├── video_stream_service.py    # Video streaming (Range, chunked, transcoded fallback)
-│       ├── tasks/                     # Task services
-│       │   ├── task_runner.py        # Background job runner: FIFO queue, worker pool, progress broadcast, crash recovery
-│       │   ├── state_machine.py      # Reusable state machine for task lifecycle
-│       │   └── migration_service.py  # File migration orchestration (copy, verify, cleanup)
-│       ├── cache/                     # Cache service
-│       │   ├── base_cache.py         # Cache abstract base class
-│       │   ├── cachetools_cache.py   # cachetools implementation
-│       │   └── cache_service.py      # Cache factory/dispatcher
-│       └── resource_handler/          # Resource handler (Strategy Pattern)
-│           ├── base_resource_handler.py  # Abstract base class
-│           ├── base_file_entry.py        # File entry abstraction + FileStat
-│           ├── absolute_path.py          # AbsolutePath abstraction (DB / FS format conversion)
-│           ├── resource_handler_service.py # Handler factory/dispatcher
-│           ├── local_fs/                  # Local filesystem implementation
-│           │   ├── local_fs_handler.py    # LocalFS handler
-│           │   └── local_fs_file_entry.py # LocalFS file entry
-│           └── s3/                        # S3-compatible storage implementation
-│               ├── s3_handler.py          # S3 handler (boto3 resource API)
-│               └── s3_file_entry.py       # S3 file entry
-└── tests/                           # Test suite (pytest --strict-markers)
-    ├── unit/                        # Unit tests (@pytest.mark.unit)
+│   │   └── setup_mongo.py         # AsyncMongoClient + Beanie init (registers the 4 documents)
+│   │
+│   ├── platform/                   # ── Reusable core; imports no feature ──
+│   │   ├── cache/
+│   │   │   ├── base_cache.py           # Cache abstract base class
+│   │   │   ├── cachetools_cache.py     # cachetools implementation
+│   │   │   └── cache_service.py        # Cache factory/dispatcher
+│   │   ├── media/
+│   │   │   └── ffmpeg_service.py       # ffmpeg/ffprobe wrapper: thumbnail, duration, on-the-fly transcoding (semaphore-gated)
+│   │   ├── storage/                    # Resource handler (Strategy Pattern)
+│   │   │   ├── base_resource_handler.py  # Abstract base class
+│   │   │   ├── base_file_entry.py        # File entry abstraction + FileStat
+│   │   │   ├── absolute_path.py          # AbsolutePath abstraction (DB / FS format conversion)
+│   │   │   ├── resource_handler_service.py # Handler factory/dispatcher
+│   │   │   ├── local_fs/                 # Local filesystem implementation
+│   │   │   │   ├── local_fs_handler.py
+│   │   │   │   └── local_fs_file_entry.py
+│   │   │   └── s3/                       # S3-compatible storage implementation
+│   │   │       ├── s3_handler.py         # boto3 resource API
+│   │   │       └── s3_file_entry.py
+│   │   └── jobs/                       # Generic background-task template
+│   │       ├── task_model.py           # TaskStatus + BaseTaskModel (progress via accessors)
+│   │       ├── progress.py             # ProgressFrame — unit-agnostic current/total
+│   │       ├── state_machine.py        # TaskStateMachine[TTask] — three-phase lifecycle, crash recovery
+│   │       └── task_runner.py          # FIFO queue, worker pool, progress broadcast, recovery on boot
+│   │
+│   ├── features/                   # ── Business capabilities ──
+│   │   ├── catalog/                    # Video metadata: search, autocomplete, edit, delete, views
+│   │   │   ├── video.py                # VideoModel (category, series, duration fields)
+│   │   │   ├── video_tag.py            # VideoTagModel
+│   │   │   ├── catalog_service.py      # Search / suggest / update / record view / delete
+│   │   │   ├── series_service.py       # Series search + ordered listing
+│   │   │   └── tag_operation_service.py# Tag reference-count management
+│   │   ├── browsing/                   # Directory browsing and batch operations
+│   │   │   ├── dir_metadata.py         # DirMetadataModel
+│   │   │   ├── dir_metadata_service.py # Directory metadata (size/mtime, Cache-Aside)
+│   │   │   ├── browse_file_service.py  # 3-level navigation, batched document sync
+│   │   │   └── batch_operation_service.py # Batch update/delete (streaming progress)
+│   │   ├── playback/                   # Streaming and thumbnails (REST)
+│   │   │   ├── video_stream_service.py # Range streaming, chunked, transcoded fallback
+│   │   │   ├── thumbnail_service.py    # ffmpeg + optional S3 persistence
+│   │   │   └── video_router.py         # /video/stream/{id}, /video/thumbnail
+│   │   └── migration/                  # File migration
+│   │       ├── migration_task.py       # MigrationTaskModel (extends BaseTaskModel)
+│   │       └── migration_service.py    # TaskStateMachine subclass: copy, repoint DB, clean up
+│   │
+│   ├── resolvers/                  # ── GraphQL delivery ──
+│   │   ├── query_resolver.py
+│   │   ├── mutation_resolver.py
+│   │   ├── subscription_resolver.py    # Batch operation subscriptions
+│   │   └── migration_resolver.py       # Preflight, CRUD, progress/retry subscriptions
+│   │
+│   └── schema/
+│       ├── query_schema.py             # GraphQL query root
+│       ├── mutation_schema.py          # GraphQL mutation root
+│       ├── subscription_schema.py      # GraphQL subscription root
+│       ├── strawberry_schema.py        # Schema assembly + custom scalar config (BigInt) + error logging
+│       └── types/
+│           ├── video_type.py           # Video, VideoTag types
+│           ├── search_type.py          # Search types (enums registered from catalog)
+│           ├── fileBrowse_type.py      # File browse / batch operation types
+│           ├── migration_type.py       # Migration task types + preflight result
+│           ├── scalars.py              # Custom scalars (BigInt)
+│           └── pydantic_types/         # GraphQL input contracts (Pydantic)
+│               ├── video_type.py
+│               ├── search_type.py
+│               ├── fileBrowe_type.py   # RelativePath parsing (3-level path)
+│               ├── batch_operation_type.py
+│               └── migration_type.py
+└── tests/                           # Test suite, 449 cases (pytest --strict-markers)
+    ├── unit/
+    │   ├── test_architecture.py     # Dependency-direction guards (AST scan)
+    │   ├── jobs/                    # Task template: model, progress frame, state machine
+    │   └── services/                # Per-service unit tests (@pytest.mark.unit)
     ├── graphql/                     # GraphQL resolver tests (queries, mutations, subscriptions)
     └── integration/                 # End-to-end integration tests
 ```
 
+> **Dependency direction is enforced, not just documented.** `tests/unit/test_architecture.py` parses every module's imports and fails the build if a feature imports strawberry or a GraphQL type, if a resolver imports a document model, or if `platform/` imports a feature. A reversed import is invisible in review and in green tests — it only surfaces later as a service that cannot be reused and a file-walk test that has to build a GraphQL schema.
+
+> **Delivery types are mapped, never returned directly.** Features return their own dataclasses and documents; the GraphQL layer converts them (`Video.from_mongoDB`, `BatchOperationStatus.from_service`, `MigrationProgressStatus.from_service`, ...). That mapping doubles as a shield for the published schema: the task template reports progress as unit-agnostic `current`/`total`, yet the API still publishes `bytesTransferred`/`totalBytes`.
+
 > **Dependency injection**: `src/context.py` provides FastAPI `Depends`-based factories for every service and assembles them into the GraphQL `context` (keyed by `ContextEnum`). Resolvers retrieve services with `get_context_value(info, ContextEnum.XXX)`; HTTP routes use the exported `*Dep` annotations (e.g. `ThumbnailServiceDep`, `VideoStreamServiceDep`).
+
+> **Adding a background task type**: subclass `BaseTaskModel` (declaring its own `Settings.name`) and `TaskStateMachine[YourModel]`, implement the three phases, then register it with `TaskRunner.register_executor(key, executor)`. The scheduler needs no changes — this is covered by a test that drives a non-migration task type through the template.
 
 #### Frontend
 

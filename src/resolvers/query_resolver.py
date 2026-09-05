@@ -3,7 +3,7 @@ from bson import ObjectId
 
 from src.config import Settings
 from src.context import ContextEnum, get_context_value
-from src.errors import DatabaseOperationError, InputValidationError, VideoNotFoundError
+from src.errors import DatabaseOperationError, InputValidationError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import FileBrowseNode, RelativePathInput
 from src.schema.types.search_type import (
@@ -12,20 +12,15 @@ from src.schema.types.search_type import (
     SuggestionInput,
     VideoSearchInput,
     VideoSearchResult,
-    VideoSortOption,
-    SearchField,
     Pagination
 )
 from src.schema.types.video_type import Video, VideoTag
 from src.features.browsing.browse_file_service import BrowseEntry, BrowseFileService, DirectoryEntry
 from src.features.catalog.catalog_service import CatalogService, VideoSearchCriteria
 from src.features.browsing.dir_metadata_service import DirMetadataService
-from src.platform.media.ffmpeg_service import FFmpegService
 from src.platform.storage.absolute_path import AbsolutePath
-from src.platform.storage.resource_handler_service import ResourceHandlerService
 from src.features.catalog.series_service import SeriesService
 from src.features.catalog.tag_operation_service import TagOperationService
-from src.features.playback.thumbnail_service import ThumbnailService
 
 logger = get_logger("query_resolver")
     

@@ -126,7 +126,6 @@ def get_batch_operation_service(
         resource_handler_service=resource_handler_service,
         ffmpeg_service=ffmpeg_service,
     )
-# BatchOperationServiceDep = Annotated[BatchOperationService, Depends(get_batch_operation_service)]
 
 def get_catalog_service(
     settings: Settings = Depends(get_settings),

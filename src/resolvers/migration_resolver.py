@@ -1,8 +1,6 @@
 from typing import AsyncGenerator
 
-import pymongo
 import strawberry
-from bson import ObjectId
 
 from src.context import ContextEnum, get_context_value
 from src.errors import InputValidationError

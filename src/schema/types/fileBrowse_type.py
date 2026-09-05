@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Annotated, Optional
 import strawberry
 
 from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
@@ -9,10 +9,8 @@ from src.schema.types.pydantic_types.batch_operation_type import (
 )
 from src.schema.types.video_type import SeriesOrderEntryInput, Video
 from src.features.browsing.batch_operation_service import BatchProgress, BatchResultType
-
-# The enum belongs to the batch service; publishing it is all this layer does. Registered
-# rather than redeclared so the two can never drift apart.
-BatchResultType = strawberry.enum(BatchResultType)
+    
+BatchResultTypeEnum = Annotated[BatchResultType, strawberry.enum]
 
 @strawberry.type
 class FileBrowseNode:
@@ -49,7 +47,7 @@ class VideosBatchOperationInput:
 
 @strawberry.type
 class VideosBatchOperationResult:
-    resultType: BatchResultType
+    resultType: BatchResultTypeEnum
     message: Optional[str] = None
 
 @strawberry.type

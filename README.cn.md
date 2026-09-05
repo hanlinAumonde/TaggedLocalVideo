@@ -317,6 +317,16 @@ backend_api: ""  // 空字符串，使用相对路径（nginx代理）
 
 #### 后端
 
+后端按业务能力垂直切分，依赖方向严格单向：
+
+```
+resolvers/ + schema/   GraphQL 交付层 — 校验、委托、映射
+        ↓
+features/              catalog · browsing · playback · migration
+        ↓
+platform/              storage · media · cache · jobs（可复用内核，不认识任何 feature）
+```
+
 ```
 video-app/
 ├── main.py                          # 后端入口 (localhost:12000)
@@ -326,74 +336,96 @@ video-app/
 ├── src/
 │   ├── app.py                      # FastAPI 应用工厂、CORS、lifespan、GraphQL 路由挂载
 │   ├── config.py                   # 配置管理 (Settings, envyaml)
-│   ├── context.py                  # 依赖注入容器：服务工厂 + GraphQL context 组装
+│   ├── context.py                  # 依赖注入容器：服务工厂 + GraphQL context 组装（13 个服务）
 │   ├── errors.py                   # 自定义异常
 │   ├── logger.py                   # 日志配置 (loguru)
+│   │
 │   ├── db/
-│   │   ├── setup_mongo.py         # AsyncMongoClient + Beanie 初始化
-│   │   └── models/
-│   │       ├── Video_model.py     # VideoModel (含 category / series / duration 字段)
-│   │       ├── VideoTag_model.py  # VideoTagModel
-│   │       ├── DirMetadata_model.py # DirMetadataModel (含 category 字段)
-│   │       └── MigrationTask_model.py # MigrationTaskModel (文件迁移任务持久化)
-│   ├── router/
-│   │   └── video_router.py        # /video/stream/{id}, /video/thumbnail
-│   ├── schema/
-│   │   ├── query_schema.py        # GraphQL 查询根
-│   │   ├── mutation_schema.py     # GraphQL 变更根
-│   │   ├── subscription_schema.py # GraphQL 订阅根
-│   │   ├── strawberry_schema.py   # Schema 组装 + 自定义标量配置 (BigInt) + 错误日志
-│   │   └── types/
-│   │       ├── video_type.py      # Video, VideoTag 类型
-│   │       ├── search_type.py     # 搜索相关类型
-│   │       ├── fileBrowse_type.py # 文件浏览 / 批量操作类型
-│   │       ├── migration_type.py  # 迁移任务类型 + 预检结果
-│   │       ├── scalars.py         # 自定义标量 (BigInt)
-│   │       └── pydantic_types/    # 输入验证模型 (Pydantic)
-│   │           ├── video_type.py
-│   │           ├── search_type.py
-│   │           ├── fileBrowe_type.py   # RelativePath 解析 (三级路径)
-│   │           └── batch_operation_type.py
-│   ├── resolvers/
-│   │   ├── query_resolver.py          # 查询解析器
-│   │   ├── mutation_resolver.py       # 变更解析器
-│   │   ├── subscription_resolver.py   # 订阅解析器 (批量操作)
-│   │   └── migration_resolver.py      # 迁移解析器 (预检、CRUD、进度/重试订阅)
-│   └── services/
-│       ├── browse_file_service.py     # 目录浏览 (三级导航)
-│       ├── batch_operation_service.py # 批量更新/删除
-│       ├── dir_metadata_service.py    # 目录元数据 (大小/修改时间)
-│       ├── tag_operation_service.py   # 标签计数管理
-│       ├── series_service.py          # 系列名前缀搜索 + 系列内有序列表
-│       ├── thumbnail_service.py       # 缩略图编排 (ffmpeg + 可选 S3 存储)
-│       ├── ffmpeg_service.py          # ffmpeg/ffprobe 封装：缩略图、时长、实时转码 (信号量限流)
-│       ├── video_stream_service.py    # 视频流服务 (Range 请求、分块传输、转码兜底)
-│       ├── tasks/                     # 任务服务
-│       │   ├── task_runner.py        # 后台任务调度器：FIFO 队列、worker 池、进度广播、崩溃恢复
-│       │   ├── state_machine.py      # 可复用的任务生命周期状态机
-│       │   └── migration_service.py  # 文件迁移编排 (复制、校验、清理)
-│       ├── cache/                     # 缓存服务
-│       │   ├── base_cache.py         # 缓存抽象基类
-│       │   ├── cachetools_cache.py   # cachetools 实现
-│       │   └── cache_service.py      # 缓存工厂/分发
-│       └── resource_handler/          # 资源处理器 (策略模式)
-│           ├── base_resource_handler.py  # 抽象基类
-│           ├── base_file_entry.py        # 文件条目抽象 + FileStat
-│           ├── absolute_path.py          # AbsolutePath 路径抽象 (DB / FS 格式互转)
-│           ├── resource_handler_service.py # 处理器工厂/分发
-│           ├── local_fs/                  # 本地文件系统实现
-│           │   ├── local_fs_handler.py    # LocalFS 处理器
-│           │   └── local_fs_file_entry.py # LocalFS 文件条目
-│           └── s3/                        # S3 兼容存储实现
-│               ├── s3_handler.py          # S3 处理器 (boto3 resource API)
-│               └── s3_file_entry.py       # S3 文件条目
-└── tests/                           # 测试套件 (pytest --strict-markers)
-    ├── unit/                        # 单元测试 (@pytest.mark.unit)
+│   │   └── setup_mongo.py         # AsyncMongoClient + Beanie 初始化（注册 4 个文档）
+│   │
+│   ├── platform/                   # ── 可复用内核，不 import 任何 feature ──
+│   │   ├── cache/
+│   │   │   ├── base_cache.py           # 缓存抽象基类
+│   │   │   ├── cachetools_cache.py     # cachetools 实现
+│   │   │   └── cache_service.py        # 缓存工厂/分发
+│   │   ├── media/
+│   │   │   └── ffmpeg_service.py       # ffmpeg/ffprobe 封装：缩略图、时长、实时转码 (信号量限流)
+│   │   ├── storage/                    # 资源处理器 (策略模式)
+│   │   │   ├── base_resource_handler.py  # 抽象基类
+│   │   │   ├── base_file_entry.py        # 文件条目抽象 + FileStat
+│   │   │   ├── absolute_path.py          # AbsolutePath 路径抽象 (DB / FS 格式互转)
+│   │   │   ├── resource_handler_service.py # 处理器工厂/分发
+│   │   │   ├── local_fs/                 # 本地文件系统实现
+│   │   │   │   ├── local_fs_handler.py
+│   │   │   │   └── local_fs_file_entry.py
+│   │   │   └── s3/                       # S3 兼容存储实现
+│   │   │       ├── s3_handler.py         # boto3 resource API
+│   │   │       └── s3_file_entry.py
+│   │   └── jobs/                       # 通用后台任务模板
+│   │       ├── task_model.py           # TaskStatus + BaseTaskModel（进度走访问器）
+│   │       ├── progress.py             # ProgressFrame — 单位无关的 current/total
+│   │       ├── state_machine.py        # TaskStateMachine[TTask] — 三阶段生命周期、崩溃恢复
+│   │       └── task_runner.py          # FIFO 队列、worker 池、进度广播、启动时恢复
+│   │
+│   ├── features/                   # ── 按业务能力切分 ──
+│   │   ├── catalog/                    # 视频元数据：搜索、补全、编辑、删除、播放记录
+│   │   │   ├── video.py                # VideoModel (含 category / series / duration 字段)
+│   │   │   ├── video_tag.py            # VideoTagModel
+│   │   │   ├── catalog_service.py      # 搜索 / 建议 / 更新 / 播放记录 / 删除
+│   │   │   ├── series_service.py       # 系列搜索 + 系列内有序列表
+│   │   │   └── tag_operation_service.py# 标签引用计数管理
+│   │   ├── browsing/                   # 目录浏览与批量操作
+│   │   │   ├── dir_metadata.py         # DirMetadataModel
+│   │   │   ├── dir_metadata_service.py # 目录元数据 (大小/修改时间, Cache-Aside)
+│   │   │   ├── browse_file_service.py  # 三级导航，目录内视频批量入库
+│   │   │   └── batch_operation_service.py # 批量更新/删除（流式推送进度）
+│   │   ├── playback/                   # 播放与缩略图 (REST)
+│   │   │   ├── video_stream_service.py # Range 请求、分块传输、转码兜底
+│   │   │   ├── thumbnail_service.py    # ffmpeg + 可选 S3 持久化
+│   │   │   └── video_router.py         # /video/stream/{id}, /video/thumbnail
+│   │   └── migration/                  # 文件迁移
+│   │       ├── migration_task.py       # MigrationTaskModel（继承 BaseTaskModel）
+│   │       └── migration_service.py    # TaskStateMachine 子类：复制、改库、清理
+│   │
+│   ├── resolvers/                  # ── GraphQL 交付层 ──
+│   │   ├── query_resolver.py
+│   │   ├── mutation_resolver.py
+│   │   ├── subscription_resolver.py    # 批量操作订阅
+│   │   └── migration_resolver.py       # 预检、CRUD、进度/重试订阅
+│   │
+│   └── schema/
+│       ├── query_schema.py             # GraphQL 查询根
+│       ├── mutation_schema.py          # GraphQL 变更根
+│       ├── subscription_schema.py      # GraphQL 订阅根
+│       ├── strawberry_schema.py        # Schema 组装 + 自定义标量配置 (BigInt) + 错误日志
+│       └── types/
+│           ├── video_type.py           # Video, VideoTag 类型
+│           ├── search_type.py          # 搜索类型（枚举由 catalog 注册而来）
+│           ├── fileBrowse_type.py      # 文件浏览 / 批量操作类型
+│           ├── migration_type.py       # 迁移任务类型 + 预检结果
+│           ├── scalars.py              # 自定义标量 (BigInt)
+│           └── pydantic_types/         # GraphQL 输入契约 (Pydantic)
+│               ├── video_type.py
+│               ├── search_type.py
+│               ├── fileBrowe_type.py   # RelativePath 解析 (三级路径)
+│               ├── batch_operation_type.py
+│               └── migration_type.py
+└── tests/                           # 测试套件，449 个用例 (pytest --strict-markers)
+    ├── unit/
+    │   ├── test_architecture.py     # 依赖方向守卫（AST 扫描）
+    │   ├── jobs/                    # 任务模板：文档模型、进度帧、状态机
+    │   └── services/                # 各服务单元测试 (@pytest.mark.unit)
     ├── graphql/                     # GraphQL 解析器测试 (查询、变更、订阅)
     └── integration/                 # 端到端集成测试
 ```
 
+> **依赖方向是被测试钉住的，不只是写在文档里。** `tests/unit/test_architecture.py` 解析每个模块的 import，一旦 feature 引入了 strawberry 或 GraphQL 类型、resolver 引入了文档模型、或 `platform/` 引入了 feature，构建即失败。反向依赖在 code review 和绿色测试里都是隐形的——它只会在很久之后，以「这个服务没法复用」和「测个目录遍历还得建 GraphQL schema」的形式暴露。
+
+> **交付类型一律经过映射，不直接返回。** feature 返回自己的 dataclass 和文档，由 GraphQL 层转换（`Video.from_mongoDB`、`BatchOperationStatus.from_service`、`MigrationProgressStatus.from_service` 等）。这层映射同时是发布出去的 schema 的保护带：任务模板内部已改用单位无关的 `current`/`total`，而 API 依然发布 `bytesTransferred`/`totalBytes`。
+
 > **依赖注入**：`src/context.py` 基于 FastAPI `Depends` 提供所有服务的工厂函数，并将它们组装为 GraphQL `context`（按 `ContextEnum` 键索引）。Resolver 通过 `get_context_value(info, ContextEnum.XXX)` 获取服务；HTTP 路由则使用导出的 `*Dep` 注解（如 `ThumbnailServiceDep`、`VideoStreamServiceDep`）。
+
+> **新增一种后台任务类型**：继承 `BaseTaskModel`（声明自己的 `Settings.name`）和 `TaskStateMachine[YourModel]`，实现三个阶段，再用 `TaskRunner.register_executor(key, executor)` 注册即可，**调度层无需改动**——这一点由一个「用非迁移任务类型跑通模板」的测试保证。
 
 #### 前端
 

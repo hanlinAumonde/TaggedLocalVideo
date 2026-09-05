@@ -1,8 +1,9 @@
 from enum import Enum
+from typing import Annotated
 
 import strawberry
 
-from src.schema.types.video_type import Video, VideoTag
+from src.schema.types.video_type import Video
 from src.features.catalog.catalog_service import SearchField, VideoSortOption
 from src.schema.types.pydantic_types.search_type import (
     SearchKeywordModel,
@@ -10,11 +11,8 @@ from src.schema.types.pydantic_types.search_type import (
     VideoSearchInputModel
 )
 
-# Both belong to the catalogue service, which is what interprets them. Registered here
-# rather than redeclared so the schema and the query logic cannot drift apart.
-VideoSortOption = strawberry.enum(VideoSortOption)
-SearchField = strawberry.enum(SearchField)
-
+VideoSortOptionEnum = Annotated[VideoSortOption, strawberry.enum]
+SearchFieldEnum = Annotated[SearchField, strawberry.enum]
 
 @strawberry.enum
 class SearchFrom(Enum):
@@ -38,7 +36,7 @@ class SerachKeyword:
 @strawberry.experimental.pydantic.input(model=SuggestionInputModel)
 class SuggestionInput:
     keyword: SerachKeyword
-    suggestionType: SearchField
+    suggestionType: SearchFieldEnum
 
 
 @strawberry.experimental.pydantic.input(model=VideoSearchInputModel)
@@ -46,7 +44,7 @@ class VideoSearchInput:
     titleKeyword: SerachKeyword
     author: SerachKeyword
     tags: strawberry.auto
-    sortBy: VideoSortOption = VideoSortOption.Latest
+    sortBy: VideoSortOptionEnum = VideoSortOptionEnum.Latest
     fromPage: SearchFrom
     currentPageNumber: strawberry.auto
 

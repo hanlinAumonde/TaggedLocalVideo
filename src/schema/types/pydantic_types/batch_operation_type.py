@@ -65,6 +65,3 @@ class VideosBatchOperationInputModel(BatchOperationInputModel):
     videoIds: list[str]
     relativePath: RelativePathInputModel
     seriesOperation: Optional[SeriesOperationInputModel] = None
-
-# class DirectoryVideosBatchOperationInputModel(BatchOperationInputModel):
-#     relativePath: RelativePathInputModel
