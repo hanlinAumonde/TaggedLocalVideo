@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
+from src.features.migration.migration_task import MigrationTaskModel, TaskStatus
 from tests.graphql.helpers import (
     GET_MIGRATION_TASKS,
     assert_no_errors,

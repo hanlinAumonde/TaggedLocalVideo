@@ -9,9 +9,10 @@ mocked).  These tests verify that the resolver:
 
 from bson import ObjectId
 import pytest
+
+from src.features.browsing.browse_file_service import DirectoryEntry
 import strawberry
 
-from src.schema.types.fileBrowse_type import FileBrowseNode
 from src.schema.types.video_type import Video
 from tests.graphql.helpers import (
     BROWSE_DIRECTORY,
@@ -24,23 +25,15 @@ from tests.graphql.helpers import (
 pytestmark = pytest.mark.query
 
 
-def _mock_node(name: str, is_dir: bool = True) -> FileBrowseNode:
-    return FileBrowseNode(
-        node=Video.create_new(
-            id=strawberry.ID(str(ObjectId())),
-            name=name,
-            isDir=is_dir,
-            lastModifyTime=1.0,
-            size=10.0,
-        )
-    )
+def _mock_node(name: str) -> DirectoryEntry:
+    return DirectoryEntry(name=name, size=10.0, last_modify_time=1.0)
 
 
 async def test_browse_directory_root_level(
     execute_gql, mock_browse_file_service, init_db
 ):
     mock_browse_file_service.get_node_list_in_directory.return_value = [
-        _mock_node("Test-category", is_dir=True),
+        _mock_node("Test-category"),
     ]
 
     result = await execute_gql(
@@ -58,7 +51,7 @@ async def test_browse_directory_category_level(
     execute_gql, mock_browse_file_service, init_db
 ):
     mock_browse_file_service.get_node_list_in_directory.return_value = [
-        _mock_node("Test-resource", is_dir=True),
+        _mock_node("Test-resource"),
     ]
 
     result = await execute_gql(

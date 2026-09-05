@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from src.db.models.MigrationTask_model import MigrationTaskModel, TaskStatus
-from src.db.models.Video_model import VideoModel
+from src.features.migration.migration_task import MigrationTaskModel, TaskStatus
+from src.features.catalog.video import VideoModel
 from src.errors import InputValidationError
-from src.services.resource_handler.absolute_path import AbsolutePath
+from src.platform.storage.absolute_path import AbsolutePath
 
 pytestmark = pytest.mark.unit
 
@@ -590,13 +590,13 @@ class TestPlanRecovery:
 
 class TestFindLockedPaths:
     async def test_empty_input_skips_the_query(self, init_db):
-        from src.services.tasks.migration_service import find_locked_paths
+        from src.features.migration.migration_service import find_locked_paths
         assert await find_locked_paths([]) == set()
         assert await find_locked_paths(["", None]) == set()
 
     async def test_returns_only_requested_paths(self, init_db, task_factory):
         """A matched task also names a target; that must not leak into the result."""
-        from src.services.tasks.migration_service import find_locked_paths
+        from src.features.migration.migration_service import find_locked_paths
 
         await task_factory(
             source_path="cat/res/locked.mp4",
@@ -607,7 +607,7 @@ class TestFindLockedPaths:
         assert await find_locked_paths(["cat/res/locked.mp4"]) == {"cat/res/locked.mp4"}
 
     async def test_matches_source_target_and_renamed_target(self, init_db, task_factory):
-        from src.services.tasks.migration_service import find_locked_paths
+        from src.features.migration.migration_service import find_locked_paths
 
         await task_factory(
             source_path="cat/res/a.mp4",
@@ -625,14 +625,14 @@ class TestFindLockedPaths:
         "status", [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
     )
     async def test_settled_tasks_do_not_lock(self, init_db, task_factory, status):
-        from src.services.tasks.migration_service import find_locked_paths
+        from src.features.migration.migration_service import find_locked_paths
 
         await task_factory(source_path="cat/res/done.mp4", status=status)
         assert await find_locked_paths(["cat/res/done.mp4"]) == set()
 
     async def test_one_query_covers_many_paths(self, init_db, task_factory):
         """The point of the bulk helper: a page of videos costs a single lookup."""
-        from src.services.tasks.migration_service import find_locked_paths
+        from src.features.migration.migration_service import find_locked_paths
 
         await task_factory(source_path="cat/res/v3.mp4", status=TaskStatus.PROCESSING)
 

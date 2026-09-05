@@ -20,19 +20,20 @@ import pytest_asyncio
 
 from src.config import Settings
 from src.context import ContextEnum
-from src.db.models.MigrationTask_model import TaskStatus
+from src.features.migration.migration_task import TaskStatus
 from src.schema.strawberry_schema import schema as gql_schema
-from src.services.batch_operation_service import BatchOperationService
-from src.services.browse_file_service import BrowseFileService
-from src.services.cache.cache_service import CacheService
-from src.services.dir_metadata_service import DirMetadataService
-from src.services.ffmpeg_service import FFmpegService
-from src.services.tasks.migration_service import MigrationService
-from src.services.tasks.task_runner import TaskRunner
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
-from src.services.series_service import SeriesService
-from src.services.tag_operation_service import TagOperationService
-from src.services.thumbnail_service import ThumbnailService
+from src.features.browsing.batch_operation_service import BatchOperationService
+from src.features.browsing.browse_file_service import BrowseFileService
+from src.platform.cache.cache_service import CacheService
+from src.features.browsing.dir_metadata_service import DirMetadataService
+from src.platform.media.ffmpeg_service import FFmpegService
+from src.features.migration.migration_service import MigrationService
+from src.platform.jobs.task_runner import TaskRunner
+from src.platform.storage.resource_handler_service import ResourceHandlerService
+from src.features.catalog.catalog_service import CatalogService
+from src.features.catalog.series_service import SeriesService
+from src.features.catalog.tag_operation_service import TagOperationService
+from src.features.playback.thumbnail_service import ThumbnailService
 
 
 # -----------------------------------------------------------------------
@@ -156,6 +157,9 @@ def mock_batch_operation_service() -> MagicMock:
 @pytest.fixture
 def mock_migration_service() -> MagicMock:
     svc = MagicMock(spec=MigrationService, name="MigrationService")
+    # list_tasks is a plain query over the tasks collection and holds no service state,
+    # so the real implementation is bound on: these tests assert against real documents.
+    svc.list_tasks = MigrationService.list_tasks.__get__(svc, MigrationService)
     svc.is_file_locked = AsyncMock(return_value=False)
     svc.prepare_retry = AsyncMock(return_value=TaskStatus.PROCESSING)
     return svc
@@ -193,6 +197,23 @@ def real_series_service() -> SeriesService:
     return SeriesService()
 
 
+@pytest.fixture
+def real_catalog_service(
+    test_settings: Settings,
+    real_tag_operation_service: TagOperationService,
+    mock_dir_metadata_service: MagicMock,
+    mock_resource_handler_service: MagicMock,
+    mock_ffmpeg_service: MagicMock,
+) -> CatalogService:
+    return CatalogService(
+        settings=test_settings,
+        tag_operation_service=real_tag_operation_service,
+        dir_metadata_service=mock_dir_metadata_service,
+        resource_handler_service=mock_resource_handler_service,
+        ffmpeg_service=mock_ffmpeg_service,
+    )
+
+
 # -----------------------------------------------------------------------
 # --------------------------- Context fixture ---------------------------
 # -----------------------------------------------------------------------
@@ -203,6 +224,7 @@ def graphql_context(
     real_cache_service: CacheService,
     real_tag_operation_service: TagOperationService,
     real_series_service: SeriesService,
+    real_catalog_service: CatalogService,
     mock_resource_handler_service: MagicMock,
     mock_ffmpeg_service: MagicMock,
     mock_thumbnail_service: MagicMock,
@@ -224,6 +246,7 @@ def graphql_context(
         ContextEnum.DIR_METADATA_SERVICE: mock_dir_metadata_service,
         ContextEnum.BROWSE_FILE_SERVICE: mock_browse_file_service,
         ContextEnum.BATCH_OPERATION_SERVICE: mock_batch_operation_service,
+        ContextEnum.CATALOG_SERVICE: real_catalog_service,
         ContextEnum.MIGRATION_SERVICE: mock_migration_service,
         ContextEnum.TASK_RUNNER: mock_task_runner,
     }

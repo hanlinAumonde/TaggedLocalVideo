@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.services.resource_handler.absolute_path import AbsolutePath
+from src.platform.storage.absolute_path import AbsolutePath
 
 pytestmark = pytest.mark.unit
 

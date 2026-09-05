@@ -1,4 +1,3 @@
-from enum import Enum
 from typing import Optional
 import strawberry
 
@@ -9,13 +8,11 @@ from src.schema.types.pydantic_types.batch_operation_type import (
     VideosBatchOperationInputModel
 )
 from src.schema.types.video_type import SeriesOrderEntryInput, Video
+from src.features.browsing.batch_operation_service import BatchProgress, BatchResultType
 
-@strawberry.enum
-class BatchResultType(Enum):
-    Success = "Success"
-    PartialSuccess = "PartialSuccess"
-    Failure = "Failure"
-    AlreadyUpToDate = "AlreadyUpToDate"
+# The enum belongs to the batch service; publishing it is all this layer does. Registered
+# rather than redeclared so the two can never drift apart.
+BatchResultType = strawberry.enum(BatchResultType)
 
 @strawberry.type
 class FileBrowseNode:
@@ -59,6 +56,26 @@ class VideosBatchOperationResult:
 class BatchOperationStatus:
     result: Optional[VideosBatchOperationResult]
     status: Optional[str] = None
+
+    @classmethod
+    def from_service(cls, progress: BatchProgress) -> "BatchOperationStatus":
+        """
+        Present one batch progress report in its published shape.
+
+        :param progress: Report emitted by ``BatchOperationService``.
+        :type progress: BatchProgress
+        :return: The report as the schema exposes it.
+        :rtype: BatchOperationStatus
+        """
+        if progress.result_type is None or progress.message is None:
+            return cls(result=None, status=progress.status)
+        return cls(
+            result=VideosBatchOperationResult(
+                resultType=progress.result_type,
+                message=progress.message,
+            ),
+            status=progress.status,
+        )
 
 @strawberry.type
 class VideoMutationResult:

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from src.config import Settings
-from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
-from src.services.thumbnail_service import ThumbnailService
+from src.platform.storage.local_fs.local_fs_handler import LocalFSResourceHandler
+from src.features.playback.thumbnail_service import ThumbnailService
 
 
 def _mock_handler():

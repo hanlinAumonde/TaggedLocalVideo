@@ -5,8 +5,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from src.config import CacheConfig
-from src.services.cache.cache_service import CacheService
-from src.services.cache.cachetools_cache import CachetoolsCache
+from src.platform.cache.cache_service import CacheService
+from src.platform.cache.cachetools_cache import CachetoolsCache
 
 pytestmark = pytest.mark.unit
 

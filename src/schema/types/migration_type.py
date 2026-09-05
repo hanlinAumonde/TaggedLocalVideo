@@ -3,7 +3,8 @@ from typing import Optional
 
 import strawberry
 
-from src.db.models.MigrationTask_model import MigrationTaskModel
+from src.features.migration.migration_task import MigrationTaskModel
+from src.platform.jobs.progress import ProgressFrame
 from src.schema.types.fileBrowse_type import RelativePathInput
 from src.schema.types.scalars import BigInt
 from src.schema.types.pydantic_types.migration_type import (
@@ -98,14 +99,28 @@ class MigrationProgressStatus:
     message: str | None = None
 
     @classmethod
-    def from_service(cls, svc_status) -> "MigrationProgressStatus":
+    def from_service(cls, frame: ProgressFrame) -> "MigrationProgressStatus":
+        """
+        Republish a generic progress frame under the byte-named fields the frontend
+        queries.
+
+        The task template counts progress in unit-agnostic ``current``/``total``; migration
+        measures bytes, and this schema has been published as ``bytesTransferred`` /
+        ``totalBytes`` since before the template was generalised. Renaming the GraphQL
+        fields would force a frontend change for no gain, so the mapping lives here.
+
+        :param frame: Progress frame emitted by the task's state machine.
+        :type frame: ProgressFrame
+        :return: The frame in its published shape.
+        :rtype: MigrationProgressStatus
+        """
         return cls(
-            task_id=svc_status.task_id,
-            status=MigrationStatusEnum(svc_status.status),
-            bytes_transferred=svc_status.bytes_transferred,
-            total_bytes=svc_status.total_bytes,
-            progress_percentage=svc_status.progress_percentage,
-            message=svc_status.message,
+            task_id=frame.task_id,
+            status=MigrationStatusEnum(frame.status),
+            bytes_transferred=frame.current,
+            total_bytes=frame.total,
+            progress_percentage=frame.percentage,
+            message=frame.message,
         )
 
 

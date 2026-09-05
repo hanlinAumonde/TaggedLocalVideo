@@ -6,8 +6,10 @@ from the runner, and opening one must never kick off execution itself.
 
 import pytest
 
-from src.db.models.MigrationTask_model import TaskStatus
-from src.services.tasks.state_machine import MigrationProgressStatus
+from src.features.migration.migration_task import TaskStatus
+from src.platform.jobs.progress import ProgressFrame
+from src.schema.types.migration_type import MigrationProgressStatus
+from src.features.migration.migration_service import MIGRATION_EXECUTOR_KEY
 from tests.graphql.helpers import (
     MIGRATION_PROGRESS_SUBSCRIPTION,
     MIGRATION_RETRY_SUBSCRIPTION,
@@ -26,15 +28,13 @@ async def _mock_progress_gen(*events):
 
 def _events():
     return [
-        MigrationProgressStatus(
+        ProgressFrame(
             task_id="tid", status="PROCESSING",
-            bytes_transferred=50, total_bytes=100,
-            progress_percentage=50.0, message="Copying",
+            current=50, total=100, message="Copying",
         ),
-        MigrationProgressStatus(
+        ProgressFrame(
             task_id="tid", status="COMPLETED",
-            bytes_transferred=100, total_bytes=100,
-            progress_percentage=100.0, message="Done",
+            current=100, total=100, message="Done",
         ),
     ]
 
@@ -72,7 +72,9 @@ class TestMigrationProgressSubscription:
 
         await subscribe_gql(MIGRATION_PROGRESS_SUBSCRIPTION, {"input": {"taskId": TASK_ID}})
 
-        mock_task_runner.observe.assert_called_once_with(TASK_ID)
+        mock_task_runner.observe.assert_called_once_with(
+            TASK_ID, executor_key=MIGRATION_EXECUTOR_KEY
+        )
         mock_task_runner.submit.assert_not_awaited()
 
     async def test_progress_on_settled_task_yields_nothing(
@@ -84,6 +86,29 @@ class TestMigrationProgressSubscription:
         })
         assert results == []
         mock_task_runner.submit.assert_not_awaited()
+
+
+class TestProgressFrameMapping:
+    """The GraphQL layer keeps the byte-named fields the frontend already queries, even
+    though the task template reports progress in generic units."""
+
+    def test_generic_frame_maps_onto_the_published_byte_fields(self):
+        frame = ProgressFrame(
+            task_id="tid", status="PROCESSING", current=50, total=100, message="Copying",
+        )
+
+        published = MigrationProgressStatus.from_service(frame)
+
+        assert published.bytes_transferred == 50
+        assert published.total_bytes == 100
+        assert published.progress_percentage == 50.0
+        assert published.message == "Copying"
+
+    def test_mapping_uses_the_frames_derived_percentage(self):
+        """Percentage is computed once, on the frame, not recomputed per transport."""
+        frame = ProgressFrame(task_id="tid", status="PROCESSING", current=1, total=3)
+
+        assert MigrationProgressStatus.from_service(frame).progress_percentage == 33.3
 
 
 class TestMigrationRetrySubscription:
@@ -115,5 +140,7 @@ class TestMigrationRetrySubscription:
 
         mock_migration_service.prepare_retry.assert_awaited_once_with(TASK_ID)
         mock_task_runner.submit.assert_awaited_once_with(
-            TASK_ID, start_from=TaskStatus.DELETING_SOURCE
+            TASK_ID,
+            executor_key=MIGRATION_EXECUTOR_KEY,
+            start_from=TaskStatus.DELETING_SOURCE,
         )

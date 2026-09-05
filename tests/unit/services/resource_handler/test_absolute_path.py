@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 from src.config import Settings
 from src.errors import FileBrowseError
-from src.services.resource_handler.absolute_path import AbsolutePath
+from src.platform.storage.absolute_path import AbsolutePath
 
 pytestmark = pytest.mark.unit
 

@@ -2,7 +2,7 @@
 
 import pytest
 from .conftest import _MockProcess
-from src.services.ffmpeg_service import FFmpegService
+from src.platform.media.ffmpeg_service import FFmpegService
 
 pytestmark = pytest.mark.unit
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.services.cache.cachetools_cache import CachetoolsCache
+from src.platform.cache.cachetools_cache import CachetoolsCache
 
 pytestmark = pytest.mark.unit
 

@@ -9,7 +9,7 @@ from src.schema.strawberry_schema import schema
 from src.context import get_context, init_task_runner
 from src.db.setup_mongo import setup_mongo
 from src.logger import get_logger, setup_logger
-from src.router import video_router
+from src.features.playback import video_router
 
 logger = get_logger("app")
 

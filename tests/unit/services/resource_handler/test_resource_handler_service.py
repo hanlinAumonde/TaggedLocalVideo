@@ -3,8 +3,8 @@
 import pytest
 
 from src.config import Settings
-from src.services.resource_handler.local_fs.local_fs_handler import LocalFSResourceHandler
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.platform.storage.local_fs.local_fs_handler import LocalFSResourceHandler
+from src.platform.storage.resource_handler_service import ResourceHandlerService
 
 pytestmark = pytest.mark.unit
 

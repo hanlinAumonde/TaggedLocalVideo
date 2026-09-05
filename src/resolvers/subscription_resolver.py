@@ -1,20 +1,18 @@
 from typing import AsyncGenerator
 from fastapi.concurrency import run_in_threadpool
 import strawberry
-from bson import ObjectId
 from src.context import ContextEnum, get_context_value
-from src.db.models.Video_model import VideoModel
 from src.errors import InputValidationError
 from src.logger import get_logger
 from src.schema.types.fileBrowse_type import (
     BatchOperationStatus,
     VideosBatchOperationInput
 )
-from src.services.batch_operation_service import BatchOperationService
-from src.services.browse_file_service import BrowseFileService
-from src.services.tasks.migration_service import MigrationService
-from src.services.resource_handler.absolute_path import AbsolutePath
-from src.services.resource_handler.resource_handler_service import ResourceHandlerService
+from src.features.browsing.batch_operation_service import BatchOperationService
+from src.features.catalog.catalog_service import CatalogService
+from src.features.browsing.browse_file_service import BrowseFileService
+from src.platform.storage.absolute_path import AbsolutePath
+from src.platform.storage.resource_handler_service import ResourceHandlerService
 
 logger = get_logger("SubscriptionResolver")
 
@@ -62,16 +60,8 @@ async def resolve_batch_operations(input: VideosBatchOperationInput,
     
     batchOperationService: BatchOperationService = get_context_value(info, ContextEnum.BATCH_OPERATION_SERVICE)
     if by_ids:
-        migration_service: MigrationService = get_context_value(info, ContextEnum.MIGRATION_SERVICE)
-        video_models = await VideoModel.find(
-            {"_id": {"$in": [ObjectId(vid) for vid in validated_input.videoIds]}}
-        ).to_list()
-        for vm in video_models:
-            if await migration_service.is_file_locked(vm.path):
-                raise InputValidationError(
-                    field="videoIds",
-                    issue=f"video '{vm.name}' is being migrated and cannot be modified",
-                )
+        catalogService: CatalogService = get_context_value(info, ContextEnum.CATALOG_SERVICE)
+        await catalogService.assert_videos_unlocked(validated_input.videoIds)
 
         if update:
             async for status in batchOperationService.batch_update(
@@ -82,14 +72,14 @@ async def resolve_batch_operations(input: VideosBatchOperationInput,
                 tagsOperation=validated_input.tagsOperation,
                 seriesOperation=series_operation,
             ):
-                yield status
+                yield BatchOperationStatus.from_service(status)
         else:
             async for status in batchOperationService.batch_delete(
                 dir_path=dir_path,
                 videoIds=validated_input.videoIds,
                 fileEntries=None
             ):
-                yield status
+                yield BatchOperationStatus.from_service(status)
         return
 
     # By directory path — expand virtual paths to real mounted paths, collect all entries
@@ -104,13 +94,13 @@ async def resolve_batch_operations(input: VideosBatchOperationInput,
         )
         if entries:
             all_entries.extend(entries)
-            yield batchOperationService.constructBatchOperationStatus(
+            yield BatchOperationStatus.from_service(batchOperationService.constructBatchOperationStatus(
                 status=f"Scanning '{abs_path.get_path()}' — {len(all_entries)} videos found so far"
-            )
+            ))
 
-    yield batchOperationService.constructBatchOperationStatus(
+    yield BatchOperationStatus.from_service(batchOperationService.constructBatchOperationStatus(
         status=f"Found {len(all_entries)} video entries in '{validated_input.relativePath.relativePath}'"
-    )
+    ))
 
     if update:
         async for status in batchOperationService.batch_update(
@@ -120,14 +110,14 @@ async def resolve_batch_operations(input: VideosBatchOperationInput,
             author=validated_input.author,
             tagsOperation=validated_input.tagsOperation,
         ):
-            yield status
+            yield BatchOperationStatus.from_service(status)
     else:
         async for status in batchOperationService.batch_delete(
             dir_path=dir_path,
             videoIds=None,
             fileEntries=all_entries
         ):
-            yield status
+            yield BatchOperationStatus.from_service(status)
 
 def _expand_directory_path(dir_path: AbsolutePath, info: strawberry.Info) -> list[tuple[str, AbsolutePath]]:
     """
