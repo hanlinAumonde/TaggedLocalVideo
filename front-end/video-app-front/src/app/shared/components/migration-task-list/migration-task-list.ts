@@ -6,16 +6,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { takeWhile } from 'rxjs';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
+import { MigrationTrackerService } from '../../../services/migration-tracker-service/migration-tracker.service';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastType } from '../../models/toast.model';
 import { MigrationStatusEnum, MigrationTaskQueryInput } from '../../../core/graphql/generated/graphql';
-import { MigrationTaskListDetail, MigrationProgressDetail, ResultState } from '../../models/GQL-result.model';
-import { MIGRATION_STATUS_MAP, MigrationTaskFilter } from '../../models/migration.model';
+import { MigrationTaskListDetail, MigrationTaskItem, ResultState } from '../../models/GQL-result.model';
+import { ACTIVE_MIGRATION_STATUSES, MIGRATION_STATUS_MAP, MigrationTaskFilter } from '../../models/migration.model';
 import { Pagination } from '../pagination/pagination';
-
-type MigrationTaskItem = MigrationTaskListDetail['tasks'][0];
 
 @Component({
   selector: 'app-migration-task-list',
@@ -34,17 +32,11 @@ export class MigrationTaskList implements OnInit {
   private gqlService = inject(GqlService);
   private toastService = inject(ToastService);
   private destroyRef = inject(DestroyRef);
+  private migrationTracker = inject(MigrationTrackerService);
   readonly statusMap = MIGRATION_STATUS_MAP;
   readonly statusOptions: { label: string; value: MigrationStatusEnum[] | null }[] = [
     { label: 'All tasks', value: null },
-    { label: 'Processing', value: [
-      MigrationStatusEnum.Pending,
-      MigrationStatusEnum.Processing,
-      MigrationStatusEnum.ProcessDone,
-      MigrationStatusEnum.UpdatingDb,
-      MigrationStatusEnum.DbUpdated,
-      MigrationStatusEnum.DeletingSource,
-    ]},
+    { label: 'Processing', value: ACTIVE_MIGRATION_STATUSES },
     { label: 'Completed', value: [MigrationStatusEnum.Completed] },
     { label: 'Failed', value: [MigrationStatusEnum.Failed] },
     { label: 'Cancelled', value: [MigrationStatusEnum.Cancelled] },
@@ -63,7 +55,17 @@ export class MigrationTaskList implements OnInit {
   });
 
   activeFilterIndex = signal<number>(0);
-  activeProgress = signal<Map<string, MigrationProgressDetail>>(new Map());
+  activeProgress = this.migrationTracker.liveProgress;
+
+  constructor() {
+    /*
+      The tracker owns the watching now, so the list finds out a task ended the
+      same way any other view would, instead of by holding the subscription itself.
+    */
+    this.migrationTracker.onTaskSettled()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.loadTasks());
+  }
 
   ngOnInit() {
     this.loadTasks();
@@ -83,7 +85,7 @@ export class MigrationTaskList implements OnInit {
         next: (result) => {
           this.tasks.set(result);
           if (result.data) {
-            this.subscribeToActiveTasks(result.data.tasks);
+            this.migrationTracker.track(result.data.tasks);
           }
         },
         error: (err) => {
@@ -110,6 +112,7 @@ export class MigrationTaskList implements OnInit {
       .subscribe({
         next: (result) => {
           if (result.data?.success) {
+            this.migrationTracker.forget(taskId);
             this.toastService.emitNewToast('Migration task cancelled.', ToastType.Success);
             this.loadTasks();
           }
@@ -117,56 +120,8 @@ export class MigrationTaskList implements OnInit {
       });
   }
 
-  retryTask(taskId: string) {
-    this.gqlService.migrationRetrySubscription({ taskId })
-      .pipe(
-        takeWhile(r => {
-          const status = r.data?.status;
-          return status !== undefined && !MIGRATION_STATUS_MAP[status].isTerminal;
-        }, true),
-        takeUntilDestroyed(this.destroyRef)
-      )
-      .subscribe({
-        next: (result) => {
-          if (result.data) {
-            this.activeProgress.update(map => {
-              const newMap = new Map(map);
-              newMap.set(taskId, result.data!);
-              return newMap;
-            });
-            if (MIGRATION_STATUS_MAP[result.data.status].isTerminal) {
-              this.loadTasks();
-            }
-          }
-        }
-      });
-  }
-
-  private subscribeToActiveTasks(tasks: MigrationTaskItem[]) {
-    const activeTasks = tasks.filter(t => !MIGRATION_STATUS_MAP[t.status].isTerminal);
-
-    for (const task of activeTasks) {
-      this.gqlService.migrationProgressSubscription({ taskId: task.id })
-        .pipe(
-          takeWhile(r => {
-            const status = r.data?.status;
-            return status !== undefined && !MIGRATION_STATUS_MAP[status].isTerminal;
-          }, true),
-          takeUntilDestroyed(this.destroyRef)
-        )
-        .subscribe(result => {
-          if (result.data) {
-            this.activeProgress.update(map => {
-              const newMap = new Map(map);
-              newMap.set(task.id, result.data!);
-              return newMap;
-            });
-            if (MIGRATION_STATUS_MAP[result.data.status].isTerminal) {
-              this.loadTasks();
-            }
-          }
-        });
-    }
+  retryTask(task: MigrationTaskItem) {
+    this.migrationTracker.retry(task);
   }
 
   getProgress(task: MigrationTaskItem): number {

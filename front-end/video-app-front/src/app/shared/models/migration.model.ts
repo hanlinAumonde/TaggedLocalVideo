@@ -27,3 +27,17 @@ export const MIGRATION_STATUS_MAP: Record<MigrationStatusEnum, MigrationStatusDi
   [MigrationStatusEnum.Failed]:         { label: 'Failed',       color: 'text-red-500',    icon: 'error',           isTerminal: true,  isActionable: true  },
   [MigrationStatusEnum.Cancelled]:      { label: 'Cancelled',     color: 'text-gray-400',   icon: 'cancel',          isTerminal: true,  isActionable: false },
 };
+
+export const ACTIVE_MIGRATION_STATUSES: MigrationStatusEnum[] =
+  (Object.keys(MIGRATION_STATUS_MAP) as MigrationStatusEnum[])
+    .filter(status => !MIGRATION_STATUS_MAP[status].isTerminal);
+
+export function isMigrationTerminal(status: MigrationStatusEnum): boolean {
+  return MIGRATION_STATUS_MAP[status].isTerminal;
+}
+
+/** DB-format paths are '/'-joined, so the parent directory is a prefix cut. */
+export function parentDirectoryOf(path: string): string {
+  const cut = path.lastIndexOf('/');
+  return cut < 0 ? '' : path.slice(0, cut);
+}

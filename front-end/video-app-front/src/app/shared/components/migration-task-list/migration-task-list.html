@@ -102,7 +102,7 @@
                 </button>
               }
               @if (canRetry(getLiveStatus(task))) {
-                <button mat-stroked-button class="text-sm!" (click)="retryTask(task.id)">
+                <button mat-stroked-button class="text-sm!" (click)="retryTask(task)">
                   <mat-icon fontIcon="replay" class="text-base!"></mat-icon>
                   Retry
                 </button>
