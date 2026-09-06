@@ -8,12 +8,15 @@ import {
   signal,
   viewChildren,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
 import { HttpClientService } from '../../../services/Http-client-service/Http-client.service';
+import { VideoUpdateEventService } from '../../../services/video-update-event-service/video-update-event.service';
 import { ResultState, SeriesVideosDetail } from '../../models/GQL-result.model';
+import { VideoUpdateEvent } from '../../models/events.model';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -24,6 +27,7 @@ import { environment } from '../../../../environments/environment';
 export class SeriesPanel implements AfterViewInit {
   private gqlService = inject(GqlService);
   private httpClientService = inject(HttpClientService);
+  private videoUpdateEventService = inject(VideoUpdateEventService);
 
   seriesName = input.required<string | null | undefined>();
   currentVideoId = input.required<string | null | undefined>();
@@ -39,15 +43,28 @@ export class SeriesPanel implements AfterViewInit {
 
   itemRefs = viewChildren<ElementRef<HTMLLIElement>>('itemRef');
 
+  private reloadToken = signal(0);
+  private loadedSeriesName: string | null = null;
+
   constructor() {
     effect((onCleanup) => {
       const name = this.seriesName();
+      this.reloadToken();
       if (!name) {
+        this.loadedSeriesName = null;
         this.seriesVideos.set(this.gqlService.initialSignalData<SeriesVideosDetail>([]));
         return;
       }
+
+      const isRefresh = name === this.loadedSeriesName;
+      this.loadedSeriesName = name;
+
       const sub = this.gqlService.getSeriesVideosQuery(name).subscribe(result => {
-        this.seriesVideos.set(result);
+        this.seriesVideos.update(previous => ({
+          loading: result.loading && !isRefresh,
+          error: result.error,
+          data: result.data ?? (isRefresh ? previous.data : null),
+        }));
         if (!result.loading && result.data) {
           this.loadThumbnails(result.data);
         }
@@ -63,10 +80,26 @@ export class SeriesPanel implements AfterViewInit {
       if (!currentId || !videos || refs.length === 0) return;
       queueMicrotask(() => this.scrollCurrentIntoView());
     });
+
+    this.videoUpdateEventService.onEvent()
+      .pipe(takeUntilDestroyed())
+      .subscribe(event => {
+        if (this.isAffected(event)) {
+          this.reloadToken.update(token => token + 1);
+        }
+      });
   }
 
   ngAfterViewInit() {
     this.scrollCurrentIntoView();
+  }
+
+  private isAffected(event: VideoUpdateEvent): boolean {
+    if (event.videoIds.length === 0) return false;
+    const touched = new Set(event.videoIds);
+    const currentId = this.currentVideoId();
+    if (currentId && touched.has(currentId)) return true;
+    return (this.seriesVideos().data ?? []).some(video => touched.has(video.id));
   }
 
   private scrollCurrentIntoView() {

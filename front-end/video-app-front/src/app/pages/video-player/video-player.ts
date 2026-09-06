@@ -232,6 +232,10 @@ export class VideoPlayer {
           introduction: updatedData.video!.introduction!,
           author: updatedData.video!.author!,
           tags: updatedData.video!.tags!,
+          // The mutation returns these too; dropping them left the Series chip
+          // showing the old name/order until an unrelated refetch happened to land.
+          seriesName: updatedData.video!.seriesName,
+          seriesOrder: updatedData.video!.seriesOrder,
         }
       }
     }
