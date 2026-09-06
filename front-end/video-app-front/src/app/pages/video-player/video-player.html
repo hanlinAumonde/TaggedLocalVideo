@@ -14,13 +14,9 @@
       <div [class]="video().data?.seriesName ? 'flex-1 min-w-0 w-full' : 'w-full max-w-4xl mx-auto'">
         <!-- Video Player Section -->
         <div class="w-full mb-6">
-          <video
-            #videoTarget
-            class="video-js vjs-big-play-centered vjs-theme-forest">
-            <p class="vjs-no-js">
-              To view this video please enable JavaScript
-            </p>
-          </video>
+          <app-video-player-host
+            [src]="videoStreamUrl()"
+            (played)="recordView()" />
         </div>
 
         <!-- Video Info Section -->
