@@ -274,6 +274,14 @@ export class VideoEditPanel implements OnInit {
     return { clear: false, name, orders };
   }
 
+  private affectedVideoIds(seriesInput: SeriesFieldInput | undefined): string[] {
+    const ids = new Set<string>([this.video()!.id]);
+    for (const entry of seriesInput?.orders ?? []) {
+      ids.add(entry.videoId);
+    }
+    return Array.from(ids);
+  }
+
   selectAuthorSuggestion(author: string) {
     this.editForm.patchValue({ author });
   }
@@ -332,6 +340,7 @@ export class VideoEditPanel implements OnInit {
     else {
       if (this.editForm.valid && !this.tagsError() && this.video()) {
         const formValue = this.editForm.value;
+        const seriesInput = this.buildSeriesInput();
 
         this.isSaving.set(true);
 
@@ -342,14 +351,14 @@ export class VideoEditPanel implements OnInit {
           formValue.name ?? undefined,
           formValue.introduction ?? undefined,
           formValue.author ?? 'Unknown',
-          this.buildSeriesInput(),
+          seriesInput,
         )
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe({
           next: (result) => {
             this.isSaving.set(false);
             if (result.data?.success) {
-              this.videoUpdateEventService.emitUpdated([this.video()!.id]);
+              this.videoUpdateEventService.emitUpdated(this.affectedVideoIds(seriesInput));
               this.toastService.emitNewToast('Video information updated successfully.', ToastType.Success);
               this.dialogRef.close(result.data);
             } else {

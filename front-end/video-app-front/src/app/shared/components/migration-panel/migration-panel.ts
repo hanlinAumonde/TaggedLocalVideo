@@ -8,6 +8,7 @@ import { MatRadioModule } from '@angular/material/radio';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { FormsModule } from '@angular/forms';
 import { GqlService } from '../../../services/GQL-service/GQL.service';
+import { MigrationTrackerService } from '../../../services/migration-tracker-service/migration-tracker.service';
 import { ToastService } from '../../../services/toast-service/toast.service';
 import { ToastType } from '../../models/toast.model';
 import { MigrationPanelData } from '../../models/panels.model';
@@ -39,6 +40,7 @@ export class MigrationPanel {
   private gqlService = inject(GqlService);
   private destroyRef = inject(DestroyRef);
   private toastService = inject(ToastService);
+  private migrationTracker = inject(MigrationTrackerService);
 
   // --- Source Info ---
   readonly sourceVideoId = this.data.sourceVideoId;
@@ -145,6 +147,9 @@ export class MigrationPanel {
       .subscribe({
         next: (result) => {
           if (result.data?.success) {
+            if (result.data.task) {
+              this.migrationTracker.track([result.data.task]);
+            }
             this.toastService.emitNewToast(
               `Migration task created successfully. You can view its progress in the task management panel.`,
               ToastType.Success

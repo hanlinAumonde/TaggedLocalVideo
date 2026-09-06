@@ -17,9 +17,10 @@ import { FileBrowseTable } from '../../shared/components/file-browse-table/file-
 import { ToastService } from '../../services/toast-service/toast.service';
 import { PathHistoryService } from '../../services/path-history-service/path-history.service';
 import { VideoUpdateEventService } from '../../services/video-update-event-service/video-update-event.service';
+import { MigrationTrackerService } from '../../services/migration-tracker-service/migration-tracker.service';
 import { VideoUpdateEvent } from '../../shared/models/events.model';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subscription } from 'rxjs';
+import { merge, Subscription } from 'rxjs';
 import { ToastType } from '../../shared/models/toast.model';
 
 @Component({
@@ -37,6 +38,7 @@ export class FileBrowser implements OnDestroy{
   private destroyRef = inject(DestroyRef);
 
   private videoUpdateEventService = inject(VideoUpdateEventService);
+  private migrationTracker = inject(MigrationTrackerService);
   pathHistoryService = inject(PathHistoryService)
 
   tableWidth = signal<number>(0);
@@ -108,29 +110,37 @@ export class FileBrowser implements OnDestroy{
       this.loadDirectory(path);
     });
 
-    this.videoUpdateEventService.onEvent().pipe(takeUntilDestroyed()).subscribe(event => {
-      const isAffected = (event: VideoUpdateEvent) => {
-        const ids = new Set(event.videoIds);
-        const contents = this.directoryContents().data;
-        if (!contents) return false;
-        const hasAffectedVideo = contents.some(item => ids.has(item.node.id));
-
-        const currentDirPath = this.currentPath().join('/');
-        const subDirectories = contents.filter(item => item.node.isDir).map(item => item.node.name);
-        const hasAffectedDirectory =
-          event.directoryPath === currentDirPath ||
-          (event.directoryPath !== undefined &&
-            subDirectories.some(subDir =>
-              event.directoryPath === (currentDirPath ? currentDirPath + '/' : '') + subDir
-            )
-          );
-        return hasAffectedVideo || hasAffectedDirectory;
-      }
-      if (isAffected(event)) {
+    merge(
+      this.videoUpdateEventService.onEvent(),
+      this.videoUpdateEventService.onLocalEvent(),
+    ).pipe(takeUntilDestroyed()).subscribe(event => {
+      if (this.isAffectedByEvent(event)) {
         this.refreshDirectory();
         this.selectedIds.set(new Set());
       }
     });
+  }
+
+  private isAffectedByEvent(event: VideoUpdateEvent): boolean {
+    const contents = this.directoryContents().data;
+    if (!contents) return false;
+
+    const ids = new Set(event.videoIds);
+    if (contents.some(item => ids.has(item.node.id))) return true;
+
+    return [event.directoryPath, event.targetDirectoryPath]
+      .some(path => path !== undefined && this.touchesCurrentListing(path, contents));
+  }
+
+  /** True when `path` is the directory on screen, or one of the rows in it. */
+  private touchesCurrentListing(path: string, contents: BrowseDirectoryDetail): boolean {
+    const currentDirPath = this.currentPath().join('/');
+    if (path === currentDirPath) return true;
+
+    const prefix = currentDirPath ? currentDirPath + '/' : '';
+    return contents
+      .filter(item => item.node.isDir)
+      .some(item => path === prefix + item.node.name);
   }
 
   ngOnDestroy(): void {
@@ -147,6 +157,9 @@ export class FileBrowser implements OnDestroy{
       .subscribe({
         next: (result) => {
           if(!result.loading && result.data) {
+            if (result.data.some(item => item.node.isLocked)){
+              this.migrationTracker.trackTasksInDirectory(path.join('/'));
+            }
             const newState = this.getRefreshState();
             if(newState?.sortCriteria){
               this.sortCriteria.set(newState.sortCriteria);

@@ -1,12 +1,9 @@
 import {
   Component,
-  OnDestroy,
   inject,
   signal,
   computed,
-  ElementRef,
   effect,
-  viewChild,
   DestroyRef,
 } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -17,11 +14,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import videojs from 'video.js';
-import Player from 'video.js/dist/types/player';
 import { GqlService } from '../../services/GQL-service/GQL.service';
 import { VideoEditPanel } from '../../shared/components/video-edit-panel/video-edit-panel';
 import { SeriesPanel } from '../../shared/components/series-panel/series-panel';
+import { VideoPlayerHost } from '../../shared/components/video-player-host/video-player-host';
 import { VideoEditPanelData } from '../../shared/models/panels.model';
 import { 
   ResultState, 
@@ -49,12 +45,11 @@ import { ToastType } from '../../shared/models/toast.model';
     MatDialogModule,
     RouterLink,
     SeriesPanel,
+    VideoPlayerHost,
   ],
   templateUrl: './video-player.html'
 })
-export class VideoPlayer implements OnDestroy {
-  videoTarget = viewChild<ElementRef<HTMLVideoElement>>('videoTarget');
-
+export class VideoPlayer {
   private route = inject(ActivatedRoute);
   private gqlService = inject(GqlService);
   private stateService = inject(PageStateService);
@@ -64,7 +59,6 @@ export class VideoPlayer implements OnDestroy {
   private videoUpdateEventService = inject(VideoUpdateEventService);
   private router = inject(Router);
   private destroyRef = inject(DestroyRef);
-  private player: Player | null = null;
   private hasRecordedView = signal<boolean>(false);
   private videoDataLoaded = toSignal(this.route.data)
 
@@ -90,16 +84,6 @@ export class VideoPlayer implements OnDestroy {
     effect(() => {
       this.video.set(this.videoDataLoaded()!['video']);
       this.hasRecordedView.set(false);
-      this.initializePlayer();
-    });
-
-    effect(() => {
-      const url = this.videoStreamUrl();
-      if (!url || !this.player) return;
-      this.player.pause();
-      this.player.src({ type: 'video/mp4', src: url });
-      this.player.load();
-      this.player.currentTime(0);
     });
 
     effect(() => {
@@ -134,58 +118,7 @@ export class VideoPlayer implements OnDestroy {
     });
   }
 
-  ngOnDestroy() {
-    this.disposePlayer();
-  }
-
-  private initializePlayer() {
-    if (this.player || !this.videoTarget()?.nativeElement) return;
-
-    this.player = videojs(this.videoTarget()!.nativeElement, {
-      controls: true,
-      autoplay: false,
-      preload: 'auto',
-      //fluid: true,
-      fill: true,
-      aspectRatio: '16:9',
-      responsive: true,
-      playbackRates: [0.5, 1, 1.5, 2],
-      controlBar: {
-          remainingTimeDisplay: {
-            displayNegative: false
-          },
-          children: [
-              'playToggle',
-              'volumePanel',
-              'currentTimeDisplay',
-              'timeDivider',
-              'durationDisplay',
-              'progressControl',
-              'playbackRateMenuButton',
-              'pictureInPictureToggle',
-              'fullscreenToggle'
-          ]
-      }
-    });
-
-    this.player.on('play', () => {
-      this.recordView();
-    });
-
-    const url = this.videoStreamUrl();
-    if (url) {
-      this.player.src({ type: 'video/mp4', src: url });
-    }
-  }
-
-  private disposePlayer() {
-    if (this.player) {
-      this.player.dispose();
-      this.player = null;
-    }
-  }
-
-  private recordView() {
+  recordView() {
     const id = this.videoId();
     if (this.hasRecordedView() || !id) return;
 
@@ -299,6 +232,10 @@ export class VideoPlayer implements OnDestroy {
           introduction: updatedData.video!.introduction!,
           author: updatedData.video!.author!,
           tags: updatedData.video!.tags!,
+          // The mutation returns these too; dropping them left the Series chip
+          // showing the old name/order until an unrelated refetch happened to land.
+          seriesName: updatedData.video!.seriesName,
+          seriesOrder: updatedData.video!.seriesOrder,
         }
       }
     }

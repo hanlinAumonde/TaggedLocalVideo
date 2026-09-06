@@ -50,4 +50,5 @@ export type MigrationPreflightDetail = MigrationPreflightMutation['migrationPref
 export type CreateMigrationTaskDetail = CreateMigrationTaskMutation['createMigrationTask'];
 export type CancelMigrationTaskDetail = CancelMigrationTaskMutation['cancelMigrationTask'];
 export type MigrationTaskListDetail = GetMigrationTasksQuery['getMigrationTasks'];
+export type MigrationTaskItem = MigrationTaskListDetail['tasks'][0];
 export type MigrationProgressDetail = MigrationProgressSubscription['migrationProgressSubscription'];

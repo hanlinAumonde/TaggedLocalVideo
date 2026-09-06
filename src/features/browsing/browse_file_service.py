@@ -181,10 +181,14 @@ class BrowseFileService:
         if not pending:
             return directory_entries
 
-        documents, has_new_file = await self._sync_video_documents(handler, category, pending)
-
         # Files held by a migration are disabled in the browser: one lookup for all of them.
+        # Resolved before the sync because it also decides which files get a document
+        # at all — see ``_sync_video_documents``.
         locked_paths = await find_locked_paths(item.db_path for item in pending)
+
+        documents, has_new_file = await self._sync_video_documents(
+            handler, category, pending, locked_paths
+        )
         video_entries = [
             VideoEntry(document=document, is_locked=item.db_path in locked_paths)
             for item in pending
@@ -199,7 +203,8 @@ class BrowseFileService:
     async def _sync_video_documents(self,
                                     handler: BaseResourceHandler,
                                     category: str,
-                                    pending: list[_PendingVideo]) -> tuple[dict[str, VideoModel], bool]:
+                                    pending: list[_PendingVideo],
+                                    locked_paths: set[str]) -> tuple[dict[str, VideoModel], bool]:
         """
         Resolve the database document of every video file found in one directory,
         inserting the ones that are new and filling in the durations that are missing.
@@ -210,12 +215,26 @@ class BrowseFileService:
         for documents that actually lack a duration; those probes run concurrently and
         FFmpegService's own semaphore caps how many really overlap.
 
+        A file that is locked but has no document is a migration writing into this
+        directory: the bytes have started arriving, but the catalog record is still at
+        the source and ``_execute_db_update`` is going to move it onto this very path.
+        Inserting for it here would claim that path first and make the migration fail on
+        the unique index. Such a file is not a video yet, so it gets no document — and,
+        having none, drops out of the listing too. Once UPDATING_DB has run the record
+        *is* at this path, the lookup below finds it, and the file lists normally
+        (flagged locked, since its task is still active).
+
+        Locked-with-a-document is the opposite case and stays untouched: that is the
+        migration's source, which must keep listing so the browser can show it leaving.
+
         :param handler: The resource handler owning the directory being listed.
         :type handler: BaseResourceHandler
         :param category: The category the directory belongs to.
         :type category: str
         :param pending: The video files found while walking the directory.
         :type pending: list[_PendingVideo]
+        :param locked_paths: DB paths held by an active migration task.
+        :type locked_paths: set[str]
         :return: The document of each video keyed by DB path, and whether any file was new.
         :rtype: tuple[dict[str, VideoModel], bool]
         """
@@ -225,6 +244,13 @@ class BrowseFileService:
                 {"path": {"$in": [item.db_path for item in pending]}}
             ).to_list()
         }
+
+        pending = [
+            item for item in pending
+            if item.db_path in documents or item.db_path not in locked_paths
+        ]
+        if not pending:
+            return documents, False
 
         # Newly discovered files, plus known ones whose duration was never resolved.
         needs_duration = [
