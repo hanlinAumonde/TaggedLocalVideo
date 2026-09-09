@@ -112,7 +112,8 @@ class BrowseFileService:
                         ),
                         name,
                         skipCache,
-                        recursiveCalculation
+                        recursiveCalculation,
+                        list_when_empty=True
                     )
                     if entry_node is not None:
                         entries_out.append(entry_node)
@@ -317,7 +318,8 @@ class BrowseFileService:
                                   path: AbsolutePath,
                                   name: str,
                                   skipCache: bool,
-                                  recursiveCalculation: bool) -> DirectoryEntry | None:
+                                  recursiveCalculation: bool,
+                                  list_when_empty: bool = False) -> DirectoryEntry | None:
         """
         Helper method to build a directory entry from its calculated metadata.
 
@@ -329,6 +331,10 @@ class BrowseFileService:
         :type skipCache: bool
         :param recursiveCalculation: Whether to calculate directory metadata recursively.
         :type recursiveCalculation: bool
+        :param list_when_empty: Whether this row exists for a reason other than what it
+            holds. Set for configured pseudo-names, whose place in the listing comes from
+            the configuration rather than from anything found on the storage.
+        :type list_when_empty: bool
         :return: The node for the directory, or None if it holds nothing worth showing.
         :rtype: DirectoryEntry | None
         """
@@ -338,11 +344,7 @@ class BrowseFileService:
             recursiveCalculation=recursiveCalculation
         )
         if total_size == 0.0 or last_modified_time == 0.0:
-            # Nothing aggregates to zero except a directory with no video in it, and those
-            # are noise: a folder of subtitles, a stray empty directory on disk. The one
-            # exception is a folder the user just made — hiding that would make the
-            # directory they created vanish the moment they created it.
-            if not await self.dirMetadataService.is_user_created(
+            if not list_when_empty and not await self.dirMetadataService.is_user_created(
                 path.category, path.DB_format_path()
             ):
                 return None

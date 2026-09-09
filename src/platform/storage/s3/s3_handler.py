@@ -307,7 +307,16 @@ class S3ResourceHandler(BaseResourceHandler):
         Convert path to DB logical format. Auto-detects input:
         - Logical path (starts with category): returns as-is
         - S3 key ("videos/Resource-1/..."): converts to logical
+
+        A directory reaches this method in two shapes — a listing reports it as a
+        CommonPrefix, which always ends in "/", while every other caller builds it as a
+        plain key, which never does. The trailing slash is dropped so one directory has
+        exactly one DB path: two spellings mean lookups keyed on this path (the
+        user-created flag, a dir_metadata row, the parent walked out of ``dirname``) stop
+        finding what the other spelling wrote.
         """
+        path = path.rstrip("/")
+
         if path.startswith(self._category + "/"):
             return path
         pseudo_name, relative = self._get_pseudo_name_from_key(path)
