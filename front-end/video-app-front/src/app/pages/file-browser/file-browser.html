@@ -27,5 +27,6 @@
     [isAtRoot]="isAtRoot()"
     [tableWidth]="tableWidth()"
     (navigateToPath)="navigateToPath($event)"
+    (createFolderResult)="$event && refreshDirectory()"
   />
 </div>

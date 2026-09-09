@@ -184,6 +184,17 @@ mutation DeleteVideo($videoId: ID!) {
 """
 
 
+CREATE_DIRECTORY = """
+mutation CreateDirectory($input: CreateDirectoryInput!) {
+  createDirectory(input: $input) {
+    success
+    name
+    path
+  }
+}
+"""
+
+
 # -----------------------------------------------------------------------
 # ----------------------- Subscription documents ------------------------
 # -----------------------------------------------------------------------
@@ -234,6 +245,15 @@ def make_relative_path_input(
         "skipCache": skip_cache,
         "recursiveCalculation": recursive,
         "relativePath": relative_path,
+    }
+
+
+def make_create_directory_input(
+    name: str = "new_folder", parent_relative_path: str | None = "Test-category/Test-resource",
+) -> dict:
+    return {
+        "parentPath": make_relative_path_input(relative_path=parent_relative_path),
+        "name": name,
     }
 
 

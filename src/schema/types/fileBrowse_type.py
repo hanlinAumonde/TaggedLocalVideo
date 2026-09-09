@@ -1,7 +1,10 @@
 from typing import Annotated, Optional
 import strawberry
 
-from src.schema.types.pydantic_types.fileBrowe_type import RelativePathInputModel
+from src.schema.types.pydantic_types.fileBrowe_type import (
+    CreateDirectoryInputModel,
+    RelativePathInputModel
+)
 from src.schema.types.pydantic_types.batch_operation_type import (
     SeriesOperationInputModel,
     TagsOperationMappingInputModel,
@@ -22,6 +25,12 @@ class RelativePathInput:
     recursiveCalculation: strawberry.auto
     relativePath: strawberry.auto
     parsedPath: strawberry.auto
+
+
+@strawberry.experimental.pydantic.input(model=CreateDirectoryInputModel)
+class CreateDirectoryInput:
+    parentPath: RelativePathInput
+    name: strawberry.auto
 
 
 @strawberry.experimental.pydantic.input(model=TagsOperationMappingInputModel)
@@ -79,3 +88,10 @@ class BatchOperationStatus:
 class VideoMutationResult:
     success: bool
     video: Optional[Video] = None
+
+@strawberry.type
+class DirectoryMutationResult:
+    """A directory that now exists. Carries no ``Video``: a directory has no document."""
+    success: bool
+    name: str
+    path: str

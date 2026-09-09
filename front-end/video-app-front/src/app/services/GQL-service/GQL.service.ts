@@ -13,6 +13,7 @@ import {
   SearchFrom,
   VideoSortOption,
   BrowseDirectoryGQL,
+  CreateDirectoryGQL,
   DeleteVideoGQL,
   VideosBatchOperationInput,
   GetDirectoryMetadataGQL,
@@ -49,6 +50,7 @@ import {
   BatchUpdateVideosDetail,
   BrowseDirectoryDetail,
   CancelMigrationTaskDetail,
+  CreateDirectoryDetail,
   CreateMigrationTaskDetail,
   DeleteVideoDetail,
   DirectoryMetadataDetail,
@@ -81,6 +83,7 @@ export class GqlService {
   private updateVideoMetadataGQL = inject(UpdateVideoMetadataGQL)
   private browseDirectoryGQL = inject(BrowseDirectoryGQL)
   private deleteVideoGQL = inject(DeleteVideoGQL)
+  private createDirectoryGQL = inject(CreateDirectoryGQL)
   private getDirectoryMetadataGQL = inject(GetDirectoryMetadataGQL)
   private batchUpdateVideosSubscriptionGQL = inject(BatchUpdateSubscriptionGQL)
   private batchDeleteVideosSubscriptionGQL = inject(BatchDeleteSubscriptionGQL)
@@ -279,6 +282,21 @@ export class GqlService {
         success: data.deleteVideo?.success ?? false,
         video: data.deleteVideo?.video
       } as DeleteVideoDetail)
+    )
+  }
+
+  createDirectoryMutation(parentPath: string | undefined, name: string): Observable<ResultState<CreateDirectoryDetail>> {
+    return this.toResultStateObservable(
+      this.createDirectoryGQL.mutate({
+        variables: {
+          input: {
+            parentPath: { relativePath: parentPath },
+            name: name
+          }
+        }
+      }),
+      (data) => (data.createDirectory ?? null) as CreateDirectoryDetail | null,
+      false
     )
   }
 

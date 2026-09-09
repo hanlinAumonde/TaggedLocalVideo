@@ -5,7 +5,7 @@ from pymongo import UpdateOne
 
 from src.config import Settings
 from src.features.catalog.video import VideoModel
-from src.errors import FileBrowseError
+from src.errors import FileBrowseError, InputValidationError
 from src.logger import get_logger
 from src.features.browsing.dir_metadata_service import DirMetadataService
 from src.platform.media.ffmpeg_service import FFmpegService
@@ -55,6 +55,10 @@ class VideoEntry:
 
 #: What one row of a directory listing can be.
 BrowseEntry = DirectoryEntry | VideoEntry
+
+#: Characters that would make a new directory name address something other than a single
+#: child of the directory the user is looking at.
+_NAME_SEPARATORS = ("/", "\\")
 
 
 class BrowseFileService:
@@ -334,10 +338,71 @@ class BrowseFileService:
             recursiveCalculation=recursiveCalculation
         )
         if total_size == 0.0 or last_modified_time == 0.0:
-            return None
+            # Nothing aggregates to zero except a directory with no video in it, and those
+            # are noise: a folder of subtitles, a stray empty directory on disk. The one
+            # exception is a folder the user just made — hiding that would make the
+            # directory they created vanish the moment they created it.
+            if not await self.dirMetadataService.is_user_created(
+                path.category, path.DB_format_path()
+            ):
+                return None
         return DirectoryEntry(
             name=name, size=total_size, last_modify_time=last_modified_time
         )
+
+    async def create_directory(self, parent_path: AbsolutePath, name: str) -> str:
+        """
+        Create a sub-directory under ``parent_path`` and record that a user made it.
+
+        The record is what keeps the new folder listed: it holds no video yet, so it
+        aggregates to zero, and ``_get_directory_node`` hides zero-aggregate directories.
+
+        :param parent_path: The directory to create it in. Must be a real directory —
+            the root and category levels list categories and configured mount points,
+            neither of which is a place on the storage.
+        :type parent_path: AbsolutePath
+        :param name: The new directory's name, a single path segment.
+        :type name: str
+        :return: The DB-format path of the created directory.
+        :rtype: str
+        :raises InputValidationError: If the parent is not a real directory, the name is
+            not a single usable segment, or something already occupies that name.
+        """
+        if parent_path.is_root_level() or parent_path.is_category_level():
+            raise InputValidationError(
+                field="parentPath",
+                issue="a folder can only be created inside a resource directory",
+            )
+
+        cleaned = (name or "").strip()
+        if not cleaned:
+            raise InputValidationError(field="name", issue="folder name must not be blank")
+        if any(separator in cleaned for separator in _NAME_SEPARATORS):
+            raise InputValidationError(
+                field="name", issue="folder name must not contain a path separator"
+            )
+        if cleaned in (".", ".."):
+            raise InputValidationError(field="name", issue=f"'{cleaned}' is not a folder name")
+
+        category = parent_path.category
+        handler = self.resourceHandlerService.get_handler(category)
+        new_fs_path = handler.join_path(parent_path.FS_format_path(), cleaned)
+
+        try:
+            handler.create_directory(new_fs_path)
+        except FileExistsError:
+            raise InputValidationError(
+                field="name", issue=f"'{cleaned}' already exists in this directory"
+            )
+        except (OSError, Exception) as e:
+            logger.exception(f"Error creating directory {new_fs_path}: {e}")
+            raise FileBrowseError(f"Error creating directory {cleaned}")
+
+        db_path = AbsolutePath.from_existing_path(
+            path=new_fs_path, category=category, handler=handler
+        ).DB_format_path()
+        await self.dirMetadataService.mark_user_created(category, db_path)
+        return db_path
 
     def get_all_video_entries_in_directory(self, mounted_directory_path: str, category: str) -> list[BaseFileEntry]:
         """

@@ -25,6 +25,7 @@ logger = get_logger("catalog_service")
 class VideoSortOption(str, Enum):
     """How a result page is ordered. Published over GraphQL as-is."""
     Latest = "Latest"
+    LastUpdate = "LastUpdate"
     MostViewed = "MostViewed"
     Loved = "Loved"
     Longest = "Longest"
@@ -37,14 +38,16 @@ class SearchField(str, Enum):
     Tag = "Tag"
 
 
+_DEFAULT_SORT = [("lastModifyTime", -1)]
+
 #: Sort specification per option. Anything unrecognised falls back to newest on disk.
 _SORT_BY_OPTION = {
     VideoSortOption.Latest.value: [("lastViewTime", -1)],
+    VideoSortOption.LastUpdate.value: _DEFAULT_SORT,
     VideoSortOption.MostViewed.value: [("viewCount", -1), ("lastViewTime", -1)],
     VideoSortOption.Loved.value: [("loved", -1), ("lastViewTime", -1)],
     VideoSortOption.Longest.value: [("duration", -1)],
 }
-_DEFAULT_SORT = [("lastModifyTime", -1)]
 
 
 @dataclass(slots=True)

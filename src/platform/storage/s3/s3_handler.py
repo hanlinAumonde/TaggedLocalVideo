@@ -187,6 +187,26 @@ class S3ResourceHandler(BaseResourceHandler):
     def delete_file(self, path: str) -> None:
         self._get_object(path).delete()
 
+    def create_directory(self, path: str) -> None:
+        """
+        Object storage has no directories, so one zero-byte marker key stands in for it.
+        Without the marker an empty "directory" would not exist at all: a prefix is only
+        visible while something lives under it.
+        """
+        pseudo_name, _ = self._get_pseudo_name_from_key(path)
+        bucket = self._get_bucket(pseudo_name)
+        marker_key = path.rstrip("/") + "/"
+
+        # Anything under the prefix means the name is taken as a directory; an object at
+        # the bare key means it is taken as a file.
+        listing = bucket.meta.client.list_objects_v2(
+            Bucket=bucket.name, Prefix=marker_key, MaxKeys=1
+        )
+        if listing.get("KeyCount", 0) > 0 or self.file_exists(path):
+            raise FileExistsError(f"S3 key already in use: {marker_key}")
+
+        bucket.Object(marker_key).put(Body=b"")
+
     # ------------------------------------------------------------------
     # File content read/write
     # ------------------------------------------------------------------

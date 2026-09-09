@@ -74,7 +74,18 @@
           }
         </div>
       </div>
-      <div class="flex items-end">
+      <div class="flex items-end gap-2">
+        <button
+          class="px-4 py-2 bg-neutral-500 gap-2 flex items-center text-white rounded-lg
+                 font-medium hover:bg-neutral-400 hover:disabled:bg-neutral-500
+                 disabled:cursor-no-drop transition-colors"
+          [disabled]="!canCreateFolder()"
+          [title]="canCreateFolder() ? 'Create a new folder here' : 'Enter a resource directory first'"
+          (click)="openNewFolderPanel()"
+        >
+          <mat-icon fontIcon="create_new_folder"></mat-icon>
+          <span class="text-md">New folder</span>
+        </button>
         <div class="px-4 py-2 bg-neutral-500 gap-2 flex items-center
                   text-white rounded-lg font-medium transition-colors"
         >

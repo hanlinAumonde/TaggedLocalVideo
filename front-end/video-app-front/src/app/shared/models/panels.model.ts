@@ -62,6 +62,11 @@ export interface DeleteCheckPanelData {
 export type SeriesAction = 'set' | 'clear';
 export type TagAction = 'append' | 'remove';
 
+export interface NewFolderPanelData {
+  /** The directory the folder goes into, in DB path format. */
+  parentPath: string;
+}
+
 export interface MigrationPanelData {
   sourceVideoId: string;
   sourceVideoName: string;

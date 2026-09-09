@@ -32,6 +32,11 @@ export enum BatchResultType {
   Success = 'Success'
 }
 
+export type CreateDirectoryInput = {
+  name: Scalars['String']['input'];
+  parentPath: RelativePathInput;
+};
+
 export type CreateMigrationTaskInput = {
   conflictStrategy?: InputMaybe<Scalars['String']['input']>;
   sourceVideoId: Scalars['String']['input'];
@@ -42,6 +47,13 @@ export type DirectoryMetadataResult = {
   __typename?: 'DirectoryMetadataResult';
   lastModifiedTime: Scalars['Float']['output'];
   totalSize: Scalars['Float']['output'];
+};
+
+export type DirectoryMutationResult = {
+  __typename?: 'DirectoryMutationResult';
+  name: Scalars['String']['output'];
+  path: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
 };
 
 export type FileBrowseNode = {
@@ -136,6 +148,7 @@ export type MigrationTaskQueryInput = {
 export type Mutation = {
   __typename?: 'Mutation';
   cancelMigrationTask: MigrationTaskMutationResult;
+  createDirectory: DirectoryMutationResult;
   createMigrationTask: MigrationTaskMutationResult;
   deleteVideo: VideoMutationResult;
   migrationPreflight: MigrationPreflightResult;
@@ -146,6 +159,11 @@ export type Mutation = {
 
 export type MutationCancelMigrationTaskArgs = {
   input: MigrationTaskActionInput;
+};
+
+
+export type MutationCreateDirectoryArgs = {
+  input: CreateDirectoryInput;
 };
 
 
@@ -363,6 +381,7 @@ export type VideoSearchResult = {
 };
 
 export enum VideoSortOption {
+  LastUpdate = 'LastUpdate',
   Latest = 'Latest',
   Longest = 'Longest',
   Loved = 'Loved',
@@ -444,6 +463,13 @@ export type RecordVideoViewMutationVariables = Exact<{
 
 
 export type RecordVideoViewMutation = { __typename?: 'Mutation', recordVideoView: { __typename?: 'VideoMutationResult', success: boolean, video?: { __typename?: 'Video', id: string, viewCount: number, lastViewTime: number } | null } };
+
+export type CreateDirectoryMutationVariables = Exact<{
+  input: CreateDirectoryInput;
+}>;
+
+
+export type CreateDirectoryMutation = { __typename?: 'Mutation', createDirectory: { __typename?: 'DirectoryMutationResult', success: boolean, name: string, path: string } };
 
 export type DeleteVideoMutationVariables = Exact<{
   videoId: Scalars['ID']['input'];
@@ -746,6 +772,26 @@ export const RecordVideoViewDocument = gql`
   })
   export class RecordVideoViewGQL extends Apollo.Mutation<RecordVideoViewMutation, RecordVideoViewMutationVariables> {
     override document = RecordVideoViewDocument;
+    
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CreateDirectoryDocument = gql`
+    mutation CreateDirectory($input: CreateDirectoryInput!) {
+  createDirectory(input: $input) {
+    success
+    name
+    path
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CreateDirectoryGQL extends Apollo.Mutation<CreateDirectoryMutation, CreateDirectoryMutationVariables> {
+    override document = CreateDirectoryDocument;
     
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

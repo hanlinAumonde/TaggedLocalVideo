@@ -7,7 +7,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { BatchOperationPanel } from '../batch-operation-panel/batch-operation-panel';
 import { MatMenuModule } from "@angular/material/menu";
 import { DeleteCheckPanel } from '../delete-check-panel/delete-check-panel';
-import { BatchPanelVideoItem, DeleteCheckPanelData, DeleteType } from '../../models/panels.model';
+import { NewFolderPanel } from '../new-folder-panel/new-folder-panel';
+import {
+  BatchPanelVideoItem,
+  DeleteCheckPanelData,
+  DeleteType,
+  NewFolderPanelData
+} from '../../models/panels.model';
 
 @Component({
   selector: 'app-bottom-toolbar',
@@ -29,11 +35,18 @@ export class BottomToolbar {
   tableWidth = input.required<number>();
 
   batchOperationResult = output<boolean>();
+  createFolderResult = output<boolean>();
   navigateToPath = output<string[]>();
 
   paths = computed(() => {
     return ["Root", ...this.currentPath()];
   });
+
+  /**
+   * Only a real directory can hold a new folder. The first two levels are not places on
+   * the storage: the root lists categories, and a category lists configured mount points.
+   */
+  canCreateFolder = computed(() => this.currentPath().length >= 2);
 
   private pathContainer = viewChild<ElementRef>('pathContainer');
 
@@ -156,6 +169,21 @@ export class BottomToolbar {
     const targetPath = this.currentPath().slice(0, index);
     this.pathHistoryService.pushNewPath(targetPath);
     this.navigateToPath.emit(targetPath);
+  }
+
+  openNewFolderPanel() {
+    if (!this.canCreateFolder()) return;
+
+    this.toastService.clearAllToasts();
+
+    const dialogRef = this.dialog.open(NewFolderPanel, {
+      width: '400px',
+      data: { parentPath: this.currentPath().join('/') } as NewFolderPanelData,
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      this.createFolderResult.emit(result ? true : false);
+    });
   }
 
   openBatchOperationPanel() {
