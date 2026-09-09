@@ -13,7 +13,7 @@ from src.platform.storage.absolute_path import AbsolutePath
 from src.platform.storage.base_file_entry import BaseFileEntry
 from src.platform.storage.base_resource_handler import BaseResourceHandler
 from src.platform.storage.resource_handler_service import ResourceHandlerService
-from src.features.migration.migration_service import find_locked_paths
+from src.platform.jobs.path_locks import PathLockRegistry
 
 logger = get_logger("browse_file_service")
 
@@ -44,7 +44,7 @@ class DirectoryEntry:
 @dataclass(slots=True)
 class VideoEntry:
     """
-    A video file in a listing, paired with whether a migration currently holds it.
+    A video file in a listing, paired with whether unfinished background work holds it.
 
     ``is_locked`` is resolved in bulk for the whole directory rather than per file, so it
     is carried here instead of being looked up again downstream.
@@ -63,12 +63,14 @@ class BrowseFileService:
         settings: Settings,
         dir_metadata_service: DirMetadataService,
         resource_handler_service: ResourceHandlerService,
-        ffmpegService: FFmpegService
+        ffmpegService: FFmpegService,
+        path_locks: PathLockRegistry,
     ):
         self.settings = settings
         self.dirMetadataService = dir_metadata_service
         self.resourceHandlerService = resource_handler_service
         self.ffmpegService = ffmpegService
+        self.pathLocks = path_locks
 
     async def get_node_list_in_directory(self,
                                          abs_path: AbsolutePath,
@@ -181,10 +183,10 @@ class BrowseFileService:
         if not pending:
             return directory_entries
 
-        # Files held by a migration are disabled in the browser: one lookup for all of them.
-        # Resolved before the sync because it also decides which files get a document
-        # at all — see ``_sync_video_documents``.
-        locked_paths = await find_locked_paths(item.db_path for item in pending)
+        # Files held by unfinished background work are disabled in the browser: one lookup
+        # for all of them. Resolved before the sync because it also decides which files get
+        # a document at all — see ``_sync_video_documents``.
+        locked_paths = await self.pathLocks.locked_paths(item.db_path for item in pending)
 
         documents, has_new_file = await self._sync_video_documents(
             handler, category, pending, locked_paths
@@ -233,7 +235,8 @@ class BrowseFileService:
         :type category: str
         :param pending: The video files found while walking the directory.
         :type pending: list[_PendingVideo]
-        :param locked_paths: DB paths held by an active migration task.
+        :param locked_paths: DB paths held by unfinished background work, as reported by
+            the path-lock registry. Migration is the case that motivated the rule above.
         :type locked_paths: set[str]
         :return: The document of each video keyed by DB path, and whether any file was new.
         :rtype: tuple[dict[str, VideoModel], bool]
